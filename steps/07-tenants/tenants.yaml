@@ -7,7 +7,7 @@
 # Caveat (wash host v2.10.3): the NATS keyvalue plugin does NOT scope bucket
 # names per workload. The bucket name is whatever the component opens, so
 # tenant isolation for memory rests on each tenant's manifest naming a
-# different bucket. See .run-free demo in steps/07-tenants/README.md.
+# different bucket. caveat-shared-bucket.yaml shows tenant B reading A.
 apiVersion: runtime.wasmcloud.dev/v1alpha1
 kind: WorkloadDeployment
 metadata:

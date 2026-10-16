@@ -1,0 +1,78 @@
+# Step 7: two tenants on one host
+$ scripts/apply.py steps/07-tenants/tenants.yaml
+default-toolbox-tenant-a: WORKLOAD_STATE_RUNNING Workload started successfully
+default-toolbox-tenant-b: WORKLOAD_STATE_RUNNING Workload started successfully
+
+$ curl -s -H 'Host: a.agent.localhost' http://127.0.0.1:18080/ -d 'remember that tenant is alpha'
+[agent] slot remember: tool 'remember' installed
+[agent] slot read-notes: tool 'read_notes' installed
+[agent] slot save-report: tool 'save_report' installed
+[agent] slot fetch: tool 'fetch' installed
+[user] remember that tenant is alpha
+[model] call remember({"key":"tenant","op":"set","value":"alpha"})
+[tool remember] ok: remembered tenant = alpha
+[model] Done. I did everything I was asked: remember: remembered tenant = alpha
+
+$ curl -s -H 'Host: b.agent.localhost' http://127.0.0.1:18080/ -d 'remember that tenant is bravo'
+[agent] slot remember: tool 'remember' installed
+[agent] slot read-notes: tool 'read_notes' installed
+[agent] slot save-report: tool 'save_report' installed
+[agent] slot fetch: tool 'fetch' installed
+[user] remember that tenant is bravo
+[model] call remember({"key":"tenant","op":"set","value":"bravo"})
+[tool remember] ok: remembered tenant = bravo
+[model] Done. I did everything I was asked: remember: remembered tenant = bravo
+
+$ curl -s -H 'Host: a.agent.localhost' http://127.0.0.1:18080/ -d 'what do you remember?'
+[agent] slot remember: tool 'remember' installed
+[agent] slot read-notes: tool 'read_notes' installed
+[agent] slot save-report: tool 'save_report' installed
+[agent] slot fetch: tool 'fetch' installed
+[user] what do you remember?
+[model] call remember({"op":"list"})
+[tool remember] ok: tenant = alpha
+[model] Done. I did everything I was asked: remember: tenant = alpha
+
+$ curl -s -H 'Host: b.agent.localhost' http://127.0.0.1:18080/ -d 'what do you remember?'
+[agent] slot remember: tool 'remember' installed
+[agent] slot read-notes: tool 'read_notes' installed
+[agent] slot save-report: tool 'save_report' installed
+[agent] slot fetch: tool 'fetch' installed
+[user] what do you remember?
+[model] call remember({"op":"list"})
+[tool remember] ok: tenant = bravo
+[model] Done. I did everything I was asked: remember: tenant = bravo
+
+# Caveat: tenant B's manifest names tenant A's bucket
+$ scripts/apply.py steps/07-tenants/caveat-shared-bucket.yaml
+default-toolbox-tenant-b: WORKLOAD_STATE_RUNNING Workload started successfully
+
+$ curl -s -H 'Host: b.agent.localhost' http://127.0.0.1:18080/ -d 'what do you remember?'
+[agent] slot remember: tool 'remember' installed
+[agent] slot read-notes: tool 'read_notes' installed
+[agent] slot save-report: tool 'save_report' installed
+[agent] slot fetch: tool 'fetch' installed
+[user] what do you remember?
+[model] call remember({"op":"list"})
+[tool remember] ok: tenant = alpha
+[model] Done. I did everything I was asked: remember: tenant = alpha
+
+# Load: 1000 requests, 50 concurrent, one tenant; then both tenants at once
+$ ab -n 1000 -c 50 -p hello.txt -H 'Host: a.agent.localhost' http://127.0.0.1:18080/
+Complete requests:      1000
+Failed requests:        0
+Requests per second:    3637.94 [#/sec] (mean)
+  50%     13
+  99%     28
+$ ab -n 500 -c 25 -p recall.txt -H 'Host: a.agent.localhost' ...   (both tenants concurrently)
+Complete requests:      500
+Failed requests:        0
+Requests per second:    1379.64 [#/sec] (mean)
+  50%     18
+  99%     27
+$ ab -n 500 -c 25 -p recall.txt -H 'Host: b.agent.localhost' ...   (both tenants concurrently)
+Complete requests:      500
+Failed requests:        0
+Requests per second:    1379.23 [#/sec] (mean)
+  50%     17
+  99%     27
