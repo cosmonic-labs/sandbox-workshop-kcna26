@@ -55,7 +55,12 @@ impl Guest for Scripted {
             .join("\n");
 
         let mut skipped = Vec::new();
-        for m in messages.iter().filter(|m| m.role == "user" || m.role == "tool") {
+        // Tool errors are not read as instructions: an error that echoes a
+        // path would otherwise be "obeyed" again.
+        let readable = messages.iter().filter(|m| {
+            m.role == "user" || (m.role == "tool" && !m.content.starts_with("ERROR:"))
+        });
+        for m in readable {
             for (name, args) in instructions(&strip_tags(&m.content), &everything) {
                 let call = json!({ "name": name, "arguments": args });
                 if issued.contains(&identity(call)) {
@@ -167,11 +172,16 @@ fn answer(messages: &[Message], skipped: &[String]) -> String {
     text
 }
 
-/// Lines, and sentences within a line ("Then", ". " and "; " split them).
+/// Lines, and sentences within a line (". ", "; ", "? " and "! " split them).
 fn sentences(text: &str) -> Vec<String> {
     let mut out = Vec::new();
     for line in text.lines() {
-        for part in line.split(". ").flat_map(|p| p.split("; ")) {
+        for part in line
+            .split(". ")
+            .flat_map(|p| p.split("; "))
+            .flat_map(|p| p.split("? "))
+            .flat_map(|p| p.split("! "))
+        {
             let part = part.trim();
             if !part.is_empty() {
                 out.push(part.to_string());
