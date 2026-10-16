@@ -1,0 +1,90 @@
+package workshop:toolbox@0.1.0;
+
+/// Shared shapes for the agent, its model and its tools.
+interface types {
+  /// One turn of the conversation.
+  ///
+  /// role is "user", "assistant" or "tool". For a tool turn, tool-name says
+  /// which tool produced the content. For an assistant turn that asked for a
+  /// tool, content is the tool call as JSON: {"name": ..., "arguments": {...}}.
+  record message {
+    role: string,
+    content: string,
+    tool-name: option<string>,
+  }
+
+  /// What a tool tells the model about itself. parameters is a JSON Schema.
+  record tool-def {
+    name: string,
+    description: string,
+    parameters: string,
+  }
+
+  /// A request from the model to run one tool. arguments is a JSON object.
+  record tool-call {
+    name: string,
+    arguments: string,
+  }
+
+  /// The model either answers or asks for a tool.
+  variant completion {
+    text(string),
+    call(tool-call),
+  }
+}
+
+/// A language model. Two implementations ship: model-scripted (offline,
+/// deterministic, and gullible on purpose) and model-real (an
+/// OpenAI-compatible chat completions endpoint).
+interface model {
+  use types.{message, tool-def, completion};
+
+  complete: func(messages: list<message>, tools: list<tool-def>) -> result<completion, string>;
+}
+
+/// One tool. Every tool is its own component with its own capabilities.
+interface tool {
+  use types.{tool-def};
+
+  /// An empty name means "this slot is not installed yet".
+  describe: func() -> tool-def;
+  call: func(arguments: string) -> result<string, string>;
+}
+
+/// The agent. It imports one model and one labelled slot per tool. Each label
+/// names the workload component that fills it, so the manifest, not the
+/// agent's code, decides which component (and which capabilities) sit behind
+/// each slot.
+world agent {
+  import model: model;
+  import remember: tool;
+  import read-notes: tool;
+  import save-report: tool;
+  import fetch: tool;
+}
+
+world model-provider {
+  export model;
+}
+
+world tool-provider {
+  export tool;
+}
+
+world tool-remember {
+  import wasi:keyvalue/store@0.2.0-draft;
+  export tool;
+}
+
+world tool-save-report {
+  import wasi:blobstore/blobstore@0.2.0-draft;
+  export tool;
+}
+
+/// Test fixture, not part of the toolbox: the planted web page, the
+/// exfiltration collector and a fake OpenAI-compatible endpoint, all served
+/// from one HTTP component on names that exist nowhere in DNS.
+world toy-sites {
+  import wasi:keyvalue/store@0.2.0-draft;
+  import wasi:keyvalue/atomics@0.2.0-draft;
+}

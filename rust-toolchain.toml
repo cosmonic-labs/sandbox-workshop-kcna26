@@ -1,0 +1,6 @@
+# 1.98 is the first stable whose bundled wasm-component-ld (0.5.25) can encode
+# labelled `(implements ..)` imports. 1.97.1 ships 0.5.22, which fails with
+# "invalid leading byte (0x2) for import name".
+[toolchain]
+channel = "1.98.1"
+targets = ["wasm32-wasip2"]
