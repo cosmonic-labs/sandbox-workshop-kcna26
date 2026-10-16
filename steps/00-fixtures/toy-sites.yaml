@@ -1,0 +1,33 @@
+# Fixture workload: the planted page, the exfiltration collector and a fake
+# OpenAI-compatible endpoint, all one component, all local.
+#
+# localRoute makes planted.example, collector.example and llm.example
+# reachable by co-located workloads, in memory, when the host runs with
+# --http-local-routing. These names exist nowhere in DNS and are never
+# reachable from the network. sites.localhost is the normal ingress name, so
+# you can read the collector's count from your terminal.
+#
+# The caller's allowedHosts is still enforced BEFORE local routing, so a
+# component that is not allowed collector.example cannot reach it.
+apiVersion: runtime.wasmcloud.dev/v1alpha1
+kind: WorkloadDeployment
+metadata:
+  name: toy-sites
+spec:
+  replicas: 1
+  template:
+    spec:
+      hostInterfaces:
+        - namespace: wasi
+          package: http
+          interfaces: [incoming-handler]
+          config:
+            host: sites.localhost
+            localRoute: planted.example,collector.example,llm.example
+        - namespace: wasi
+          package: keyvalue
+          version: 0.2.0-draft
+          interfaces: [store, atomics]
+      components:
+        - name: toy-sites
+          image: localhost:15051/workshop/toy-sites:0.1.0

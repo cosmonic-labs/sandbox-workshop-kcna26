@@ -1,0 +1,32 @@
+# wash dev variant of steps 1 to 6 (no NATS, no registry, no Docker).
+# Limits found on v2.10.3 (see README): dev.volumes mount into EVERY
+# component, read-write; no localRoute (DevRouter), so test sites must be real
+# listeners.
+dev:
+  command: "true"
+  component_path: /Users/egregory/cosmonic/probes/workshop-toolbox/target/wasm32-wasip2/release/agent.wasm
+  address: 127.0.0.1:18100
+  wasi_keyvalue_path: /Users/egregory/cosmonic/probes/workshop-toolbox/.run/dev-kv
+  wasi_blobstore_path: /Users/egregory/cosmonic/probes/workshop-toolbox/.run/dev-blob
+  volumes:
+    - host_path: /Users/egregory/cosmonic/probes/workshop-toolbox/steps/03-read-notes/notes
+      guest_path: /notes
+  components:
+    - name: model
+      file: /Users/egregory/cosmonic/probes/workshop-toolbox/target/wasm32-wasip2/release/model_scripted.wasm
+      allowedHosts: []
+    - name: remember
+      file: /Users/egregory/cosmonic/probes/workshop-toolbox/target/wasm32-wasip2/release/tool_remember.wasm
+      allowedHosts: []
+    - name: read-notes
+      file: /Users/egregory/cosmonic/probes/workshop-toolbox/target/wasm32-wasip2/release/tool_read_notes.wasm
+      allowedHosts: []
+    - name: save-report
+      file: /Users/egregory/cosmonic/probes/workshop-toolbox/target/wasm32-wasip2/release/tool_save_report.wasm
+      allowedHosts: []
+    - name: fetch
+      file: /Users/egregory/cosmonic/probes/workshop-toolbox/target/wasm32-wasip2/release/tool_fetch.wasm
+      allowedHosts:
+        - 127.0.0.1:18090
+workload:
+  allowedHosts: []

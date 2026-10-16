@@ -1,0 +1,71 @@
+# Step 7 caveat: tenant B's manifest names tenant A's keyvalue bucket.
+#
+# On wash host v2.10.3 the NATS keyvalue plugin opens whatever bucket the
+# component asks for on the host's shared NATS connection; nothing ties a
+# bucket to a workload. So isolation between tenants is only as strong as
+# whoever writes the manifests. A platform needs either a namespace per tenant
+# enforced at admission, a NATS account per tenant, or operator-declared
+# bindings; the stock host does not do it for you.
+apiVersion: runtime.wasmcloud.dev/v1alpha1
+kind: WorkloadDeployment
+metadata:
+  name: toolbox-tenant-b
+spec:
+  replicas: 1
+  template:
+    spec:
+      hostInterfaces:
+        - namespace: wasi
+          package: http
+          interfaces: [incoming-handler]
+          config:
+            host: b.agent.localhost
+        - namespace: wasi
+          package: keyvalue
+          version: 0.2.0-draft
+          interfaces: [store]
+        - namespace: wasi
+          package: blobstore
+          version: 0.2.0-draft
+          interfaces: [blobstore]
+          config:
+            # The NATS blobstore refuses ("unauthorized") any container not
+            # listed here. The list is per workload, not per component.
+            buckets: tenant-b-reports
+      components:
+        - name: agent
+          image: localhost:15051/workshop/agent:0.1.0
+        - name: model
+          image: localhost:15051/workshop/model-scripted:0.1.0
+        # remember is the only component that imports wasi:keyvalue. Under
+        # `wash host` the backend is NATS JetStream KV (--data-nats-url).
+        - name: remember
+          image: localhost:15051/workshop/tool-remember:0.1.0
+          localResources:
+            environment:
+              config:
+                MEMORY_BUCKET: tenant-a-memory   # <- names tenant A's bucket
+        - name: read-notes
+          image: localhost:15051/workshop/tool-read-notes:0.1.0
+          localResources:
+            volumeMounts:
+              - name: notes
+                mountPath: /notes
+                readOnly: true
+        - name: save-report
+          image: localhost:15051/workshop/tool-save-report:0.1.0
+          localResources:
+            environment:
+              config:
+                REPORT_CONTAINER: tenant-b-reports
+        - name: fetch
+          image: localhost:15051/workshop/tool-fetch:0.1.0
+          localResources:
+            allowedHosts:
+              - planted.example
+      volumes:
+        - name: notes
+          hostPath:
+            # Relative paths are a convenience of scripts/apply.py; on a
+            # cluster this is an absolute path on the node.
+            path: ../03-read-notes/notes
