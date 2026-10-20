@@ -21,8 +21,18 @@ fi
 if [ ! -d "$ROOT/.upstream/charts/runtime-operator" ]; then
   git clone --quiet --depth 1 --branch v2.10.3 https://github.com/wasmCloud/wasmCloud "$ROOT/.upstream"
 fi
-# Let host pods pull from the local registry by container name.
+# The cluster pulls components from a registry:2 container on the kind
+# network, by container name (scripts/kube-apply.sh rewrites the image
+# references). Reuse it if `REGISTRY_MODE=docker make up` already started it;
+# otherwise start one on 127.0.0.1:15052 so it never collides with zot.
+if ! docker ps --format '{{.Names}}' | grep -qx "$REGISTRY_CONTAINER"; then
+  docker rm -f "$REGISTRY_CONTAINER" >/dev/null 2>&1 || true
+  docker run -d --name "$REGISTRY_CONTAINER" -p "127.0.0.1:15052:5000" registry:2 >/dev/null
+  sleep 1
+fi
 docker network connect kind "$REGISTRY_CONTAINER" 2>/dev/null || true
+KIND_REGISTRY="localhost:$(docker port "$REGISTRY_CONTAINER" 5000/tcp | head -1 | sed 's/.*://')"
+REGISTRY="$KIND_REGISTRY" "$ROOT/scripts/push.sh" "${SRC:-$ROOT/artifacts}"
 helm upgrade --install wasmcloud "$ROOT/.upstream/charts/runtime-operator" \
   --namespace wasmcloud --create-namespace -f "$ROOT/k8s/values.yaml" --wait --timeout 10m
 kubectl -n wasmcloud get pods

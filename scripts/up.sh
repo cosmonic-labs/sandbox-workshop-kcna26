@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Start a local upstream wasmCloud v2 stack with no Kubernetes:
 #   nats-server (JetStream) -> scheduler bus + keyvalue/blobstore backend
-#   registry:2 container    -> OCI registry the host pulls components from
+#   zot (or registry:2)     -> OCI registry the host pulls components from
 #   wash host               -> the wasmCloud host (same binary the chart runs)
 set -euo pipefail
 source "$(dirname "$0")/env.sh"
@@ -12,9 +12,29 @@ if ! nc -z 127.0.0.1 "$NATS_PORT" 2>/dev/null; then
   echo $! >"$RUN_DIR/nats.pid"
 fi
 
-if ! docker ps --format '{{.Names}}' | grep -qx "$REGISTRY_CONTAINER"; then
-  docker rm -f "$REGISTRY_CONTAINER" >/dev/null 2>&1 || true
-  docker run -d --name "$REGISTRY_CONTAINER" -p "127.0.0.1:${REGISTRY##*:}:5000" registry:2 >/dev/null
+REG_PORT="${REGISTRY##*:}"
+if [ "$REGISTRY_MODE" = docker ]; then
+  if ! docker ps --format '{{.Names}}' | grep -qx "$REGISTRY_CONTAINER"; then
+    docker rm -f "$REGISTRY_CONTAINER" >/dev/null 2>&1 || true
+    docker run -d --name "$REGISTRY_CONTAINER" -p "127.0.0.1:$REG_PORT:5000" registry:2 >/dev/null
+  fi
+elif ! nc -z 127.0.0.1 "$REG_PORT" 2>/dev/null; then
+  if [ ! -x "$ROOT/.tools/zot" ]; then
+    echo "no registry: .tools/zot is missing. Run 'make tools' (or set REGISTRY_MODE=docker)." >&2
+    exit 1
+  fi
+  # Blobs and manifests live on disk in .run/registry, so a restart keeps
+  # what you pushed. No TLS and no auth: it listens on 127.0.0.1 only.
+  mkdir -p "$RUN_DIR/registry"
+  cat >"$RUN_DIR/zot.json" <<JSON
+{"distSpecVersion": "1.1.1",
+ "storage": {"rootDirectory": "$RUN_DIR/registry", "gc": false, "dedupe": false},
+ "http": {"address": "127.0.0.1", "port": "$REG_PORT"},
+ "log": {"level": "warn"}}
+JSON
+  "$ROOT/.tools/zot" serve "$RUN_DIR/zot.json" >"$RUN_DIR/registry.log" 2>&1 &
+  echo $! >"$RUN_DIR/registry.pid"
+  for _ in $(seq 1 20); do nc -z 127.0.0.1 "$REG_PORT" 2>/dev/null && break; sleep 0.25; done
 fi
 
 sleep 1
@@ -44,5 +64,5 @@ for _ in $(seq 1 60); do
   sleep 0.5
 done
 echo "nats      $NATS_URL"
-echo "registry  $REGISTRY"
+echo "registry  $REGISTRY ($REGISTRY_MODE)"
 echo "host      http://$HOST_HTTP  (id: $(cat "$RUN_DIR/host.id" 2>/dev/null || echo unknown))"

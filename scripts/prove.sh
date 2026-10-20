@@ -24,6 +24,13 @@ apply() {
   echo
 }
 
+# Step 1 lists the harness's imports from target/. Without a local build, use
+# the prebuilt artifacts there (same files as artifacts/, checked by SHA256SUMS).
+if [ ! -f target/wasm32-wasip2/release/agent.wasm ]; then
+  mkdir -p target/wasm32-wasip2/release
+  cp artifacts/*.wasm target/wasm32-wasip2/release/
+fi
+
 # Clean slate: drop demo buckets and stop every workload this repo runs.
 for b in agent-memory tenant-a-memory tenant-b-memory toy-collector; do N kv del "$b" -f >/dev/null 2>&1 || true; done
 for b in reports tenant-a-reports tenant-b-reports; do N object del "$b" -f >/dev/null 2>&1 || true; done

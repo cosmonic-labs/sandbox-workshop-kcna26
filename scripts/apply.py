@@ -29,6 +29,9 @@ import yaml
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 NATS_URL = os.environ.get("NATS_URL", "nats://127.0.0.1:14222")
+# Prefer the nats CLI that `make tools` put in .tools/, then whatever is on PATH.
+_LOCAL_NATS = os.path.join(ROOT, ".tools", "nats")
+NATS = _LOCAL_NATS if os.access(_LOCAL_NATS, os.X_OK) else "nats"
 
 
 def host_id():
@@ -38,7 +41,7 @@ def host_id():
 
 def nats_req(subject, payload, timeout="60s"):
     out = subprocess.run(
-        ["nats", "--server", NATS_URL, "req", subject, json.dumps(payload),
+        [NATS, "--server", NATS_URL, "req", subject, json.dumps(payload),
          "--timeout", timeout, "--raw"],
         capture_output=True, text=True,
     )
