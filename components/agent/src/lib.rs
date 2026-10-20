@@ -1,14 +1,16 @@
-//! The workshop agent.
+//! The agent harness: the part of the agent that runs the loop.
 //!
-//! It answers HTTP: send a prompt as the request body (or `?q=`) and it runs
-//! a small loop: ask the model, run the tool the model asks for, feed the
-//! result back, repeat until the model answers in text. The response is the
-//! whole transcript so you can watch every step.
+//! An agent here is four things working together: this harness, a model, a
+//! set of tools and the storage those tools use. The harness answers HTTP:
+//! send a prompt as the request body (or `?q=`) and it asks the model what to
+//! do, runs the tool the model asks for, feeds the result back, and repeats
+//! until the model answers in text. The response is the whole transcript so
+//! you can watch every step.
 //!
-//! The agent itself holds no capabilities. Its world imports the model and
+//! The harness itself holds no capabilities. Its world imports the model and
 //! four labelled tool slots and nothing else from the host; whatever a tool
 //! can reach is decided by the manifest entry of the component filling that
-//! slot.
+//! slot. `tools.rs` translates the model's JSON into typed tool calls.
 
 wit_bindgen::generate!({
     path: "../../wit",
@@ -16,22 +18,14 @@ wit_bindgen::generate!({
     generate_all,
 });
 
+mod tools;
+
+use tools::{Args, TOOLS};
 use workshop::toolbox::types::{Completion, Message, ToolDef};
 use wstd::http::{Body, Request, Response};
 
 /// Hard stop so a hijacked model cannot loop forever.
 const MAX_STEPS: usize = 8;
-
-type Describe = fn() -> ToolDef;
-type Call = fn(&str) -> Result<String, String>;
-
-/// The four labelled slots, in the order the agent offers them.
-const SLOTS: [(&str, Describe, Call); 4] = [
-    ("remember", remember::describe, remember::call),
-    ("read-notes", read_notes::describe, read_notes::call),
-    ("save-report", save_report::describe, save_report::call),
-    ("fetch", fetch::describe, fetch::call),
-];
 
 #[wstd::http_server]
 async fn main(mut req: Request<Body>) -> Result<Response<Body>, wstd::http::Error> {
@@ -55,16 +49,16 @@ async fn main(mut req: Request<Body>) -> Result<Response<Body>, wstd::http::Erro
 
 fn run(prompt: &str) -> String {
     let mut out = String::new();
-    // Ask every slot what it is; empty names are slots not installed yet.
-    let mut installed: Vec<(ToolDef, Call)> = Vec::new();
-    for (slot, describe, call) in SLOTS {
-        let def = describe();
-        if !def.name.is_empty() {
-            out.push_str(&format!("[agent] slot {slot}: tool '{}' installed\n", def.name));
-            installed.push((def, call));
-        }
-    }
-    let defs: Vec<ToolDef> = installed.iter().map(|(d, _)| d.clone()).collect();
+    // Every function in the table is offered to the model. A slot that has
+    // no real tool yet answers with a "not installed" error when called.
+    let defs: Vec<ToolDef> = TOOLS
+        .iter()
+        .map(|t| ToolDef {
+            name: t.name.into(),
+            description: t.description.into(),
+            parameters: t.schema(),
+        })
+        .collect();
 
     let mut messages = vec![Message {
         role: "user".into(),
@@ -81,12 +75,13 @@ fn run(prompt: &str) -> String {
             }
             Ok(Completion::Call(call)) => {
                 out.push_str(&format!("[model] call {}({})\n", call.name, call.arguments));
-                let Some((_, run_tool)) = installed.iter().find(|(d, _)| d.name == call.name)
-                else {
+                let Some(tool) = TOOLS.iter().find(|t| t.name == call.name) else {
                     out.push_str(&format!("[agent] no tool named '{}'\n", call.name));
                     return out;
                 };
-                let result = match run_tool(&call.arguments) {
+                let args: serde_json::Value =
+                    serde_json::from_str(&call.arguments).unwrap_or_default();
+                let result = match (tool.call)(&Args(args.clone())) {
                     Ok(ok) => {
                         out.push_str(&format!("[tool {}] ok: {}\n", call.name, one_line(&ok)));
                         ok
@@ -98,12 +93,8 @@ fn run(prompt: &str) -> String {
                 };
                 messages.push(Message {
                     role: "assistant".into(),
-                    content: serde_json::json!({
-                        "name": call.name,
-                        "arguments": serde_json::from_str::<serde_json::Value>(&call.arguments)
-                            .unwrap_or(serde_json::Value::String(call.arguments.clone())),
-                    })
-                    .to_string(),
+                    content: serde_json::json!({ "name": call.name, "arguments": args })
+                        .to_string(),
                     tool_name: None,
                 });
                 messages.push(Message {

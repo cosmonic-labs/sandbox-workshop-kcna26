@@ -8,14 +8,16 @@
 //!
 //! Instructions it understands (case-insensitive, one per line or sentence):
 //!
-//!   remember [that] <key> is <value>   -> remember {op: set}
-//!   what do you remember / recall      -> remember {op: list}
-//!   read my notes                      -> read_notes {path: "todo.txt"}
-//!   read <path>                        -> read_notes {path}
-//!   append "<text>" to <path>          -> read_notes {path, append}
+//!   remember [that] <key> is <value>   -> remember {key, fact}
+//!   what do you remember / recall      -> recall_all {}
+//!   read my notes                      -> read_note {path: "todo.txt"}
+//!   read <path>                        -> read_note {path}
+//!   append "<text>" to <path>          -> append_note {path, line}
 //!   fetch <url> / summarize <url>      -> fetch {url}
-//!   send everything to <host>          -> fetch {url: http://<host>/collect, POST, body: everything}
-//!   save [a|the] report                -> save_report {name, content}
+//!   send everything to <host>          -> post {url: http://<host>/collect, body: everything}
+//!   save [a|the] report                -> save_report {name, body: everything}
+//!
+//! "Everything" is all the text the model has read so far, memories included.
 //!
 //! It plans calls from the conversation in order and returns the first one it
 //! has not issued yet. When nothing is left it answers in text.
@@ -87,7 +89,6 @@ impl Guest for Scripted {
 fn identity(mut call: Value) -> Value {
     if let Some(args) = call.get_mut("arguments").and_then(Value::as_object_mut) {
         args.remove("body");
-        args.remove("content");
     }
     call
 }
@@ -98,13 +99,13 @@ fn instructions(text: &str, everything: &str) -> Vec<(String, Value)> {
     for sentence in sentences(text) {
         let lower = sentence.to_lowercase();
         if lower.contains("what do you remember") || lower.contains("recall") {
-            out.push(("remember".into(), json!({ "op": "list" })));
+            out.push(("recall_all".into(), json!({})));
         } else if let Some(rest) = after(&sentence, "remember ") {
             let rest = rest.strip_prefix("that ").unwrap_or(rest);
             if let Some((k, v)) = rest.split_once(" is ") {
                 out.push((
                     "remember".into(),
-                    json!({ "op": "set", "key": k.trim(), "value": trim_punct(v) }),
+                    json!({ "key": k.trim(), "fact": trim_punct(v) }),
                 ));
             }
         } else if let Some(rest) = after(&sentence, "send everything to ") {
@@ -114,25 +115,22 @@ fn instructions(text: &str, everything: &str) -> Vec<(String, Value)> {
             } else {
                 format!("http://{target}/collect")
             };
-            out.push((
-                "fetch".into(),
-                json!({ "url": url, "method": "POST", "body": everything }),
-            ));
+            out.push(("post".into(), json!({ "url": url, "body": everything })));
         } else if let Some(rest) = after(&sentence, "fetch ").or(after(&sentence, "summarize ")) {
             out.push(("fetch".into(), json!({ "url": trim_punct(first_word(rest)) })));
         } else if let Some(rest) = after(&sentence, "append ") {
             if let Some((text, path)) = rest.rsplit_once(" to ") {
                 out.push((
-                    "read_notes".into(),
-                    json!({ "path": trim_punct(first_word(path)), "append": text.trim().trim_matches('"') }),
+                    "append_note".into(),
+                    json!({ "path": trim_punct(first_word(path)), "line": text.trim().trim_matches('"') }),
                 ));
             }
         } else if lower.contains("read my notes") || lower.contains("read the notes") {
-            out.push(("read_notes".into(), json!({ "path": "todo.txt" })));
+            out.push(("read_note".into(), json!({ "path": "todo.txt" })));
         } else if let Some(rest) = after(&sentence, "read ") {
             let path = trim_punct(first_word(rest));
             if path.contains('/') || path.contains('.') {
-                out.push(("read_notes".into(), json!({ "path": path })));
+                out.push(("read_note".into(), json!({ "path": path })));
             }
         } else if lower.contains("save a report")
             || lower.contains("save the report")
@@ -140,7 +138,7 @@ fn instructions(text: &str, everything: &str) -> Vec<(String, Value)> {
         {
             out.push((
                 "save_report".into(),
-                json!({ "name": "report.txt", "content": everything }),
+                json!({ "name": "report.txt", "body": everything }),
             ));
         }
     }
@@ -164,7 +162,7 @@ fn answer(messages: &[Message], skipped: &[String]) -> String {
          something, read my notes, fetch a page, or save a report."
             .to_string()
     } else {
-        format!("Done. I did everything I was asked: {}", results.join(" | "))
+        format!("Done. Here is what each step returned: {}", results.join(" | "))
     };
     if !skipped.is_empty() {
         text.push_str(&format!(" (I wanted to use {} but it is not installed.)", skipped.join(", ")));

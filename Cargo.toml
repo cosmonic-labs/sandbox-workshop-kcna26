@@ -4,11 +4,11 @@ members = [
   "components/agent",
   "components/model-scripted",
   "components/model-real",
-  "components/tool-stub",
-  "components/tool-remember",
-  "components/tool-read-notes",
-  "components/tool-save-report",
-  "components/tool-fetch",
+  "components/not-installed",
+  "components/tool-memory",
+  "components/tool-notes",
+  "components/tool-reports",
+  "components/tool-web",
   "components/toy-sites",
 ]
 

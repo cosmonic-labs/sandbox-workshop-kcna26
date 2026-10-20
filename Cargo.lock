@@ -220,6 +220,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "not-installed"
+version = "0.1.0"
+dependencies = [
+ "wit-bindgen 0.62.0",
+]
+
+[[package]]
 name = "parking"
 version = "2.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -337,49 +344,32 @@ dependencies = [
 ]
 
 [[package]]
-name = "tool-fetch"
+name = "tool-memory"
 version = "0.1.0"
 dependencies = [
- "serde",
- "serde_json",
+ "wit-bindgen 0.62.0",
+]
+
+[[package]]
+name = "tool-notes"
+version = "0.1.0"
+dependencies = [
+ "wit-bindgen 0.62.0",
+]
+
+[[package]]
+name = "tool-reports"
+version = "0.1.0"
+dependencies = [
+ "wit-bindgen 0.62.0",
+]
+
+[[package]]
+name = "tool-web"
+version = "0.1.0"
+dependencies = [
  "wit-bindgen 0.62.0",
  "wstd",
-]
-
-[[package]]
-name = "tool-read-notes"
-version = "0.1.0"
-dependencies = [
- "serde",
- "serde_json",
- "wit-bindgen 0.62.0",
-]
-
-[[package]]
-name = "tool-remember"
-version = "0.1.0"
-dependencies = [
- "serde",
- "serde_json",
- "wit-bindgen 0.62.0",
-]
-
-[[package]]
-name = "tool-save-report"
-version = "0.1.0"
-dependencies = [
- "serde",
- "serde_json",
- "wit-bindgen 0.62.0",
-]
-
-[[package]]
-name = "tool-stub"
-version = "0.1.0"
-dependencies = [
- "serde",
- "serde_json",
- "wit-bindgen 0.62.0",
 ]
 
 [[package]]

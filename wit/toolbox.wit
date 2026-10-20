@@ -1,6 +1,61 @@
 package workshop:toolbox@0.1.0;
 
-/// Shared shapes for the agent, its model and its tools.
+// ---------------------------------------------------------------------------
+// The tools.
+//
+// Each tool is an ordinary interface with typed functions, the kind you would
+// write for any program. None of them knows about agents, models or JSON.
+// Every tool ships as its own component, so each one gets its own
+// capabilities (storage, a folder, network hosts) from the workload manifest.
+// ---------------------------------------------------------------------------
+
+/// Long term memory: short facts stored under a key.
+interface memory {
+  /// One remembered fact.
+  record entry {
+    key: string,
+    fact: string,
+  }
+
+  /// Store `fact` under `key`, replacing anything stored there before.
+  remember: func(key: string, fact: string) -> result<_, string>;
+
+  /// The fact stored under `key`, or none if nothing is stored there.
+  recall: func(key: string) -> result<option<string>, string>;
+
+  /// Every fact stored so far.
+  recall-all: func() -> result<list<entry>, string>;
+}
+
+/// The user's notes: text files in one folder.
+interface notes {
+  /// The contents of the file at `path`, relative to the notes folder.
+  read: func(path: string) -> result<string, string>;
+
+  /// Add `line` to the end of the file at `path`.
+  append: func(path: string, line: string) -> result<_, string>;
+}
+
+/// Reports: named text documents kept in object storage.
+interface reports {
+  /// Save `body` as the report called `name`, replacing any older version.
+  save: func(name: string, body: string) -> result<_, string>;
+}
+
+/// The web: plain HTTP requests.
+interface web {
+  /// GET `url` and return the response body.
+  fetch: func(url: string) -> result<string, string>;
+
+  /// POST `body` to `url` and return the response body.
+  post: func(url: string, body: string) -> result<string, string>;
+}
+
+// ---------------------------------------------------------------------------
+// The model.
+// ---------------------------------------------------------------------------
+
+/// Shapes the agent harness and the model use to talk to each other.
 interface types {
   /// One turn of the conversation.
   ///
@@ -13,7 +68,7 @@ interface types {
     tool-name: option<string>,
   }
 
-  /// What a tool tells the model about itself. parameters is a JSON Schema.
+  /// What the model is told about one tool. parameters is a JSON Schema.
   record tool-def {
     name: string,
     description: string,
@@ -26,7 +81,7 @@ interface types {
     arguments: string,
   }
 
-  /// The model either answers or asks for a tool.
+  /// The model either answers in text or asks for a tool.
   variant completion {
     text(string),
     call(tool-call),
@@ -35,54 +90,62 @@ interface types {
 
 /// A language model. Two implementations ship: model-scripted (offline,
 /// deterministic, and gullible on purpose) and model-real (an
-/// OpenAI-compatible chat completions endpoint).
+/// OpenAI compatible chat completions endpoint).
 interface model {
   use types.{message, tool-def, completion};
 
   complete: func(messages: list<message>, tools: list<tool-def>) -> result<completion, string>;
 }
 
-/// One tool. Every tool is its own component with its own capabilities.
-interface tool {
-  use types.{tool-def};
+// ---------------------------------------------------------------------------
+// Worlds: what each component imports and exports.
+// ---------------------------------------------------------------------------
 
-  /// An empty name means "this slot is not installed yet".
-  describe: func() -> tool-def;
-  call: func(arguments: string) -> result<string, string>;
-}
-
-/// The agent. It imports one model and one labelled slot per tool. Each label
-/// names the workload component that fills it, so the manifest, not the
-/// agent's code, decides which component (and which capabilities) sit behind
-/// each slot.
+/// The agent harness. It imports one model and one labelled slot per tool.
+/// Each label names the workload component that fills it, so the manifest,
+/// not the harness code, decides which component (and which capabilities)
+/// sits behind each slot.
 world agent {
   import model: model;
-  import remember: tool;
-  import read-notes: tool;
-  import save-report: tool;
-  import fetch: tool;
+  import memory: memory;
+  import notes: notes;
+  import reports: reports;
+  import web: web;
 }
 
 world model-provider {
   export model;
 }
 
-world tool-provider {
-  export tool;
-}
-
-world tool-remember {
+world memory-tool {
   import wasi:keyvalue/store@0.2.0-draft;
-  export tool;
+  export memory;
 }
 
-world tool-save-report {
+world notes-tool {
+  export notes;
+}
+
+world reports-tool {
   import wasi:blobstore/blobstore@0.2.0-draft;
-  export tool;
+  export reports;
+}
+
+world web-tool {
+  export web;
+}
+
+/// The placeholder that fills every slot until a step installs the real
+/// tool. One image, all four interfaces, every function returns an error.
+world not-installed {
+  export memory;
+  export notes;
+  export reports;
+  export web;
 }
 
 /// Test fixture, not part of the toolbox: the planted web page, the
-/// exfiltration collector and a fake OpenAI-compatible endpoint, all served
+/// exfiltration collector and a fake OpenAI compatible endpoint, all served
 /// from one HTTP component on names that exist nowhere in DNS.
 world toy-sites {
   import wasi:keyvalue/store@0.2.0-draft;

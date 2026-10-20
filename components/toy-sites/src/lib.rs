@@ -86,7 +86,7 @@ async fn main(mut req: Request<Body>) -> Result<Response<Body>, wstd::http::Erro
 }
 
 /// A canned OpenAI-style answer, so the model-real swap can be shown offline.
-/// It asks for the remember tool when the user says "recall", and otherwise
+/// It asks for the recall_all tool when the user says "recall", and otherwise
 /// answers in text describing what it received.
 fn fake_llm(body: &str) -> String {
     let req: Value = serde_json::from_str(body).unwrap_or(Value::Null);
@@ -98,7 +98,7 @@ fn fake_llm(body: &str) -> String {
     {
         json!({ "role": "assistant", "content": null, "tool_calls": [{
             "id": "call_1", "type": "function",
-            "function": { "name": "remember", "arguments": "{\"op\":\"list\"}" }
+            "function": { "name": "recall_all", "arguments": "{}" }
         }]})
     } else if last["role"] == "tool" {
         json!({ "role": "assistant",

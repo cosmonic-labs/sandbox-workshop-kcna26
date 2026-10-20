@@ -1,5 +1,5 @@
 [package]
-name = "tool-remember"
+name = "tool-memory"
 edition.workspace = true
 version.workspace = true
 publish.workspace = true
@@ -9,6 +9,4 @@ crate-type = ["cdylib"]
 
 [dependencies]
 wit-bindgen.workspace = true
-serde.workspace = true
-serde_json.workspace = true
 
