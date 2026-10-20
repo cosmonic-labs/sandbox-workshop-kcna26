@@ -17,6 +17,10 @@ nodes:
 YAML
   kind create cluster --name "$CLUSTER" --config "$RUN_DIR/kind-config.yaml" --kubeconfig "$KUBECONFIG"
 fi
+# The upstream chart, from the v2.10.3 tag (gitignored, fetched once).
+if [ ! -d "$ROOT/.upstream/charts/runtime-operator" ]; then
+  git clone --quiet --depth 1 --branch v2.10.3 https://github.com/wasmCloud/wasmCloud "$ROOT/.upstream"
+fi
 # Let host pods pull from the local registry by container name.
 docker network connect kind "$REGISTRY_CONTAINER" 2>/dev/null || true
 helm upgrade --install wasmcloud "$ROOT/.upstream/charts/runtime-operator" \
