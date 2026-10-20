@@ -18,7 +18,13 @@ if ! docker ps --format '{{.Names}}' | grep -qx "$REGISTRY_CONTAINER"; then
 fi
 
 sleep 1
-if ! nc -z 127.0.0.1 "${HOST_HTTP##*:}" 2>/dev/null; then
+host_running() { [ -f "$RUN_DIR/host.pid" ] && kill -0 "$(cat "$RUN_DIR/host.pid")" 2>/dev/null; }
+if ! host_running; then
+  if nc -z 127.0.0.1 "${HOST_HTTP##*:}" 2>/dev/null; then
+    echo "port ${HOST_HTTP##*:} is already in use by something else; set HOST_HTTP" >&2
+    exit 1
+  fi
+  rm -f "$RUN_DIR/host.id"
   "$WASH" host \
     --host-name workshop-host \
     --scheduler-nats-url "$NATS_URL" \

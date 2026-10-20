@@ -1,31 +1,37 @@
 # wash dev variant of steps 1 to 6 (no NATS, no registry, no Docker).
+# Run from this folder after building: cd steps/dev && ../../.tools/wash dev
+# Paths are relative to this folder.
+#
 # Limits found on v2.10.3 (see README): dev.volumes mount into EVERY
-# component, read-write; no localRoute (DevRouter), so test sites must be real
-# listeners.
+# component, read write, so step 3's attack is NOT contained here (and the
+# append lands in steps/03-notes/notes/todo.txt; git checkout it); there is
+# no localRoute, so test sites must be real listeners (127.0.0.1:18090).
+# Without allowedHosts a dev component may reach any host, so every entry
+# below says allowedHosts explicitly.
 dev:
   command: "true"
-  component_path: /Users/egregory/cosmonic/probes/workshop-toolbox/target/wasm32-wasip2/release/agent.wasm
+  component_path: ../../target/wasm32-wasip2/release/agent.wasm
   address: 127.0.0.1:18100
-  wasi_keyvalue_path: /Users/egregory/cosmonic/probes/workshop-toolbox/.run/dev-kv
-  wasi_blobstore_path: /Users/egregory/cosmonic/probes/workshop-toolbox/.run/dev-blob
+  wasi_keyvalue_path: ../../.run/dev-kv
+  wasi_blobstore_path: ../../.run/dev-blob
   volumes:
-    - host_path: /Users/egregory/cosmonic/probes/workshop-toolbox/steps/03-read-notes/notes
+    - host_path: ../03-notes/notes
       guest_path: /notes
   components:
     - name: model
-      file: /Users/egregory/cosmonic/probes/workshop-toolbox/target/wasm32-wasip2/release/model_scripted.wasm
+      file: ../../target/wasm32-wasip2/release/model_scripted.wasm
       allowedHosts: []
-    - name: remember
-      file: /Users/egregory/cosmonic/probes/workshop-toolbox/target/wasm32-wasip2/release/tool_remember.wasm
+    - name: memory
+      file: ../../target/wasm32-wasip2/release/tool_memory.wasm
       allowedHosts: []
-    - name: read-notes
-      file: /Users/egregory/cosmonic/probes/workshop-toolbox/target/wasm32-wasip2/release/tool_read_notes.wasm
+    - name: notes
+      file: ../../target/wasm32-wasip2/release/tool_notes.wasm
       allowedHosts: []
-    - name: save-report
-      file: /Users/egregory/cosmonic/probes/workshop-toolbox/target/wasm32-wasip2/release/tool_save_report.wasm
+    - name: reports
+      file: ../../target/wasm32-wasip2/release/tool_reports.wasm
       allowedHosts: []
-    - name: fetch
-      file: /Users/egregory/cosmonic/probes/workshop-toolbox/target/wasm32-wasip2/release/tool_fetch.wasm
+    - name: web
+      file: ../../target/wasm32-wasip2/release/tool_web.wasm
       allowedHosts:
         - 127.0.0.1:18090
 workload:

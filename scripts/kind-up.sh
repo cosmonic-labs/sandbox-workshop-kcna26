@@ -12,7 +12,7 @@ apiVersion: kind.x-k8s.io/v1alpha4
 nodes:
   - role: control-plane
     extraMounts:
-      - hostPath: $ROOT/steps/03-read-notes/notes
+      - hostPath: $ROOT/steps/03-notes/notes
         containerPath: /workshop/notes
 YAML
   kind create cluster --name "$CLUSTER" --config "$RUN_DIR/kind-config.yaml" --kubeconfig "$KUBECONFIG"

@@ -2,7 +2,7 @@
 #
 # Two copies of the step 6 workload, one per tenant, each with its own
 # ingress name, keyvalue bucket and blobstore container. Workloads do not
-# share component instances, preopens or allowedHosts.
+# share component instances, mounted folders or allowedHosts.
 #
 # Caveat (wash host v2.10.3): the NATS keyvalue plugin does NOT scope bucket
 # names per workload. The bucket name is whatever the component opens, so
@@ -39,29 +39,29 @@ spec:
           image: localhost:15051/workshop/agent:0.1.0
         - name: model
           image: localhost:15051/workshop/model-scripted:0.1.0
-        # remember is the only component that imports wasi:keyvalue. Under
+        # memory is the only component that imports wasi:keyvalue. Under
         # `wash host` the backend is NATS JetStream KV (--data-nats-url).
-        - name: remember
-          image: localhost:15051/workshop/tool-remember:0.1.0
+        - name: memory
+          image: localhost:15051/workshop/tool-memory:0.1.0
           localResources:
             environment:
               config:
                 MEMORY_BUCKET: tenant-a-memory
-        - name: read-notes
-          image: localhost:15051/workshop/tool-read-notes:0.1.0
+        - name: notes
+          image: localhost:15051/workshop/tool-notes:0.1.0
           localResources:
             volumeMounts:
               - name: notes
                 mountPath: /notes
                 readOnly: true
-        - name: save-report
-          image: localhost:15051/workshop/tool-save-report:0.1.0
+        - name: reports
+          image: localhost:15051/workshop/tool-reports:0.1.0
           localResources:
             environment:
               config:
                 REPORT_CONTAINER: tenant-a-reports
-        - name: fetch
-          image: localhost:15051/workshop/tool-fetch:0.1.0
+        - name: web
+          image: localhost:15051/workshop/tool-web:0.1.0
           localResources:
             allowedHosts:
               - planted.example
@@ -70,7 +70,7 @@ spec:
           hostPath:
             # Relative paths are a convenience of scripts/apply.py; on a
             # cluster this is an absolute path on the node.
-            path: ../03-read-notes/notes
+            path: ../03-notes/notes
 ---
 apiVersion: runtime.wasmcloud.dev/v1alpha1
 kind: WorkloadDeployment
@@ -103,29 +103,29 @@ spec:
           image: localhost:15051/workshop/agent:0.1.0
         - name: model
           image: localhost:15051/workshop/model-scripted:0.1.0
-        # remember is the only component that imports wasi:keyvalue. Under
+        # memory is the only component that imports wasi:keyvalue. Under
         # `wash host` the backend is NATS JetStream KV (--data-nats-url).
-        - name: remember
-          image: localhost:15051/workshop/tool-remember:0.1.0
+        - name: memory
+          image: localhost:15051/workshop/tool-memory:0.1.0
           localResources:
             environment:
               config:
                 MEMORY_BUCKET: tenant-b-memory
-        - name: read-notes
-          image: localhost:15051/workshop/tool-read-notes:0.1.0
+        - name: notes
+          image: localhost:15051/workshop/tool-notes:0.1.0
           localResources:
             volumeMounts:
               - name: notes
                 mountPath: /notes
                 readOnly: true
-        - name: save-report
-          image: localhost:15051/workshop/tool-save-report:0.1.0
+        - name: reports
+          image: localhost:15051/workshop/tool-reports:0.1.0
           localResources:
             environment:
               config:
                 REPORT_CONTAINER: tenant-b-reports
-        - name: fetch
-          image: localhost:15051/workshop/tool-fetch:0.1.0
+        - name: web
+          image: localhost:15051/workshop/tool-web:0.1.0
           localResources:
             allowedHosts:
               - planted.example
@@ -134,4 +134,4 @@ spec:
           hostPath:
             # Relative paths are a convenience of scripts/apply.py; on a
             # cluster this is an absolute path on the node.
-            path: ../03-read-notes/notes
+            path: ../03-notes/notes

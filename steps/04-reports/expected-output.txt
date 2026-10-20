@@ -1,0 +1,15 @@
+# Step 4: the reports tool saves through wasi:blobstore (NATS object store)
+$ scripts/apply.py steps/04-reports/workload.yaml
+default-toolbox-agent: WORKLOAD_STATE_RUNNING Workload started successfully
+
+$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'what do you remember? Then save a report'
+[user] what do you remember? Then save a report
+[model] call recall_all({})
+[tool recall_all] ok: my favorite color = teal; my api key = sk-demo-123
+[model] call save_report({"body":"what do you remember? Then save a report\nmy favorite color = teal; my api key = sk-demo-123","name":"report.txt"})
+[tool save_report] ok: saved 91 bytes as report.txt
+[model] Done. Here is what each step returned: recall_all: my favorite color = teal; my api key = sk-demo-123 | save_report: saved 91 bytes as report.txt
+
+$ nats object get reports report.txt
+what do you remember? Then save a report
+my favorite color = teal; my api key = sk-demo-123

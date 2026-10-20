@@ -1,10 +1,13 @@
 # Step 1: the agent answers over HTTP.
 #
-# The agent imports a model and four labelled tool slots. Each label must be
-# filled by a component of that name in this workload, so until a step
-# installs a real tool, the slot is filled by tool-stub (the same image under
-# four names). The agent and the model get nothing else: no allowedHosts, no
-# volumes, no environment.
+# The agent harness (the component that runs the loop: ask the model, call a
+# tool, repeat) imports a model and four labelled tool slots: memory, notes,
+# reports and web. The host links each label to the component of the same
+# name in this workload, so every slot must be filled. Until a step installs
+# the real tool, a slot is filled by not-installed: one image under several
+# names, whose every function answers "the <tool> tool isn't installed yet".
+# The harness and the model get nothing else: no allowedHosts, no volumes, no
+# environment.
 apiVersion: runtime.wasmcloud.dev/v1alpha1
 kind: WorkloadDeployment
 metadata:
@@ -24,11 +27,11 @@ spec:
           image: localhost:15051/workshop/agent:0.1.0
         - name: model
           image: localhost:15051/workshop/model-scripted:0.1.0
-        - name: remember
-          image: localhost:15051/workshop/tool-stub:0.1.0
-        - name: read-notes
-          image: localhost:15051/workshop/tool-stub:0.1.0
-        - name: save-report
-          image: localhost:15051/workshop/tool-stub:0.1.0
-        - name: fetch
-          image: localhost:15051/workshop/tool-stub:0.1.0
+        - name: memory
+          image: localhost:15051/workshop/not-installed:0.1.0
+        - name: notes
+          image: localhost:15051/workshop/not-installed:0.1.0
+        - name: reports
+          image: localhost:15051/workshop/not-installed:0.1.0
+        - name: web
+          image: localhost:15051/workshop/not-installed:0.1.0

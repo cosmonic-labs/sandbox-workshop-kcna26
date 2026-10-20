@@ -1,0 +1,29 @@
+# Step 2: the memory tool persists facts across calls and across a redeploy
+$ scripts/apply.py steps/02-memory/workload.yaml
+default-toolbox-agent: WORKLOAD_STATE_RUNNING Workload started successfully
+
+$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'remember that my favorite color is teal'
+[user] remember that my favorite color is teal
+[model] call remember({"fact":"teal","key":"my favorite color"})
+[tool remember] ok: remembered my favorite color = teal
+[model] Done. Here is what each step returned: remember: remembered my favorite color = teal
+
+$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'remember that my api key is sk-demo-123'
+[user] remember that my api key is sk-demo-123
+[model] call remember({"fact":"sk-demo-123","key":"my api key"})
+[tool remember] ok: remembered my api key = sk-demo-123
+[model] Done. Here is what each step returned: remember: remembered my api key = sk-demo-123
+
+$ scripts/apply.py --delete ... && scripts/apply.py ...   # restart the workload
+default-toolbox-agent: WORKLOAD_STATE_STOPPING
+default-toolbox-agent: WORKLOAD_STATE_RUNNING Workload started successfully
+
+$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'what do you remember?'
+[user] what do you remember?
+[model] call recall_all({})
+[tool recall_all] ok: my favorite color = teal; my api key = sk-demo-123
+[model] Done. Here is what each step returned: recall_all: my favorite color = teal; my api key = sk-demo-123
+
+$ nats kv ls agent-memory
+my_favorite_color
+my_api_key

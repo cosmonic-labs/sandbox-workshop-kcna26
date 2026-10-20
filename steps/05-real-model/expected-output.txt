@@ -5,19 +5,13 @@ default-toy-sites: WORKLOAD_STATE_RUNNING Workload started successfully
 $ scripts/apply.py steps/05-real-model/workload.yaml
 default-toolbox-agent: WORKLOAD_STATE_RUNNING Workload started successfully
 
-$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18080/ -d 'hello'
-[agent] slot remember: tool 'remember' installed
-[agent] slot read-notes: tool 'read_notes' installed
-[agent] slot save-report: tool 'save_report' installed
+$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'hello'
 [user] hello
-[model] (fake-llm via llm.example) I got 2 messages and 3 tools
+[model] (fake-llm via llm.example) I got 2 messages and 8 tools
 
-$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18080/ -d 'recall what you know about me'
-[agent] slot remember: tool 'remember' installed
-[agent] slot read-notes: tool 'read_notes' installed
-[agent] slot save-report: tool 'save_report' installed
+$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'recall what you know about me'
 [user] recall what you know about me
-[model] call remember({"op":"list"})
-[tool remember] ok: my favorite color = teal; my api key = sk-demo-123
+[model] call recall_all({})
+[tool recall_all] ok: my favorite color = teal; my api key = sk-demo-123
 [model] (fake-llm) the tool said: my favorite color = teal; my api key = sk-demo-123
 

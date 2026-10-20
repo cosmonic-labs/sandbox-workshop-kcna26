@@ -8,6 +8,6 @@ export KUBECONFIG="$RUN_DIR/kubeconfig"
 verb=apply; [ "${1:-}" = "--delete" ] && { verb=delete; shift; }
 for f in "$@"; do
   sed -e "s#localhost:15051/#$REGISTRY_CONTAINER:5000/#g" \
-      -e "s#path: \.\./03-read-notes/notes#path: /workshop/notes#" \
+      -e "s#path: \.\./03-notes/notes#path: /workshop/notes#" \
       -e "s#path: \./notes#path: /workshop/notes#" "$f" | kubectl "$verb" -f -
 done
