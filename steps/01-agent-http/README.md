@@ -15,7 +15,7 @@ small WebAssembly program, like a tiny container image that starts with no
 access to anything). Notice what the harness and the model are given: no
 `allowedHosts`, no volumes, no environment. Nothing.
 
-**Run** (from the repo root, after `./scripts/up.sh` and `./scripts/push.sh artifacts`):
+**Run** (from the repo root, after `make up` and `make push`):
 
 ```sh
 python3 scripts/apply.py steps/01-agent-http/workload.yaml
@@ -40,6 +40,8 @@ default-toolbox-agent: WORKLOAD_STATE_RUNNING Workload started successfully
 **Look inside.** The harness's WIT (the list of what it imports and
 exports) shows the model and four typed, labelled tool slots, and no
 filesystem, outgoing HTTP or sockets:
+
+`wasm-tools` is in `.tools/` after `make tools` (already on PATH in a Codespace):
 
 ```sh
 wasm-tools component wit artifacts/agent.wasm | grep 'import .*workshop:toolbox'

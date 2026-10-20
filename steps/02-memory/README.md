@@ -25,10 +25,10 @@ component in the workload imports keyvalue.
 
 ```sh
 cargo build --release --target wasm32-wasip2 -p tool-memory
-./scripts/push.sh
+make push-build    # pushes target/ instead of artifacts/
 ```
 
-**Run:**
+**Run** (the `nats` command comes from `.tools/`; run `export PATH="$PWD/.tools:$PATH"` once in this terminal, or skip it in a Codespace):
 
 ```sh
 python3 scripts/apply.py steps/02-memory/workload.yaml

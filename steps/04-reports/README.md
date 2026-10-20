@@ -10,7 +10,7 @@ not "S3".
 The NATS blobstore refuses (`unauthorized`) any container that is not listed
 in the workload's `config.buckets`, so the manifest lists `reports`.
 
-**Run:**
+**Run** (the `nats` command comes from `.tools/`; run `export PATH="$PWD/.tools:$PATH"` once in this terminal, or skip it in a Codespace):
 
 ```sh
 python3 scripts/apply.py steps/04-reports/workload.yaml

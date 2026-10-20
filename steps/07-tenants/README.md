@@ -43,7 +43,7 @@ manifests. A platform adds admission policy, a NATS account per tenant, or
 operator declared bindings. The same goes for `localRoute` names: any
 workload on a host can claim any name.
 
-**Scale on Kubernetes.** On kind (`./scripts/kind-up.sh`), the workload is a
+**Scale on Kubernetes.** On kind (`make kind-up`), the workload is a
 `WorkloadDeployment` with a `/scale` subresource:
 
 ```sh

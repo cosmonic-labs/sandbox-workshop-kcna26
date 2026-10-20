@@ -14,7 +14,7 @@ workload (`localRoute`, needs `wash host --http-local-routing`, which
 `scripts/up.sh` sets). A component still needs the name in its
 `allowedHosts` to reach them: local routing happens after the allowlist check.
 
-**Run** (from the repo root, after `./scripts/up.sh` and `./scripts/push.sh artifacts`):
+**Run** (from the repo root, after `make up` and `make push`):
 
 ```sh
 python3 scripts/apply.py steps/00-fixtures/toy-sites.yaml

@@ -200,43 +200,144 @@ result**, in order, and runs each instruction once:
 
 ## Quick start
 
-Prerequisites: Rust 1.98.1 with `wasm32-wasip2` (pinned in
-`rust-toolchain.toml`; only needed if you build), `nats-server` and the `nats`
-CLI, Docker (for a local `registry:2`), Python 3 with PyYAML, and `wasm-tools`
-(only for the import listing). wash v2.10.3 goes in `.tools/wash`:
+You need macOS or Linux (arm64 or x86_64), `make`, `curl`, `nc` and Python 3
+with PyYAML. On Windows, use WSL2 (Windows Subsystem for Linux) or GitHub
+Codespaces (below). Docker is **not** needed, except for the optional
+Kubernetes track.
 
 ```sh
-mkdir -p .tools && gh release download v2.10.3 -R wasmCloud/wasmCloud \
-  -p wash-aarch64-apple-darwin -O .tools/wash && chmod +x .tools/wash
-
-shasum -a 256 -c artifacts/SHA256SUMS          # prebuilt components
-cargo build --release --target wasm32-wasip2   # optional: build them yourself
-./scripts/up.sh                                # nats :14222, registry :15051, host :18180
-./scripts/push.sh artifacts                    # or ./scripts/push.sh to push your build
-./scripts/prove.sh                             # every step, rewrites expected-output.txt
-./scripts/down.sh                              # add --all to remove the registry too
+git clone https://github.com/ericgregory/agent-toolbox-workshop
+cd agent-toolbox-workshop
+make tools && make doctor && make up && make push && make prove
 ```
 
-`prove.sh` and step 1 list imports from `target/`, so run `cargo build` once
-before `prove.sh`, or copy `artifacts/*.wasm` into
-`target/wasm32-wasip2/release/`.
+What each command does:
 
-Each step has its own README with the exact command and the expected result.
-One step by hand:
+* `make tools` downloads the pinned tools into `.tools/` inside the repo and
+  checks each download against a SHA256 checksum recorded in
+  `scripts/tools.sh`: wash v2.10.3 (the wasmCloud command line tool; `wash
+  host` is the runtime), `nats-server` and the `nats` CLI (NATS is the
+  message bus the host listens on, and it also stores the keyvalue and object
+  data), zot (a small OCI registry, the kind of server container images are
+  pushed to and pulled from) and `wasm-tools` (lists what a component
+  imports). Nothing is installed outside the repo and nothing needs `sudo`.
+* `make doctor` checks that your machine is ready. It only looks; it never
+  installs or changes anything. Each line is green `OK`, red `FAIL` or yellow
+  `--` (optional), and every `FAIL` prints the exact command that fixes it.
+  See [Troubleshooting](#troubleshooting).
+* `make up` starts NATS on port 14222, the registry on 15051 and the wasmCloud
+  host on 18180 (requests) and 18181 (health probes).
+* `make push` pushes the prebuilt components in `artifacts/` to the registry.
+* `make prove` replays every step and rewrites `steps/*/expected-output.txt`.
+  `git diff steps` afterwards should show only the load test timings in step
+  7.
+* `make down` stops everything. `make clean` also deletes the stored data
+  (NATS buckets, the registry's storage, the kind cluster).
+
+Then follow the steps one at a time, starting with
+`steps/01-agent-http/README.md`. One step by hand:
 
 ```sh
 python3 scripts/apply.py steps/03-notes/workload.yaml
 curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'read my notes'
 ```
 
-The host port is 18180 (set `HOST_HTTP` to change it). Kubernetes variant
-(kind plus the upstream chart, with its own kubeconfig in `.run/`):
+The `Host:` header picks which workload answers, the way an ingress routes by
+host name. To use `nats` or `wash` by hand (several step READMEs do), put the
+tools on your PATH for this terminal first:
 
 ```sh
-./scripts/kind-up.sh        # fetches the v2.10.3 chart once into .upstream/
-./scripts/prove-k8s.sh      # same manifests via kubectl, writes k8s/expected-output.txt
-./scripts/down.sh --all
+export PATH="$PWD/.tools:$PATH"
 ```
+
+**Build the components yourself (optional).** You need Rust 1.98.1 with the
+`wasm32-wasip2` target (pinned in `rust-toolchain.toml`; `make doctor` tells
+you if it is missing):
+
+```sh
+make build        # cargo build --release --target wasm32-wasip2
+make push-build   # push target/ instead of artifacts/
+```
+
+`make help` lists every target. Each one runs a script in `scripts/`, and the
+scripts stay the source of truth.
+
+**Ports.** The host's request port is 18180 (set `HOST_HTTP`, for example
+`HOST_HTTP=127.0.0.1:18190 make up`, to change it). NATS (14222) and the
+registry (15051) are fixed because the manifests name them.
+
+**Docker instead of zot.** `REGISTRY_MODE=docker make up` runs the registry as
+a `registry:2` container on the same port, as earlier versions of this repo
+did. Use the same variable for `make doctor` so it checks Docker instead.
+
+### Run it in GitHub Codespaces
+
+A Codespace is a Linux machine in the cloud with VS Code in your browser. This
+repo ships a `.devcontainer/` that has everything installed, so nothing goes
+on your laptop.
+
+1. On the repository page on GitHub, choose **Code > Codespaces > Create
+   codespace on main**.
+2. Wait for it to finish building. The terminal runs `make doctor` on its own
+   at the end; every required line should be green.
+3. In the terminal: `make up && make push`, then follow the steps.
+
+The step commands work unchanged: they run in the Codespace's own terminal and
+talk to `127.0.0.1:18180` with a `Host:` header. Port 18180 is forwarded
+(labelled "wasmCloud host") but opening it in a browser shows nothing useful,
+because the browser sends the Codespace's own host name, not
+`agent.localhost`. Use `curl` in the terminal. The Kubernetes track is not
+set up in the Codespace (no Docker inside); run it on your own machine.
+
+### Kubernetes track
+
+kind (Kubernetes in Docker) plus the upstream chart. This needs Docker,
+`kind`, `kubectl` and `helm`, and uses its own kubeconfig in `.run/` so your
+current kubectl context is untouched:
+
+```sh
+make kind-up      # cluster, a registry:2 container, the v2.10.3 chart; pushes artifacts/
+make prove-k8s    # same manifests via kubectl, writes k8s/expected-output.txt
+make clean
+```
+
+`make kind-up` starts its own `registry:2` container (`127.0.0.1:15052`) on
+the kind network and pushes `artifacts/` into it (`SRC=target/wasm32-wasip2/release
+make kind-up` pushes your build), because the cluster pulls images over the
+kind network, not from your laptop.
+
+### Troubleshooting
+
+Every `FAIL` from `make doctor`, and what to do about it:
+
+| `make doctor` says | Why | Fix |
+| --- | --- | --- |
+| `... is not supported directly` | Native Windows, or an unusual CPU | Use WSL2 or GitHub Codespaces |
+| `wash 2.10.3 is missing from .tools/wash` | `make tools` has not run yet | `make tools` |
+| `wash in .tools/wash is '...', the workshop needs 2.10.3` | An older or newer wash was copied in | `./scripts/tools.sh --force` |
+| `nats-server is missing` / `nats CLI is missing` | `make tools` has not run yet | `make tools` |
+| `zot is missing from .tools/zot` | `make tools` has not run yet | `make tools` (or use Docker: `REGISTRY_MODE=docker`) |
+| `Docker is not installed` / `not running` / `registry:2 is not pulled` | Only with `REGISTRY_MODE=docker` | Start Docker Desktop, then `docker pull registry:2`; or drop `REGISTRY_MODE` to use zot |
+| `Python 3 is missing` | `apply.py` is a Python script | macOS: `xcode-select --install`; Ubuntu: `sudo apt-get install -y python3 python3-yaml` |
+| `... the PyYAML package is not` | `apply.py` reads YAML | macOS: `python3 -m pip install --user pyyaml` (Homebrew Python: `brew install pyyaml`); Ubuntu: `sudo apt-get install -y python3-yaml`; Fedora: `sudo dnf install -y python3-pyyaml` |
+| `curl is missing` / `nc is missing` | The scripts use them | Ubuntu: `sudo apt-get install -y curl netcat-openbsd` |
+| `port N is taken by another program` | Something else listens there (another NATS, registry or kind cluster) | `lsof -nP -iTCP:N -sTCP:LISTEN` shows it; stop it. For 18180 or 18181 you can move instead: `HOST_HTTP=127.0.0.1:18190 make up` |
+| `prebuilt components in artifacts/ do not match SHA256SUMS` | A `.wasm` file was changed or partly downloaded | `git checkout -- artifacts` |
+| `CHECKSUM MISMATCH` (from `make tools`) | A download was corrupted or tampered with; it was deleted | Run `make tools` again; if it repeats, stop and report it |
+
+Yellow `--` lines are optional: `wasm-tools` (`make tools` fetches it; needed
+for `make prove`), `ab` (load test in `make prove`; Ubuntu: `sudo apt-get
+install -y apache2-utils`), Rust 1.98.1 with `wasm32-wasip2` (only to build),
+and Docker, kind, kubectl and helm (only for the Kubernetes track).
+
+Other problems:
+
+* **`make up` says the port is already in use.** Run `make doctor` to see
+  which one, or `make down` if it is a previous run of this workshop.
+* **A step answers `WORKLOAD_STATE_ERROR failed to pull image`.** The registry
+  is empty: run `make push` (needed again after `make clean`).
+* **`curl` prints nothing.** The host is not running (`make up`) or the
+  workload for that `Host:` is not applied yet.
 
 ## Steps
 
@@ -265,6 +366,28 @@ name and the notes path). Deliberate differences in `apply.py`: relative
 hostPath paths, `environment.config` only (no `configFrom`/`secretFrom`),
 `replicas` ignored.
 
+### Why there is still a registry (and why it is no longer Docker)
+
+The host only loads components through an OCI pull. In wash-runtime v2.10.3
+(`crates/wash-runtime/src/oci.rs`, `pull_component`) every component image is
+parsed as an OCI reference and fetched from a registry; there is no `file://`
+or local path form, and even a cached image is checked against the
+registry's manifest digest before use. `--allow-insecure-registries` only
+switches the pull to plain HTTP. `wash dev` runs without a registry but cannot
+teach step 3 (see the support matrix). So a registry stays, and keeping it
+means the manifests are byte for byte the ones you apply on Kubernetes.
+
+What changed is which registry. `make tools` fetches zot (v2.1.22, the
+"minimal" build, checksum pinned), a single binary OCI registry, and `make
+up` runs it on `127.0.0.1:15051` with its storage in `.run/registry`. Tested
+against wash and the host v2.10.3: `make push` and every step in `make prove`
+produce the recorded transcripts. `crane registry serve` (go-containerregistry
+v0.22.1) was also tried and rejected: its blob upload answers without a
+`Location` header, and `wash oci push` fails with `Registry did not return a
+location header`. The `registry:2` container remains available with
+`REGISTRY_MODE=docker`, and the kind track uses it because the cluster pulls
+over the kind network.
+
 ## Layout
 
 ```
@@ -290,7 +413,10 @@ steps/
   */README.md              what to run and what you should see
   */expected-output.txt    recorded transcripts
 k8s/values.yaml            chart values for kind; k8s/expected-output.txt
-scripts/                   up, push, apply.py, prove, kind-up, kube-apply, prove-k8s, down
+scripts/                   tools, doctor, up, push, apply.py, prove, kind-up, kube-apply, prove-k8s, down
+Makefile                   make targets that wrap scripts/
+.devcontainer/             GitHub Codespaces environment (Dockerfile + devcontainer.json)
+TESTING.md                 hands-on test checklist before the workshop
 ```
 
 Component sizes: 55 KB (`not-installed`) to 320 KB (`model-real`); 1.6 MB in
@@ -452,8 +578,10 @@ component. Rechecked by hand on 2026-10-20 (not part of `prove.sh`).
 * **Rust version trap:** anyone on Rust 1.97 or older fails at link time on
   the harness with an opaque error. The prebuilt harness avoids it; the
   pinned toolchain file catches the rest.
-* **Infrastructure:** the faithful path needs NATS and an OCI registry (Docker
-  here). kind adds a node image (about 1 GB) and chart images; it took under a
+* **Infrastructure:** the faithful path needs NATS and an OCI registry. Both
+  are single binaries that `make tools` fetches (about 230 MB in total with
+  wash and wasm-tools), so the local path needs no Docker. Codespaces is the
+  fallback for anyone whose laptop will not cooperate. kind adds a node image (about 1 GB) and chart images; it took under a
   minute with the node image cached. Conference Wi-Fi will not survive 100
   kind pulls. Pre-pull or provide hosted clusters for step 7 only.
 * **`wash dev` cannot teach step 3** on v2.10.3 (volumes shared and writable)
@@ -462,10 +590,10 @@ component. Rechecked by hand on 2026-10-20 (not part of `prove.sh`).
   `dev.components`, plus a local routing switch) or run the steps on `wash
   host`.
 * **Windows:** wash ships `x86_64-pc-windows-msvc`; nats-server and Rust
-  wasip2 work there. Untested here: Python and PyYAML for `apply.py`, Docker
-  for the registry, and `curl -d` quoting in PowerShell. A small cross
-  platform "apply" (a wash subcommand or a Go or Rust binary) would remove
-  most of that.
+  wasip2 work there, but `make tools`, the scripts and `make doctor` support
+  macOS and Linux only. Windows attendees use WSL2 or Codespaces; `make
+  doctor` says so. Native Windows would need a cross platform "apply" (a wash
+  subcommand or a Go or Rust binary) and PowerShell versions of the scripts.
 * **The next release breaks step 3** until the host is given
   `--allowed-host-path` (wasmCloud#5623). Pin v2.10.3 or update `up.sh` and
   the chart values when bumping.
@@ -496,7 +624,8 @@ component. Rechecked by hand on 2026-10-20 (not part of `prove.sh`).
 
 ## State left behind
 
-`./scripts/down.sh --all` stops the host and NATS, removes the
-`workshop-toolbox` kind cluster and the `workshop-toolbox-registry`
-container, and deletes `.run/jetstream`. Nothing is installed outside this
-directory (wash lives in `.tools/`, the chart in `.upstream/`).
+`make down` stops the host, NATS and the zot registry. `make clean`
+(`./scripts/down.sh --all`) also removes the `workshop-toolbox` kind cluster
+and the `workshop-toolbox-registry` container, and deletes `.run/jetstream`
+and `.run/registry`. Nothing is installed outside this directory (the tools
+live in `.tools/`, the chart in `.upstream/`).
