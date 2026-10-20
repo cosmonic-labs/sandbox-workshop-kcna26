@@ -211,7 +211,7 @@ if command -v rustup >/dev/null 2>&1; then
       "fix: rustup toolchain install $RUST_VERSION --target wasm32-wasip2"
   fi
 else
-  opt "Rust (rustup) is not installed (only needed to build; the prebuilt artifacts/ work without it)" \
+  opt "Rust (rustup) was not found on your PATH (only needed to build; the prebuilt artifacts/ work without it)" \
     "fix: see https://rustup.rs, then: rustup toolchain install $RUST_VERSION --target wasm32-wasip2"
 fi
 
