@@ -1,0 +1,30 @@
+{
+  "name": "Build your agent a toolbox",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": "..",
+    "args": { "INSTALL_RUST": "true" }
+  },
+  "remoteUser": "vscode",
+  "hostRequirements": { "cpus": 2, "memory": "4gb" },
+  "onCreateCommand": "cargo fetch --locked || true",
+  "postCreateCommand": "mkdir -p .tools && ln -sf /opt/workshop-tools/* .tools/ && make tools && make doctor",
+  "forwardPorts": [18180],
+  "portsAttributes": {
+    "18180": {
+      "label": "wasmCloud host (agent and toy sites; use curl with a Host header)",
+      "onAutoForward": "silent"
+    },
+    "18181": { "label": "wasmCloud host probes", "onAutoForward": "ignore" },
+    "14222": { "label": "NATS", "onAutoForward": "ignore" },
+    "15051": { "label": "zot OCI registry", "onAutoForward": "ignore" }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": ["redhat.vscode-yaml", "rust-lang.rust-analyzer", "bytecodealliance.wit-idl"]
+    },
+    "codespaces": {
+      "openFiles": ["README.md", "steps/01-agent-http/README.md"]
+    }
+  }
+}

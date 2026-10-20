@@ -13,7 +13,7 @@
 # Already present and matching? It is skipped. Pass --force to re-download.
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-TOOLS="$ROOT/.tools"
+TOOLS="${TOOLS_DIR:-$ROOT/.tools}"   # the devcontainer image sets TOOLS_DIR
 DL="$TOOLS/dl"
 FORCE=0; [ "${1:-}" = "--force" ] && FORCE=1
 
