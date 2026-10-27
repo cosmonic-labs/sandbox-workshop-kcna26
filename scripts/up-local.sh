@@ -48,7 +48,25 @@ if ! host_running; then
     exit 1
   fi
   rm -f "$RUN_DIR/host.id"
+  # The same platform declaration as the chart's plugins: (k8s/values.yaml):
+  # keyvalue and blobstore are backed by this NATS, and workloads only ask.
+  # A plugin reaches this machine's loopback only with --allow-host-loopback
+  # and a port named in its own allowedHostLoopbackPorts.
+  cat >"$RUN_DIR/host-config.yaml" <<YAML
+host:
+  plugins:
+    - id: wasmcloud-keyvalue-multiplexed
+      config: { backend: nats, url: "$NATS_URL" }
+      allowedHosts: ["127.0.0.1:$NATS_PORT"]
+      allowedHostLoopbackPorts: ["$NATS_PORT"]
+    - id: wasmcloud-blobstore-multiplexed
+      config: { backend: nats, url: "$NATS_URL" }
+      allowedHosts: ["127.0.0.1:$NATS_PORT"]
+      allowedHostLoopbackPorts: ["$NATS_PORT"]
+YAML
   "$WASH" host \
+    --user-config "$RUN_DIR/host-config.yaml" \
+    --allow-host-loopback \
     --host-name workshop-host \
     --scheduler-nats-url "$NATS_URL" \
     --data-nats-url "$NATS_URL" \
@@ -68,6 +86,7 @@ for _ in $(seq 1 60); do
   if [ -n "$hb" ]; then echo "$hb" >"$RUN_DIR/host.id"; break; fi
   sleep 0.5
 done
+STORES_URL="$NATS_URL" "$ROOT/scripts/stores.sh" create
 echo "nats      $NATS_URL"
 echo "registry  $REGISTRY ($REGISTRY_MODE)"
 echo "host      http://$HOST_HTTP  (id: $(cat "$RUN_DIR/host.id" 2>/dev/null || echo unknown))"
