@@ -4,7 +4,7 @@
 # NATS data (keyvalue buckets and object store).
 set -uo pipefail
 source "$(dirname "$0")/env.sh"
-for p in host nats registry pf; do
+for p in host nats registry; do
   [ -f "$RUN_DIR/$p.pid" ] && kill "$(cat "$RUN_DIR/$p.pid")" 2>/dev/null
   rm -f "$RUN_DIR/$p.pid"
 done
