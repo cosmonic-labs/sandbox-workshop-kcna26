@@ -74,7 +74,7 @@ YAML
     --probe-addr "$HOST_PROBE" \
     --http-local-routing \
     --allow-insecure-registries \
-    --allowed-host-path "$ROOT/steps/03-notes/notes" \
+    --allowed-host-path "$ROOT/steps/05-notes/notes" \
     --allowed-host-path "$RUN_DIR/notes-rw" \
     >"$RUN_DIR/host.log" 2>&1 &
   echo $! >"$RUN_DIR/host.pid"

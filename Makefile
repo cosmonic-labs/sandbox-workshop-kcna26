@@ -54,4 +54,4 @@ push-local:
 	@./scripts/push.sh artifacts
 
 prove-local:
-	@./scripts/prove-local.sh
+	@LOCAL=1 ./scripts/prove.sh

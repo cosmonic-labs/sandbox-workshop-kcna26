@@ -1,15 +1,5 @@
-# Step 5: swap the scripted model for a real one.
-#
-# Same `model` slot, a different component behind it: model-real speaks the
-# OpenAI chat completions API. The agent is not rebuilt; only this manifest
-# entry changes. model-real is the only component allowed to reach the model
-# endpoint.
-#
-# Offline here: LLM_URL points at llm.example, a fake OpenAI-compatible
-# endpoint served by ../00-fixtures/toy-sites.yaml over local routing. For a
-# hosted model, set LLM_URL to e.g. https://api.openai.com/v1/chat/completions,
-# put api.openai.com in allowedHosts, and pass LLM_API_KEY from a Secret
-# (environment.secretFrom on a cluster).
+# Step 8: swap in a real model. Same workload as step 7; only the model slot
+# changes, from model-scripted to model-real. Nothing is rebuilt.
 apiVersion: runtime.wasmcloud.dev/v1alpha1
 kind: WorkloadDeployment
 metadata:
@@ -35,6 +25,11 @@ spec:
       components:
         - name: agent
           image: workshop-toolbox-registry:5000/workshop/agent:0.2.0
+        # The same model slot, now filled by model-real: an OpenAI compatible
+        # client. It is the only component allowed to reach the model's host.
+        # LLM_URL points at the fake endpoint in the toy sites, so this runs
+        # offline; for a hosted model, change LLM_URL and allowedHosts and pass
+        # LLM_API_KEY from a Secret (environment.secretFrom).
         - name: model
           image: workshop-toolbox-registry:5000/workshop/model-real:0.2.0
           localResources:
@@ -66,7 +61,10 @@ spec:
               config:
                 REPORT_CONTAINER: reports
         - name: web
-          image: workshop-toolbox-registry:5000/workshop/not-installed:0.2.0
+          image: workshop-toolbox-registry:5000/workshop/tool-web:0.2.0
+          localResources:
+            allowedHosts:
+              - planted.example
       volumes:
         - name: notes
           hostPath:

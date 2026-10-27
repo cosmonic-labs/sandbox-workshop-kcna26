@@ -33,7 +33,7 @@ nodes:
         hostPort: ${DATA_NATS_URL##*:}
         listenAddress: "127.0.0.1"
     extraMounts:
-      - hostPath: $ROOT/steps/03-notes/notes
+      - hostPath: $ROOT/steps/05-notes/notes
         containerPath: /workshop/notes
       - hostPath: $RUN_DIR/notes-rw
         containerPath: /workshop/notes-rw
@@ -68,6 +68,13 @@ K apply -f "$ROOT/k8s/ingress.yaml" >/dev/null
 # create one. scripts/stores.sh lists them.
 K -n workshop-data rollout status deploy/data-nats --timeout 3m >/dev/null
 "$ROOT/scripts/stores.sh" create
+
+# The toy sites (planted page, collector, fake model) run from the start, and
+# step 4's container image is loaded into the node so nothing pulls at the
+# workshop.
+K apply -f "$ROOT/steps/00-fixtures/toy-sites.yaml" >/dev/null
+docker image inspect busybox:1.36 >/dev/null 2>&1 || docker pull -q busybox:1.36 >/dev/null
+kind load docker-image busybox:1.36 --name "$CLUSTER" >/dev/null 2>&1 || true
 for _ in $(seq 1 30); do
   curl -s -o /dev/null -m 2 "http://$HOST_HTTP/" && break; sleep 1
 done

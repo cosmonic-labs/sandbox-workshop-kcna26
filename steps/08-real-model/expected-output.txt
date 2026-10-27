@@ -1,9 +1,6 @@
-# Step 5: model-real behind the same slot (fake OpenAI-compatible endpoint on llm.example)
-$ scripts/apply.py steps/00-fixtures/toy-sites.yaml
-default-toy-sites: WORKLOAD_STATE_RUNNING Workload started successfully
-
-$ scripts/apply.py steps/05-real-model/workload.yaml
-default-toolbox-agent: WORKLOAD_STATE_RUNNING Workload started successfully
+# Step 8: model-real behind the same slot (a fake OpenAI compatible endpoint on llm.example)
+$ kubectl apply -f steps/08-real-model/workload.yaml
+workloaddeployment.runtime.wasmcloud.dev/toolbox-agent configured
 
 $ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'hello'
 [user] hello

@@ -1,6 +1,6 @@
-# Step 4: the reports tool saves through wasi:blobstore (NATS object store)
-$ scripts/apply.py steps/04-reports/workload.yaml
-default-toolbox-agent: WORKLOAD_STATE_RUNNING Workload started successfully
+# Step 6: the reports tool saves to object storage
+$ kubectl apply -f steps/06-reports/workload.yaml
+workloaddeployment.runtime.wasmcloud.dev/toolbox-agent configured
 
 $ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'what do you remember? Then save a report'
 [user] what do you remember? Then save a report
@@ -10,6 +10,6 @@ $ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'what do you rem
 [tool save_report] ok: saved 91 bytes as report.txt
 [model] Done. Here is what each step returned: recall_all: my favorite color = teal; my api key = sk-demo-123 | save_report: saved 91 bytes as report.txt
 
-$ nats object get reports report.txt
+$ nats --server nats://127.0.0.1:14322 object get reports report.txt
 what do you remember? Then save a report
 my favorite color = teal; my api key = sk-demo-123

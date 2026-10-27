@@ -1,0 +1,95 @@
+# Step 3: two teams, two namespaces, one host pod.
+#
+# Each team's agent is the step 2 workload, in its own Kubernetes namespace,
+# with its own ingress name and its own memory bucket. The runtime operator
+# places both on the same wasmCloud host pod: the host is multi-tenant, and
+# each workload keeps its own memory and its own grants. Who may apply a
+# Workload into a team's namespace is ordinary Kubernetes RBAC.
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: team-a
+---
+apiVersion: runtime.wasmcloud.dev/v1alpha1
+kind: WorkloadDeployment
+metadata:
+  name: toolbox-agent
+  namespace: team-a
+spec:
+  replicas: 1
+  template:
+    spec:
+      hostInterfaces:
+        - namespace: wasi
+          package: http
+          interfaces: [handler]
+          config:
+            host: a.agent.localhost
+        - namespace: wasmcloud
+          package: keyvalue
+          version: 0.2.0
+          interfaces: [store]
+      components:
+        - name: agent
+          image: workshop-toolbox-registry:5000/workshop/agent:0.2.0
+        - name: model
+          image: workshop-toolbox-registry:5000/workshop/model-scripted:0.2.0
+        # memory is the only component that imports wasi:keyvalue. Under
+        # `wash host` the backend is NATS JetStream KV (--data-nats-url).
+        - name: memory
+          image: workshop-toolbox-registry:5000/workshop/tool-memory:0.2.0
+          localResources:
+            environment:
+              config:
+                MEMORY_BUCKET: tenant-a-memory
+        - name: notes
+          image: workshop-toolbox-registry:5000/workshop/not-installed:0.2.0
+        - name: reports
+          image: workshop-toolbox-registry:5000/workshop/not-installed:0.2.0
+        - name: web
+          image: workshop-toolbox-registry:5000/workshop/not-installed:0.2.0
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: team-b
+---
+apiVersion: runtime.wasmcloud.dev/v1alpha1
+kind: WorkloadDeployment
+metadata:
+  name: toolbox-agent
+  namespace: team-b
+spec:
+  replicas: 1
+  template:
+    spec:
+      hostInterfaces:
+        - namespace: wasi
+          package: http
+          interfaces: [handler]
+          config:
+            host: b.agent.localhost
+        - namespace: wasmcloud
+          package: keyvalue
+          version: 0.2.0
+          interfaces: [store]
+      components:
+        - name: agent
+          image: workshop-toolbox-registry:5000/workshop/agent:0.2.0
+        - name: model
+          image: workshop-toolbox-registry:5000/workshop/model-scripted:0.2.0
+        # memory is the only component that imports wasi:keyvalue. Under
+        # `wash host` the backend is NATS JetStream KV (--data-nats-url).
+        - name: memory
+          image: workshop-toolbox-registry:5000/workshop/tool-memory:0.2.0
+          localResources:
+            environment:
+              config:
+                MEMORY_BUCKET: tenant-b-memory
+        - name: notes
+          image: workshop-toolbox-registry:5000/workshop/not-installed:0.2.0
+        - name: reports
+          image: workshop-toolbox-registry:5000/workshop/not-installed:0.2.0
+        - name: web
+          image: workshop-toolbox-registry:5000/workshop/not-installed:0.2.0

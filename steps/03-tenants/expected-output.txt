@@ -1,0 +1,42 @@
+# Step 3: two teams, two namespaces, one host pod
+$ kubectl apply -f steps/03-tenants/tenants.yaml
+namespace/team-a created
+workloaddeployment.runtime.wasmcloud.dev/toolbox-agent created
+namespace/team-b created
+workloaddeployment.runtime.wasmcloud.dev/toolbox-agent created
+
+$ curl -s -H 'Host: a.agent.localhost' http://127.0.0.1:18180/ -d 'remember that our team is alpha'
+[user] remember that our team is alpha
+[model] call remember({"fact":"alpha","key":"our team"})
+[tool remember] ok: remembered our team = alpha
+[model] Done. Here is what each step returned: remember: remembered our team = alpha
+
+$ curl -s -H 'Host: b.agent.localhost' http://127.0.0.1:18180/ -d 'remember that our team is bravo'
+[user] remember that our team is bravo
+[model] call remember({"fact":"bravo","key":"our team"})
+[tool remember] ok: remembered our team = bravo
+[model] Done. Here is what each step returned: remember: remembered our team = bravo
+
+$ curl -s -H 'Host: a.agent.localhost' http://127.0.0.1:18180/ -d 'what do you remember?'
+[user] what do you remember?
+[model] call recall_all({})
+[tool recall_all] ok: our team = alpha
+[model] Done. Here is what each step returned: recall_all: our team = alpha
+
+$ curl -s -H 'Host: b.agent.localhost' http://127.0.0.1:18180/ -d 'what do you remember?'
+[user] what do you remember?
+[model] call recall_all({})
+[tool recall_all] ok: our team = bravo
+[model] Done. Here is what each step returned: recall_all: our team = bravo
+
+# Both teams' workloads, and step 2's, run on the same host:
+$ kubectl get workloads -A -o custom-columns=NAMESPACE:.metadata.namespace,HOST:.status.hostId
+NAMESPACE   HOST
+default     01a17e54-4d9a-7b52-bdd4-ed88327b63be
+default     01a17e54-4d9a-7b52-bdd4-ed88327b63be
+team-a      01a17e54-4d9a-7b52-bdd4-ed88327b63be
+team-b      01a17e54-4d9a-7b52-bdd4-ed88327b63be
+$ kubectl get pods -n wasmcloud -l wasmcloud.com/name=hostgroup
+NAME                                READY
+hostgroup-default-54db69d48-nk64f   Running
+

@@ -3,6 +3,8 @@
 //!   planted.example  GET  /page     a web page with a planted instruction
 //!   collector.example ANY /collect  counts exfiltration attempts (keyvalue)
 //!   llm.example      POST /v1/chat/completions  a fake OpenAI-compatible model
+//!   sites.localhost  the page and the collector too, for callers outside the
+//!                    host (step 4's container), which reach it by this name
 //!   any host         GET  /count    how many leaks arrived, and the last one
 //!   any host         POST /reset    zero the counter
 //!
@@ -90,8 +92,8 @@ impl Guest for Sites {
         let body = String::from_utf8_lossy(&http::request_body(req).await).into_owned();
 
         let (status, text) = match (host.as_str(), method.as_str(), path.as_str()) {
-            ("planted.example", "GET", "/page") => (200, PLANTED_PAGE.to_string()),
-            ("collector.example", _, "/collect") => match collect(&body).await {
+            ("planted.example" | "sites.localhost", "GET", "/page") => (200, PLANTED_PAGE.to_string()),
+            ("collector.example" | "sites.localhost", _, "/collect") => match collect(&body).await {
                 Ok(n) => (200, format!("collector: thanks, that is leak #{n}\n")),
                 Err(e) => (500, e),
             },

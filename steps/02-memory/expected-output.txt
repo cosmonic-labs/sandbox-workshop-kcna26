@@ -1,6 +1,6 @@
-# Step 2: the memory tool persists facts across calls and across a redeploy
-$ scripts/apply.py steps/02-memory/workload.yaml
-default-toolbox-agent: WORKLOAD_STATE_RUNNING Workload started successfully
+# Step 2: the memory tool keeps facts across calls and across a redeploy
+$ kubectl apply -f steps/02-memory/workload.yaml
+workloaddeployment.runtime.wasmcloud.dev/toolbox-agent configured
 
 $ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'remember that my favorite color is teal'
 [user] remember that my favorite color is teal
@@ -14,9 +14,7 @@ $ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'remember that m
 [tool remember] ok: remembered my api key = sk-demo-123
 [model] Done. Here is what each step returned: remember: remembered my api key = sk-demo-123
 
-$ scripts/apply.py --delete ... && scripts/apply.py ...   # restart the workload
-default-toolbox-agent: WORKLOAD_STATE_STOPPING
-default-toolbox-agent: WORKLOAD_STATE_RUNNING Workload started successfully
+$ kubectl delete -f steps/02-memory/workload.yaml && kubectl apply -f steps/02-memory/workload.yaml
 
 $ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'what do you remember?'
 [user] what do you remember?
@@ -24,6 +22,6 @@ $ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'what do you rem
 [tool recall_all] ok: my favorite color = teal; my api key = sk-demo-123
 [model] Done. Here is what each step returned: recall_all: my favorite color = teal; my api key = sk-demo-123
 
-$ nats kv ls agent-memory
+$ nats --server nats://127.0.0.1:14322 kv ls agent-memory
 my_favorite_color
 my_api_key
