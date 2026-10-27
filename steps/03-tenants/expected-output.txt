@@ -32,11 +32,11 @@ $ curl -s -H 'Host: b.agent.localhost' http://127.0.0.1:18180/ -d 'what do you r
 # Both teams' workloads, and step 2's, run on the same host:
 $ kubectl get workloads -A -o custom-columns=NAMESPACE:.metadata.namespace,HOST:.status.hostId
 NAMESPACE   HOST
-default     01a17e54-4d9a-7b52-bdd4-ed88327b63be
-default     01a17e54-4d9a-7b52-bdd4-ed88327b63be
-team-a      01a17e54-4d9a-7b52-bdd4-ed88327b63be
-team-b      01a17e54-4d9a-7b52-bdd4-ed88327b63be
+default     01a17e6a-bed4-7a10-a874-96cead6f2048
+default     01a17e6a-bed4-7a10-a874-96cead6f2048
+team-a      01a17e6a-bed4-7a10-a874-96cead6f2048
+team-b      01a17e6a-bed4-7a10-a874-96cead6f2048
 $ kubectl get pods -n wasmcloud -l wasmcloud.com/name=hostgroup
 NAME                                READY
-hostgroup-default-54db69d48-nk64f   Running
+hostgroup-default-54db69d48-sxvf2   Running
 

@@ -15,11 +15,11 @@ $ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'read my notes'
 
 $ kubectl get workloads -A -o custom-columns=NAMESPACE:.metadata.namespace,HOST:.status.hostId
 NAMESPACE   HOST
-default     01a17e54-4d9a-7b52-bdd4-ed88327b63be
-default     01a17e54-4d9a-7b52-bdd4-ed88327b63be
+default     01a17e6a-bed4-7a10-a874-96cead6f2048
+default     01a17e6a-bed4-7a10-a874-96cead6f2048
 $ kubectl get pods -n wasmcloud -l wasmcloud.com/name=hostgroup
 NAME                                READY
-hostgroup-default-54db69d48-nk64f   Running
+hostgroup-default-54db69d48-sxvf2   Running
 
 # The agent harness and model import no filesystem, no outgoing HTTP, no sockets:
 $ wasm-tools component wit artifacts/agent.wasm | grep -E 'filesystem|http/client|sockets' || echo none
