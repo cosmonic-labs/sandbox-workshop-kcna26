@@ -1,4 +1,4 @@
-# Step 2: a memory tool backed by wasi:keyvalue.
+# Step 2: a memory tool backed by keyvalue (wasmcloud:keyvalue, WASI 0.3).
 #
 # The agent harness (the component that runs the loop: ask the model, call a
 # tool, repeat) imports a model and four labelled tool slots: memory, notes,
@@ -31,8 +31,8 @@ spec:
           image: workshop-toolbox-registry:5000/workshop/agent:0.2.0
         - name: model
           image: workshop-toolbox-registry:5000/workshop/model-scripted:0.2.0
-        # memory is the only component that imports wasi:keyvalue. Under
-        # `wash host` the backend is NATS JetStream KV (--data-nats-url).
+        # memory is the only component that imports keyvalue. The platform
+        # declares the backend (k8s/values.yaml) and creates the bucket.
         - name: memory
           image: workshop-toolbox-registry:5000/workshop/tool-memory:0.2.0
           localResources:

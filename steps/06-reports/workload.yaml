@@ -1,8 +1,8 @@
-# Step 4: a reports tool writing through wasi:blobstore.
+# Step 6: a reports tool writing through blobstore (wasmcloud:blobstore, WASI 0.3).
 #
-# reports is the only component that imports wasi:blobstore. The stock
-# `wash host` backs it with a NATS JetStream object store (one bucket per
-# container). There is no S3 backend in the stock host.
+# reports is the only component that imports blobstore. The platform declares
+# the backend (k8s/values.yaml) and creates the store (a NATS object store).
+# There is no S3 backend in the stock host.
 apiVersion: runtime.wasmcloud.dev/v1alpha1
 kind: WorkloadDeployment
 metadata:
@@ -30,8 +30,8 @@ spec:
           image: workshop-toolbox-registry:5000/workshop/agent:0.2.0
         - name: model
           image: workshop-toolbox-registry:5000/workshop/model-scripted:0.2.0
-        # memory is the only component that imports wasi:keyvalue. Under
-        # `wash host` the backend is NATS JetStream KV (--data-nats-url).
+        # memory is the only component that imports keyvalue. The platform
+        # declares the backend (k8s/values.yaml) and creates the bucket.
         - name: memory
           image: workshop-toolbox-registry:5000/workshop/tool-memory:0.2.0
           localResources:

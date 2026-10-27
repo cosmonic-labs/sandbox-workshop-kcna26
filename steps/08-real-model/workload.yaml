@@ -39,8 +39,8 @@ spec:
               config:
                 LLM_URL: http://llm.example/v1/chat/completions
                 LLM_MODEL: fake-model
-        # memory is the only component that imports wasi:keyvalue. Under
-        # `wash host` the backend is NATS JetStream KV (--data-nats-url).
+        # memory is the only component that imports keyvalue. The platform
+        # declares the backend (k8s/values.yaml) and creates the bucket.
         - name: memory
           image: workshop-toolbox-registry:5000/workshop/tool-memory:0.2.0
           localResources:

@@ -1,32 +1,24 @@
 # Fixtures: the toy sites
 
-Not a step. This workload serves three fake websites from one component so
-steps 5 and 6 can run fully offline:
+Not a step. `make up` starts this workload, which serves three fake websites
+from one component:
 
 * `planted.example/page`: a normal looking page with a hidden instruction for
   the agent.
 * `collector.example/collect`: the attacker's server. It counts every leak
   that reaches it.
-* `llm.example/v1/chat/completions`: a fake OpenAI compatible model for step 5.
+* `llm.example/v1/chat/completions`: a fake OpenAI compatible model for step 8.
 
-These names exist nowhere in DNS. The host routes them in memory to this
-workload (`localRoute`, needs `wash host --http-local-routing`, which
-`scripts/up.sh` sets). A component still needs the name in its
-`allowedHosts` to reach them: local routing happens after the allowlist check.
-
-**Run** (from the repo root, after `make up` and `make push`):
+These names exist nowhere in DNS. Workloads on the same host reach them in
+memory through local routing (`localRoute` in `toy-sites.yaml`, allowed by the
+chart's `localBypassRouting`). A component still needs the name in its own
+`allowedHosts`: the egress check happens before local routing. Callers from
+outside the host, such as step 4's container, use the name `sites.localhost`,
+which serves the same page and collector.
 
 ```sh
-python3 scripts/apply.py steps/00-fixtures/toy-sites.yaml
-curl -s -H 'Host: sites.localhost' http://127.0.0.1:18180/count
+curl -s -H 'Host: sites.localhost' http://127.0.0.1:18180/count    # leaks so far
+curl -s -X POST -H 'Host: sites.localhost' http://127.0.0.1:18180/reset
 ```
 
-**Expected:**
-
-```
-default-toy-sites: WORKLOAD_STATE_RUNNING Workload started successfully
-leaks=0
-last=
-```
-
-Reset the counter with `curl -s -X POST -H 'Host: sites.localhost' http://127.0.0.1:18180/reset`.
+The collector keeps its count in the keyvalue bucket `toy-collector`.

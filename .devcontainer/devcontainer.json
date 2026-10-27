@@ -1,30 +1,52 @@
 {
-  "name": "Build your agent a toolbox",
+  "name": "Multi-tenant agents on Kubernetes",
   "build": {
     "dockerfile": "Dockerfile",
     "context": "..",
-    "args": { "INSTALL_RUST": "true" }
+    "args": {
+      "INSTALL_RUST": "true"
+    }
   },
   "remoteUser": "vscode",
-  "hostRequirements": { "cpus": 2, "memory": "4gb" },
+  "hostRequirements": {
+    "cpus": 4,
+    "memory": "8gb"
+  },
   "onCreateCommand": "cargo fetch --locked || true",
   "postCreateCommand": "mkdir -p .tools && ln -sf /opt/workshop-tools/* .tools/ && make tools && make doctor",
-  "forwardPorts": [18180],
+  "forwardPorts": [
+    18180
+  ],
   "portsAttributes": {
     "18180": {
-      "label": "wasmCloud host (agent and toy sites; use curl with a Host header)",
+      "label": "workshop ingress (agents and toy sites; use curl with a Host header)",
       "onAutoForward": "silent"
     },
-    "18181": { "label": "wasmCloud host probes", "onAutoForward": "ignore" },
-    "14222": { "label": "NATS", "onAutoForward": "ignore" },
-    "15051": { "label": "zot OCI registry", "onAutoForward": "ignore" }
+    "14322": {
+      "label": "data service (NATS)",
+      "onAutoForward": "ignore"
+    },
+    "15052": {
+      "label": "cluster registry",
+      "onAutoForward": "ignore"
+    }
   },
   "customizations": {
     "vscode": {
-      "extensions": ["redhat.vscode-yaml", "rust-lang.rust-analyzer", "bytecodealliance.wit-idl"]
+      "extensions": [
+        "redhat.vscode-yaml",
+        "rust-lang.rust-analyzer",
+        "bytecodealliance.wit-idl"
+      ]
     },
     "codespaces": {
-      "openFiles": ["README.md", "steps/01-agent-http/README.md"]
+      "openFiles": [
+        "README.md",
+        "steps/01-agent/README.md"
+      ]
     }
+  },
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
   }
 }

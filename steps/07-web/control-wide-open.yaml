@@ -1,4 +1,4 @@
-# Step 6 control case: the same workload with web's allowedHosts widened
+# Step 7 control case: the same workload with web's allowedHosts widened
 # to "*". Nothing else changes: same agent, same gullible model, same planted
 # page. This time the leak reaches the collector, which shows the boundary
 # (allowedHosts on the one component with network) is what stopped it.
@@ -29,8 +29,8 @@ spec:
           image: workshop-toolbox-registry:5000/workshop/agent:0.2.0
         - name: model
           image: workshop-toolbox-registry:5000/workshop/model-scripted:0.2.0
-        # memory is the only component that imports wasi:keyvalue. Under
-        # `wash host` the backend is NATS JetStream KV (--data-nats-url).
+        # memory is the only component that imports keyvalue. The platform
+        # declares the backend (k8s/values.yaml) and creates the bucket.
         - name: memory
           image: workshop-toolbox-registry:5000/workshop/tool-memory:0.2.0
           localResources:

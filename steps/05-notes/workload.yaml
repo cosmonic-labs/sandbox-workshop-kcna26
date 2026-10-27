@@ -1,4 +1,4 @@
-# Step 3: a notes tool over a read only folder, mounted for that tool alone.
+# Step 5: a notes tool over a read only folder, mounted for that tool alone.
 #
 # Planted attack 1: notes/todo.txt tells the agent to read ../../etc/passwd
 # and /etc/passwd and to append to the note. The scripted model obeys. The
@@ -37,8 +37,8 @@ spec:
           image: workshop-toolbox-registry:5000/workshop/agent:0.2.0
         - name: model
           image: workshop-toolbox-registry:5000/workshop/model-scripted:0.2.0
-        # memory is the only component that imports wasi:keyvalue. Under
-        # `wash host` the backend is NATS JetStream KV (--data-nats-url).
+        # memory is the only component that imports keyvalue. The platform
+        # declares the backend (k8s/values.yaml) and creates the bucket.
         - name: memory
           image: workshop-toolbox-registry:5000/workshop/tool-memory:0.2.0
           localResources:
