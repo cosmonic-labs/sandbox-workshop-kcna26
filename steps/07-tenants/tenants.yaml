@@ -36,41 +36,41 @@ spec:
             buckets: tenant-a-reports
       components:
         - name: agent
-          image: localhost:15051/workshop/agent:0.1.0
+          image: workshop-toolbox-registry:5000/workshop/agent:0.1.0
         - name: model
-          image: localhost:15051/workshop/model-scripted:0.1.0
+          image: workshop-toolbox-registry:5000/workshop/model-scripted:0.1.0
         # memory is the only component that imports wasi:keyvalue. Under
         # `wash host` the backend is NATS JetStream KV (--data-nats-url).
         - name: memory
-          image: localhost:15051/workshop/tool-memory:0.1.0
+          image: workshop-toolbox-registry:5000/workshop/tool-memory:0.1.0
           localResources:
             environment:
               config:
                 MEMORY_BUCKET: tenant-a-memory
         - name: notes
-          image: localhost:15051/workshop/tool-notes:0.1.0
+          image: workshop-toolbox-registry:5000/workshop/tool-notes:0.1.0
           localResources:
             volumeMounts:
               - name: notes
                 mountPath: /notes
                 readOnly: true
         - name: reports
-          image: localhost:15051/workshop/tool-reports:0.1.0
+          image: workshop-toolbox-registry:5000/workshop/tool-reports:0.1.0
           localResources:
             environment:
               config:
                 REPORT_CONTAINER: tenant-a-reports
         - name: web
-          image: localhost:15051/workshop/tool-web:0.1.0
+          image: workshop-toolbox-registry:5000/workshop/tool-web:0.1.0
           localResources:
             allowedHosts:
               - planted.example
       volumes:
         - name: notes
           hostPath:
-            # Relative paths are a convenience of scripts/apply.py; on a
-            # cluster this is an absolute path on the node.
-            path: ../03-notes/notes
+            # A path on the node, mounted into the host pod and allowed by
+            # k8s/values.yaml (hostPaths.allowed).
+            path: /workshop/notes
 ---
 apiVersion: runtime.wasmcloud.dev/v1alpha1
 kind: WorkloadDeployment
@@ -100,38 +100,38 @@ spec:
             buckets: tenant-b-reports
       components:
         - name: agent
-          image: localhost:15051/workshop/agent:0.1.0
+          image: workshop-toolbox-registry:5000/workshop/agent:0.1.0
         - name: model
-          image: localhost:15051/workshop/model-scripted:0.1.0
+          image: workshop-toolbox-registry:5000/workshop/model-scripted:0.1.0
         # memory is the only component that imports wasi:keyvalue. Under
         # `wash host` the backend is NATS JetStream KV (--data-nats-url).
         - name: memory
-          image: localhost:15051/workshop/tool-memory:0.1.0
+          image: workshop-toolbox-registry:5000/workshop/tool-memory:0.1.0
           localResources:
             environment:
               config:
                 MEMORY_BUCKET: tenant-b-memory
         - name: notes
-          image: localhost:15051/workshop/tool-notes:0.1.0
+          image: workshop-toolbox-registry:5000/workshop/tool-notes:0.1.0
           localResources:
             volumeMounts:
               - name: notes
                 mountPath: /notes
                 readOnly: true
         - name: reports
-          image: localhost:15051/workshop/tool-reports:0.1.0
+          image: workshop-toolbox-registry:5000/workshop/tool-reports:0.1.0
           localResources:
             environment:
               config:
                 REPORT_CONTAINER: tenant-b-reports
         - name: web
-          image: localhost:15051/workshop/tool-web:0.1.0
+          image: workshop-toolbox-registry:5000/workshop/tool-web:0.1.0
           localResources:
             allowedHosts:
               - planted.example
       volumes:
         - name: notes
           hostPath:
-            # Relative paths are a convenience of scripts/apply.py; on a
-            # cluster this is an absolute path on the node.
-            path: ../03-notes/notes
+            # A path on the node, mounted into the host pod and allowed by
+            # k8s/values.yaml (hostPaths.allowed).
+            path: /workshop/notes

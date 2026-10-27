@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Apply WorkloadDeployment manifests to a `wash host` with no Kubernetes.
+"""The no-Docker fallback: apply WorkloadDeployment manifests to a local
+`wash host` (scripts/up-local.sh) with no Kubernetes. The workshop itself runs
+on kind with `kubectl apply`; this is for laptops that cannot run Docker.
 
 The runtime-operator turns a Workload into a protojson WorkloadStartRequest
 and sends it to runtime.host.<host-id>.workload.start over NATS. This script
@@ -9,8 +11,11 @@ reconcilePlacement and materializeLocalResources), so the YAML in steps/ is
 the same YAML you would kubectl apply on a cluster.
 
 Differences from the operator, on purpose:
-  * hostPath paths may be relative; they resolve against the manifest's
-    directory (a cluster needs absolute node paths).
+  * the cluster's names are mapped to this laptop: images from
+    workshop-toolbox-registry:5000 come from $REGISTRY instead, and the node
+    paths /workshop/notes and /workshop/notes-rw become steps/03-notes/notes
+    and .run/notes-rw. Other relative hostPath paths resolve against the
+    manifest's directory.
   * environment.config only; configFrom/secretFrom need Kubernetes objects.
   * spec.replicas is ignored: there is one host.
 
@@ -79,6 +84,14 @@ def pull_policy(p):
     }.get(p or "Always", "IMAGE_PULL_POLICY_ALWAYS")
 
 
+CLUSTER_REGISTRY = "workshop-toolbox-registry:5000/"
+LOCAL_REGISTRY = os.environ.get("REGISTRY", "localhost:15051") + "/"
+NODE_PATHS = {
+    "/workshop/notes": os.path.join(ROOT, "steps", "03-notes", "notes"),
+    "/workshop/notes-rw": os.path.join(ROOT, ".run", "notes-rw"),
+}
+
+
 def to_wire(doc, base):
     meta = doc["metadata"]
     spec = doc["spec"]
@@ -91,7 +104,7 @@ def to_wire(doc, base):
     volumes = []
     for v in spec.get("volumes", []):
         if "hostPath" in v:
-            path = v["hostPath"]["path"]
+            path = NODE_PATHS.get(v["hostPath"]["path"], v["hostPath"]["path"])
             if not os.path.isabs(path):
                 path = os.path.normpath(os.path.join(base, path))
             volumes.append({"name": v["name"], "hostPath": {"localPath": path}})
@@ -102,7 +115,7 @@ def to_wire(doc, base):
     for c in spec.get("components", []):
         wc = {
             "name": c["name"],
-            "image": c["image"],
+            "image": c["image"].replace(CLUSTER_REGISTRY, LOCAL_REGISTRY, 1),
             "imagePullPolicy": pull_policy(c.get("imagePullPolicy")),
             "localResources": local_resources(c.get("localResources"), base),
         }

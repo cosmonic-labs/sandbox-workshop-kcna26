@@ -6,7 +6,7 @@
 #   OK    ready
 #   FAIL  required: the workshop will not work until you fix it
 #   --    optional: only needed for building tools yourself, make prove, or
-#         the Kubernetes track
+#         the no-Docker fallback (make up-local)
 #
 # Exit status is nonzero when any required check fails.
 set -uo pipefail
@@ -14,7 +14,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TOOLS="$ROOT/.tools"
 RUN_DIR="$ROOT/.run"
 REGISTRY_MODE="${REGISTRY_MODE:-zot}"
-WASH_VERSION=2.10.3
+WASH_VERSION=2.11.0
 RUST_VERSION=1.98.1
 
 if [ -t 1 ] && [ -z "${NO_COLOR:-}" ]; then
@@ -75,55 +75,27 @@ else
     "fix: make tools"
 fi
 
-# nats-server: the message bus the host listens on; also stores keyvalue and objects.
-p=$(find_tool nats-server)
-if [ -n "$p" ]; then
-  ok "nats-server $("$p" --version 2>/dev/null | awk '{print $2}') ($p)"
+# Docker, kind, kubectl and helm: the workshop runs on a kind cluster.
+if ! command -v docker >/dev/null 2>&1; then
+  fail "Docker is not installed (kind runs the Kubernetes cluster in Docker)" \
+    "fix: install Docker Desktop, OrbStack or Podman (https://docs.docker.com/get-docker/)," \
+    "     or use GitHub Codespaces (Code > Codespaces > Create codespace on main)"
+elif ! docker info >/dev/null 2>&1; then
+  fail "Docker is installed but not running" \
+    "fix: $(pkg_hint 'open -a Docker' 'sudo systemctl start docker')    (then wait until it says it is running)"
 else
-  fail "nats-server is missing (the message bus and storage the host uses)" "fix: make tools"
-fi
-
-# nats: the command line client; apply.py uses it to send workloads to the host.
-p=$(find_tool nats)
-if [ -n "$p" ]; then
-  ok "nats CLI $("$p" --version 2>&1 | head -1) ($p)"
-else
-  fail "nats CLI is missing (used to send workloads to the host)" "fix: make tools"
-fi
-
-# The OCI registry the host pulls components from.
-if [ "$REGISTRY_MODE" = docker ]; then
-  if ! command -v docker >/dev/null 2>&1; then
-    fail "Docker is not installed (REGISTRY_MODE=docker runs the registry in a container)" \
-      "fix: install Docker Desktop (https://docs.docker.com/get-docker/), or unset REGISTRY_MODE to use zot"
-  elif ! docker info >/dev/null 2>&1; then
-    fail "Docker is installed but not running" \
-      "fix: $(pkg_hint 'open -a Docker' 'sudo systemctl start docker')    (then wait until it says it is running)"
-  elif ! docker image inspect registry:2 >/dev/null 2>&1; then
-    fail "the registry:2 image is not pulled yet" "fix: docker pull registry:2"
+  mem=$(docker info --format '{{.MemTotal}}' 2>/dev/null || echo 0)
+  if [ "${mem:-0}" -lt 3500000000 ]; then
+    fail "Docker has $((mem / 1000000)) MB of memory; the cluster needs about 4 GB" \
+      "fix: raise Docker's memory limit to 4 GB or more (Docker Desktop: Settings > Resources)"
   else
-    ok "Docker is running and registry:2 is pulled (REGISTRY_MODE=docker)"
-  fi
-else
-  if [ -x "$TOOLS/zot" ]; then
-    ok "zot in .tools/zot (the local OCI registry; no Docker needed)"
-  else
-    fail "zot is missing from .tools/zot (the local OCI registry components are pulled from)" \
-      "fix: make tools"
+    ok "Docker is running ($((mem / 1000000000)) GB for containers)"
   fi
 fi
-
-# Python 3 and PyYAML: apply.py reads the workload YAML.
-if ! command -v python3 >/dev/null 2>&1; then
-  fail "Python 3 is missing (scripts/apply.py needs it)" \
-    "fix: $(pkg_hint 'xcode-select --install    (or: brew install python)' 'sudo apt-get install -y python3 python3-yaml')"
-elif ! python3 -c 'import yaml' 2>/dev/null; then
-  fail "Python 3 is here, but the PyYAML package is not ($(python3 --version 2>&1))" \
-    "fix: $(pkg_hint 'python3 -m pip install --user pyyaml    (Homebrew Python: brew install pyyaml)' \
-                     'sudo apt-get install -y python3-yaml    (Fedora: sudo dnf install -y python3-pyyaml)')"
-else
-  ok "$(python3 --version 2>&1) with PyYAML"
-fi
+for t in kind kubectl helm; do
+  p=$(find_tool "$t")
+  if [ -n "$p" ]; then ok "$t ($p)"; else fail "$t is missing" "fix: make tools"; fi
+done
 
 # curl and nc: the scripts and every step use them.
 for t in curl nc; do
@@ -138,10 +110,10 @@ done
 # Ports. One that this workshop's own stack holds (make up) counts as fine.
 own_pid_for_port() {
   case "$1" in
-    14222) echo nats ;; 15051) echo registry ;; 18180|18181) echo host ;;
+    14222) echo nats ;; 15051) echo registry ;; 18180) echo pf ;; 18181) echo host ;;
   esac
 }
-for port in 14222 15051 18180 18181; do
+for port in 18180; do
   if ! (command -v nc >/dev/null 2>&1 && nc -z 127.0.0.1 "$port" 2>/dev/null); then
     ok "port $port is free"
     continue
@@ -215,20 +187,56 @@ else
     "fix: see https://rustup.rs, then: rustup toolchain install $RUST_VERSION --target wasm32-wasip2"
 fi
 
-# Kubernetes track: kind runs a cluster in Docker.
-k8s_missing=""
-for t in docker kind kubectl helm; do command -v "$t" >/dev/null 2>&1 || k8s_missing="$k8s_missing $t"; done
-if [ -z "$k8s_missing" ]; then
-  if docker info >/dev/null 2>&1; then
-    ok "docker, kind, kubectl and helm (Kubernetes track)"
+section "No Docker? The local fallback (make up-local)"
+
+# nats-server: the message bus the host listens on; also stores keyvalue and objects.
+p=$(find_tool nats-server)
+if [ -n "$p" ]; then
+  ok "nats-server $("$p" --version 2>/dev/null | awk '{print $2}') ($p)"
+else
+  opt "nats-server is missing (the message bus and storage the host uses)" "fix: make tools    (only for make up-local)"
+fi
+
+# nats: the command line client; apply.py uses it to send workloads to the host.
+p=$(find_tool nats)
+if [ -n "$p" ]; then
+  ok "nats CLI $("$p" --version 2>&1 | head -1) ($p)"
+else
+  opt "nats CLI is missing (used to send workloads to the host)" "fix: make tools    (only for make up-local)"
+fi
+
+# The OCI registry the host pulls components from.
+if [ "$REGISTRY_MODE" = docker ]; then
+  if ! command -v docker >/dev/null 2>&1; then
+    opt "Docker is not installed (REGISTRY_MODE=docker runs the registry in a container)" \
+      "fix: install Docker Desktop (https://docs.docker.com/get-docker/), or unset REGISTRY_MODE to use zot"
+  elif ! docker info >/dev/null 2>&1; then
+    opt "Docker is installed but not running" \
+      "fix: $(pkg_hint 'open -a Docker' 'sudo systemctl start docker')    (then wait until it says it is running)"
+  elif ! docker image inspect registry:2 >/dev/null 2>&1; then
+    opt "the registry:2 image is not pulled yet" "fix: docker pull registry:2"
   else
-    opt "Kubernetes track: Docker is installed but not running" \
-      "fix: $(pkg_hint 'open -a Docker' 'sudo systemctl start docker')"
+    ok "Docker is running and registry:2 is pulled (REGISTRY_MODE=docker)"
   fi
 else
-  opt "Kubernetes track only: missing$k8s_missing" \
-    "fix: $(pkg_hint "brew install$k8s_missing   (Docker: https://docs.docker.com/get-docker/)" \
-                     "see https://kind.sigs.k8s.io, https://kubernetes.io/docs/tasks/tools/ and https://helm.sh/docs/intro/install/")"
+  if [ -x "$TOOLS/zot" ]; then
+    ok "zot in .tools/zot (the local OCI registry; no Docker needed)"
+  else
+    opt "zot is missing from .tools/zot (the local OCI registry components are pulled from)" \
+      "fix: make tools    (only for make up-local)"
+  fi
+fi
+
+# Python 3 and PyYAML: apply.py reads the workload YAML.
+if ! command -v python3 >/dev/null 2>&1; then
+  opt "Python 3 is missing (scripts/apply.py needs it)" \
+    "fix: $(pkg_hint 'xcode-select --install    (or: brew install python)' 'sudo apt-get install -y python3 python3-yaml')"
+elif ! python3 -c 'import yaml' 2>/dev/null; then
+  opt "Python 3 is here, but the PyYAML package is not ($(python3 --version 2>&1))" \
+    "fix: $(pkg_hint 'python3 -m pip install --user pyyaml    (Homebrew Python: brew install pyyaml)' \
+                     'sudo apt-get install -y python3-yaml    (Fedora: sudo dnf install -y python3-pyyaml)')"
+else
+  ok "$(python3 --version 2>&1) with PyYAML"
 fi
 
 echo
@@ -236,4 +244,4 @@ if [ "$FAILS" -gt 0 ]; then
   echo "${R}Not ready:${N} $FAILS required check(s) failed. Run each 'fix:' command above, then make doctor again."
   exit 1
 fi
-echo "${G}Ready.${N} Next: make up && make push && make prove (or follow steps/01-agent-http/README.md)."
+echo "${G}Ready.${N} Next: make up, then follow steps/01-agent-http/README.md."

@@ -30,4 +30,4 @@ spec:
           interfaces: [store, atomics]
       components:
         - name: toy-sites
-          image: localhost:15051/workshop/toy-sites:0.1.0
+          image: workshop-toolbox-registry:5000/workshop/toy-sites:0.1.0

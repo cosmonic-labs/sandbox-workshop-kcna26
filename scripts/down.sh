@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Stop everything up.sh and kind-up.sh started. Pass --all to also delete the
+# Stop everything up.sh and up-local.sh started. Pass --all to also delete the
 # kind cluster, the registry container, the zot registry's storage and the
 # NATS data (keyvalue buckets and object store).
 set -uo pipefail
@@ -9,7 +9,7 @@ for p in host nats registry pf; do
   rm -f "$RUN_DIR/$p.pid"
 done
 if [ "${1:-}" = "--all" ]; then
-  kind delete cluster --name workshop-toolbox --kubeconfig "$RUN_DIR/kubeconfig" 2>/dev/null
+  kind delete cluster --name "$CLUSTER" 2>/dev/null
   docker rm -f "$REGISTRY_CONTAINER" >/dev/null 2>&1
   rm -rf "$RUN_DIR/jetstream" "$RUN_DIR/registry"
 fi
