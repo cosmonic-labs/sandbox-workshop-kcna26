@@ -1,4 +1,4 @@
-package workshop:toolbox@0.1.0;
+package workshop:toolbox@0.2.0;
 
 // ---------------------------------------------------------------------------
 // The tools.
@@ -18,37 +18,37 @@ interface memory {
   }
 
   /// Store `fact` under `key`, replacing anything stored there before.
-  remember: func(key: string, fact: string) -> result<_, string>;
+  remember: async func(key: string, fact: string) -> result<_, string>;
 
   /// The fact stored under `key`, or none if nothing is stored there.
-  recall: func(key: string) -> result<option<string>, string>;
+  recall: async func(key: string) -> result<option<string>, string>;
 
   /// Every fact stored so far.
-  recall-all: func() -> result<list<entry>, string>;
+  recall-all: async func() -> result<list<entry>, string>;
 }
 
 /// The user's notes: text files in one folder.
 interface notes {
   /// The contents of the file at `path`, relative to the notes folder.
-  read: func(path: string) -> result<string, string>;
+  read: async func(path: string) -> result<string, string>;
 
   /// Add `line` to the end of the file at `path`.
-  append: func(path: string, line: string) -> result<_, string>;
+  append: async func(path: string, line: string) -> result<_, string>;
 }
 
 /// Reports: named text documents kept in object storage.
 interface reports {
   /// Save `body` as the report called `name`, replacing any older version.
-  save: func(name: string, body: string) -> result<_, string>;
+  save: async func(name: string, body: string) -> result<_, string>;
 }
 
 /// The web: plain HTTP requests.
 interface web {
   /// GET `url` and return the response body.
-  fetch: func(url: string) -> result<string, string>;
+  fetch: async func(url: string) -> result<string, string>;
 
   /// POST `body` to `url` and return the response body.
-  post: func(url: string, body: string) -> result<string, string>;
+  post: async func(url: string, body: string) -> result<string, string>;
 }
 
 // ---------------------------------------------------------------------------
@@ -94,44 +94,60 @@ interface types {
 interface model {
   use types.{message, tool-def, completion};
 
-  complete: func(messages: list<message>, tools: list<tool-def>) -> result<completion, string>;
+  complete: async func(messages: list<message>, tools: list<tool-def>) -> result<completion, string>;
 }
 
 // ---------------------------------------------------------------------------
-// Worlds: what each component imports and exports.
+// Worlds: what each component imports and exports. Everything is WASI 0.3:
+// the functions above are async, HTTP is wasi:http@0.3.0, and storage is
+// wasmCloud's async keyvalue and blobstore interfaces.
 // ---------------------------------------------------------------------------
 
-/// The agent harness. It imports one model and one labelled slot per tool.
-/// Each label names the workload component that fills it, so the manifest,
-/// not the harness code, decides which component (and which capabilities)
-/// sits behind each slot.
+/// The agent harness. It answers HTTP and imports one model and one labelled
+/// slot per tool, and nothing else. Each label names the workload component
+/// that fills it, so the manifest, not the harness code, decides which
+/// component (and which capabilities) sits behind each slot.
 world agent {
   import model: model;
   import memory: memory;
   import notes: notes;
   import reports: reports;
   import web: web;
+  export wasi:http/handler@0.3.0;
 }
 
+/// The scripted model: no imports at all.
 world model-provider {
   export model;
 }
 
+/// The real model: an OpenAI compatible endpoint over outgoing HTTP, which
+/// only reaches the hosts in this component's allowedHosts.
+world model-real {
+  import wasi:cli/environment@0.3.0;
+  import wasi:http/client@0.3.0;
+  export model;
+}
+
 world memory-tool {
-  import wasi:keyvalue/store@0.2.0-draft;
+  import wasi:cli/environment@0.3.0;
+  import wasmcloud:keyvalue/store@0.2.0;
   export memory;
 }
 
 world notes-tool {
+  import wasi:filesystem/preopens@0.3.0;
   export notes;
 }
 
 world reports-tool {
-  import wasi:blobstore/blobstore@0.2.0-draft;
+  import wasi:cli/environment@0.3.0;
+  import wasmcloud:blobstore/blobstore@0.1.0;
   export reports;
 }
 
 world web-tool {
+  import wasi:http/client@0.3.0;
   export web;
 }
 
@@ -148,6 +164,7 @@ world not-installed {
 /// exfiltration collector and a fake OpenAI compatible endpoint, all served
 /// from one HTTP component on names that exist nowhere in DNS.
 world toy-sites {
-  import wasi:keyvalue/store@0.2.0-draft;
-  import wasi:keyvalue/atomics@0.2.0-draft;
+  import wasmcloud:keyvalue/store@0.2.0;
+  import wasmcloud:keyvalue/atomics@0.2.0;
+  export wasi:http/handler@0.3.0;
 }

@@ -1,9 +1,9 @@
-//! reports: saves named text documents through wasi:blobstore.
+//! reports: saves named text documents through wasmCloud's blobstore.
 //!
-//! The only capability this component imports is wasi:blobstore. The
-//! container name comes from REPORT_CONTAINER (default "reports"); the host
-//! decides what backs it (NATS JetStream object store under `wash host`, a
-//! directory or memory under `wash dev`).
+//! The only capability this component imports is wasmcloud:blobstore (async,
+//! WASI 0.3: object data travels as a stream). The container name comes from
+//! REPORT_CONTAINER (default "reports"); the host decides what backs it (the
+//! cluster's NATS JetStream object store on Kubernetes or `wash host`).
 
 wit_bindgen::generate!({
     path: "../../wit",
@@ -12,31 +12,30 @@ wit_bindgen::generate!({
 });
 
 use exports::workshop::toolbox::reports::Guest;
-use wasi::blobstore::blobstore;
-use wasi::blobstore::types::OutgoingValue;
+use wasmcloud::blobstore::blobstore;
+
+fn env(name: &str) -> Option<String> {
+    wasi::cli::environment::get_environment()
+        .into_iter()
+        .find_map(|(k, v)| (k == name).then_some(v))
+}
 
 struct Reports;
 
 impl Guest for Reports {
-    fn save(name: String, body: String) -> Result<(), String> {
-        let cname = std::env::var("REPORT_CONTAINER").unwrap_or_else(|_| "reports".into());
-        let container = if blobstore::container_exists(&cname)? {
-            blobstore::get_container(&cname)?
+    async fn save(name: String, body: String) -> Result<(), String> {
+        let cname = env("REPORT_CONTAINER").unwrap_or_else(|| "reports".into());
+        let err = |e| format!("{e:?}");
+        let container = if blobstore::container_exists(cname.clone()).await.map_err(err)? {
+            blobstore::get_container(cname).await.map_err(err)?
         } else {
-            blobstore::create_container(&cname)?
+            blobstore::create_container(cname).await.map_err(err)?
         };
-        let value = OutgoingValue::new_outgoing_value();
-        let stream = value
-            .outgoing_value_write_body()
-            .map_err(|()| "no output stream".to_string())?;
-        container.write_data(&name, &value)?;
-        for chunk in body.as_bytes().chunks(4096) {
-            stream
-                .blocking_write_and_flush(chunk)
-                .map_err(|e| format!("write: {e:?}"))?;
-        }
-        drop(stream);
-        OutgoingValue::finish(value)
+        let (mut tx, rx) = wit_stream::new();
+        wit_bindgen::spawn_local(async move {
+            tx.write_all(body.into_bytes()).await;
+        });
+        container.write_data(name, rx).await.map_err(err)
     }
 }
 

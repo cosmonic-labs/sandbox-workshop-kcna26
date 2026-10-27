@@ -24,37 +24,37 @@ fn missing<T>(tool: &str) -> Result<T, String> {
 struct NotInstalled;
 
 impl memory::Guest for NotInstalled {
-    fn remember(_key: String, _fact: String) -> Result<(), String> {
+    async fn remember(_key: String, _fact: String) -> Result<(), String> {
         missing("memory")
     }
-    fn recall(_key: String) -> Result<Option<String>, String> {
+    async fn recall(_key: String) -> Result<Option<String>, String> {
         missing("memory")
     }
-    fn recall_all() -> Result<Vec<memory::Entry>, String> {
+    async fn recall_all() -> Result<Vec<memory::Entry>, String> {
         missing("memory")
     }
 }
 
 impl notes::Guest for NotInstalled {
-    fn read(_path: String) -> Result<String, String> {
+    async fn read(_path: String) -> Result<String, String> {
         missing("notes")
     }
-    fn append(_path: String, _line: String) -> Result<(), String> {
+    async fn append(_path: String, _line: String) -> Result<(), String> {
         missing("notes")
     }
 }
 
 impl reports::Guest for NotInstalled {
-    fn save(_name: String, _body: String) -> Result<(), String> {
+    async fn save(_name: String, _body: String) -> Result<(), String> {
         missing("reports")
     }
 }
 
 impl web::Guest for NotInstalled {
-    fn fetch(_url: String) -> Result<String, String> {
+    async fn fetch(_url: String) -> Result<String, String> {
         missing("web")
     }
-    fn post(_url: String, _body: String) -> Result<String, String> {
+    async fn post(_url: String, _body: String) -> Result<String, String> {
         missing("web")
     }
 }

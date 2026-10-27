@@ -1,9 +1,9 @@
-//! memory: facts stored under keys, backed by wasi:keyvalue.
+//! memory: facts stored under keys, backed by wasmCloud's keyvalue interface.
 //!
-//! The only capability this component imports is wasi:keyvalue/store. The
-//! bucket name comes from the MEMORY_BUCKET environment variable (default
-//! "agent-memory"); the host decides what backs it (NATS JetStream KV under
-//! `wash host`, memory or a directory under `wash dev`).
+//! The only capability this component imports is wasmcloud:keyvalue/store
+//! (async, WASI 0.3). The bucket name comes from the MEMORY_BUCKET environment
+//! variable (default "agent-memory"); the host decides what backs it (the
+//! cluster's NATS JetStream key value store on Kubernetes or `wash host`).
 
 wit_bindgen::generate!({
     path: "../../wit",
@@ -12,7 +12,7 @@ wit_bindgen::generate!({
 });
 
 use exports::workshop::toolbox::memory::{Entry, Guest};
-use wasi::keyvalue::store;
+use wasmcloud::keyvalue::store;
 
 struct Memory;
 
@@ -30,9 +30,15 @@ fn from_key(k: &str) -> String {
     k.replace('_', " ")
 }
 
-fn bucket() -> Result<store::Bucket, String> {
-    let name = std::env::var("MEMORY_BUCKET").unwrap_or_else(|_| "agent-memory".into());
-    store::open(&name).map_err(|e| format!("open bucket {name}: {e:?}"))
+fn env(name: &str) -> Option<String> {
+    wasi::cli::environment::get_environment()
+        .into_iter()
+        .find_map(|(k, v)| (k == name).then_some(v))
+}
+
+async fn bucket() -> Result<store::Bucket, String> {
+    let name = env("MEMORY_BUCKET").unwrap_or_else(|| "agent-memory".into());
+    store::open(name.clone()).await.map_err(|e| format!("open bucket {name}: {e:?}"))
 }
 
 fn text(bytes: Vec<u8>) -> String {
@@ -40,21 +46,23 @@ fn text(bytes: Vec<u8>) -> String {
 }
 
 impl Guest for Memory {
-    fn remember(key: String, fact: String) -> Result<(), String> {
-        bucket()?.set(&to_key(&key), fact.as_bytes()).map_err(|e| format!("{e:?}"))
+    async fn remember(key: String, fact: String) -> Result<(), String> {
+        let b = bucket().await?;
+        b.set(to_key(&key), fact.into_bytes(), None).await.map_err(|e| format!("{e:?}"))
     }
 
-    fn recall(key: String) -> Result<Option<String>, String> {
-        let value = bucket()?.get(&to_key(&key)).map_err(|e| format!("{e:?}"))?;
+    async fn recall(key: String) -> Result<Option<String>, String> {
+        let b = bucket().await?;
+        let value = b.get(to_key(&key)).await.map_err(|e| format!("{e:?}"))?;
         Ok(value.map(text))
     }
 
-    fn recall_all() -> Result<Vec<Entry>, String> {
-        let b = bucket()?;
-        let keys = b.list_keys(None).map_err(|e| format!("{e:?}"))?.keys;
+    async fn recall_all() -> Result<Vec<Entry>, String> {
+        let b = bucket().await?;
+        let keys = b.list_keys(None, None).await.map_err(|e| format!("{e:?}"))?.keys;
         let mut entries = Vec::new();
         for k in keys {
-            if let Some(v) = b.get(&k).map_err(|e| format!("{e:?}"))? {
+            if let Some(v) = b.get(k.clone()).await.map_err(|e| format!("{e:?}"))? {
                 entries.push(Entry { key: from_key(&k), fact: text(v) });
             }
         }

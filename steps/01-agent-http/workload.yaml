@@ -19,19 +19,19 @@ spec:
       hostInterfaces:
         - namespace: wasi
           package: http
-          interfaces: [incoming-handler]
+          interfaces: [handler]
           config:
             host: agent.localhost
       components:
         - name: agent
-          image: workshop-toolbox-registry:5000/workshop/agent:0.1.0
+          image: workshop-toolbox-registry:5000/workshop/agent:0.2.0
         - name: model
-          image: workshop-toolbox-registry:5000/workshop/model-scripted:0.1.0
+          image: workshop-toolbox-registry:5000/workshop/model-scripted:0.2.0
         - name: memory
-          image: workshop-toolbox-registry:5000/workshop/not-installed:0.1.0
+          image: workshop-toolbox-registry:5000/workshop/not-installed:0.2.0
         - name: notes
-          image: workshop-toolbox-registry:5000/workshop/not-installed:0.1.0
+          image: workshop-toolbox-registry:5000/workshop/not-installed:0.2.0
         - name: reports
-          image: workshop-toolbox-registry:5000/workshop/not-installed:0.1.0
+          image: workshop-toolbox-registry:5000/workshop/not-installed:0.2.0
         - name: web
-          image: workshop-toolbox-registry:5000/workshop/not-installed:0.1.0
+          image: workshop-toolbox-registry:5000/workshop/not-installed:0.2.0

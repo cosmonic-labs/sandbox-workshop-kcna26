@@ -20,14 +20,14 @@ spec:
       hostInterfaces:
         - namespace: wasi
           package: http
-          interfaces: [incoming-handler]
+          interfaces: [handler]
           config:
             host: sites.localhost
             localRoute: planted.example,collector.example,llm.example
-        - namespace: wasi
+        - namespace: wasmcloud
           package: keyvalue
-          version: 0.2.0-draft
+          version: 0.2.0
           interfaces: [store, atomics]
       components:
         - name: toy-sites
-          image: workshop-toolbox-registry:5000/workshop/toy-sites:0.1.0
+          image: workshop-toolbox-registry:5000/workshop/toy-sites:0.2.0

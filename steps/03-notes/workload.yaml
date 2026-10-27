@@ -25,37 +25,37 @@ spec:
       hostInterfaces:
         - namespace: wasi
           package: http
-          interfaces: [incoming-handler]
+          interfaces: [handler]
           config:
             host: agent.localhost
-        - namespace: wasi
+        - namespace: wasmcloud
           package: keyvalue
-          version: 0.2.0-draft
+          version: 0.2.0
           interfaces: [store]
       components:
         - name: agent
-          image: workshop-toolbox-registry:5000/workshop/agent:0.1.0
+          image: workshop-toolbox-registry:5000/workshop/agent:0.2.0
         - name: model
-          image: workshop-toolbox-registry:5000/workshop/model-scripted:0.1.0
+          image: workshop-toolbox-registry:5000/workshop/model-scripted:0.2.0
         # memory is the only component that imports wasi:keyvalue. Under
         # `wash host` the backend is NATS JetStream KV (--data-nats-url).
         - name: memory
-          image: workshop-toolbox-registry:5000/workshop/tool-memory:0.1.0
+          image: workshop-toolbox-registry:5000/workshop/tool-memory:0.2.0
           localResources:
             environment:
               config:
                 MEMORY_BUCKET: agent-memory
         - name: notes
-          image: workshop-toolbox-registry:5000/workshop/tool-notes:0.1.0
+          image: workshop-toolbox-registry:5000/workshop/tool-notes:0.2.0
           localResources:
             volumeMounts:
               - name: notes
                 mountPath: /notes
                 readOnly: true
         - name: reports
-          image: workshop-toolbox-registry:5000/workshop/not-installed:0.1.0
+          image: workshop-toolbox-registry:5000/workshop/not-installed:0.2.0
         - name: web
-          image: workshop-toolbox-registry:5000/workshop/not-installed:0.1.0
+          image: workshop-toolbox-registry:5000/workshop/not-installed:0.2.0
       volumes:
         - name: notes
           hostPath:

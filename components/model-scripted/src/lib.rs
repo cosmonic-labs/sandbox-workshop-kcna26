@@ -35,7 +35,7 @@ use workshop::toolbox::types::{Completion, Message, ToolCall, ToolDef};
 struct Scripted;
 
 impl Guest for Scripted {
-    fn complete(messages: Vec<Message>, tools: Vec<ToolDef>) -> Result<Completion, String> {
+    async fn complete(messages: Vec<Message>, tools: Vec<ToolDef>) -> Result<Completion, String> {
         let available: Vec<&str> = tools.iter().map(|t| t.name.as_str()).collect();
 
         // Calls already issued, in canonical JSON, so each instruction runs once.
