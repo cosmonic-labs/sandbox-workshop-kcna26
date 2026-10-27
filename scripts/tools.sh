@@ -3,12 +3,15 @@
 # against a SHA256 recorded here. Nothing is installed outside this folder,
 # and nothing runs with sudo.
 #
-#   wash         v2.10.3   wasmCloud CLI and host (digests from the release's
+#   wash         v2.11.0   wasmCloud CLI and host (digests from the release's
 #                          sigstore attestation, wash.sigstore.json)
 #   nats-server  v2.14.7   message bus plus key value and object storage
 #   nats         v0.5.0    NATS command line client
 #   zot          v2.1.22   small single binary OCI registry (replaces Docker)
 #   wasm-tools   v1.258.3  inspects component imports (step 1, make prove)
+#   kind         v0.33.0   a Kubernetes cluster in Docker (needs Docker)
+#   kubectl      v1.37.1   the Kubernetes CLI
+#   helm         v3.22.0   installs the upstream wasmCloud chart
 #
 # Already present and matching? It is skipped. Pass --force to re-download.
 set -euo pipefail
@@ -17,11 +20,14 @@ TOOLS="${TOOLS_DIR:-$ROOT/.tools}"   # the devcontainer image sets TOOLS_DIR
 DL="$TOOLS/dl"
 FORCE=0; [ "${1:-}" = "--force" ] && FORCE=1
 
-WASH_VERSION=2.10.3
+WASH_VERSION=2.11.0
 NATS_SERVER_VERSION=2.14.7
 NATS_CLI_VERSION=0.5.0
 ZOT_VERSION=2.1.22
 WASM_TOOLS_VERSION=1.258.3
+KIND_VERSION=0.33.0
+KUBECTL_VERSION=1.37.1
+HELM_VERSION=3.22.0
 
 case "$(uname -s)-$(uname -m)" in
   Darwin-arm64)              PLAT=darwin-arm64 ;;
@@ -38,36 +44,48 @@ esac
 case "$PLAT" in
   darwin-arm64)
     WASH_ASSET=wash-aarch64-apple-darwin
-    WASH_SHA=4f1abb0e226ced4ccaff1fa1cbf5fbe510f698c07cf69ac48946c64165375f93
+    WASH_SHA=365d896eaed3894f1c551a1ed7351c2aae9dfa5548ce82041ead92e6253d1954
     NATS_SERVER_SHA=9fc225cddebc67438345ad988c5d6bfc6daad16a7609bcceaafa88bcab9b9001
     NATS_CLI_SHA=37a6f924bc42c72a38856d9c6125c38885732b2a13387b8bc15d1ff80987520b
     ZOT_SHA=c81a26040ae79c7e8a90c306a2377c69982a86ff35c259427bd9accea0eca14c
     WT_ASSET=aarch64-macos
-    WT_SHA=dacd5e6a79c0ad513c369373eb0e595dafadae01fddbb47cda8dee543a31495d ;;
+    WT_SHA=dacd5e6a79c0ad513c369373eb0e595dafadae01fddbb47cda8dee543a31495d
+    KIND_SHA=0c8c7dbe5e23594a198b786c4bc13dacc101fa6196b0cb0b23a1ca44e61f4b4f
+    KUBECTL_SHA=fd65982c97ddad3106754b69ffa196d0e543aa591930ae52aed1adfb92f8c77f
+    HELM_SHA=4c9982a6cdeb458b60258df66b55398ca5b19293f6877faffe2909ad6f23dfe0 ;;
   darwin-amd64)
     WASH_ASSET=wash-x86_64-apple-darwin
-    WASH_SHA=c77f02b7df4f2df92857b1fdfe4f62cb20a06b196ae02990031881796384ebc9
+    WASH_SHA=9c287ea9e027f0c2d391400e7897c8e8225109cfee6efaf2e7b238afea233f17
     NATS_SERVER_SHA=c35bd7c1b84ee0b2de25f7aa0a9f1bb4834640ac8a93698a6b79f9d1de3cf5ff
     NATS_CLI_SHA=9fcf6dbe6462c78a1564d03c8970158f50f50c31ebda5350d2da4a597de796e7
     ZOT_SHA=3b18f445a8229372b0b521c07945dfd18a0a8ec1745601a22974f554f7614fb9
     WT_ASSET=x86_64-macos
-    WT_SHA=c0d8452e2e564d414cc1c7273c0cc5c8013d3de1ccc7650deea87eeda1ad3f26 ;;
+    WT_SHA=c0d8452e2e564d414cc1c7273c0cc5c8013d3de1ccc7650deea87eeda1ad3f26
+    KIND_SHA=5a99f26f57246dc9319dd294803313197a0f34d33c525b3ea8b655db5916ece0
+    KUBECTL_SHA=6851381c486ff6edd691623e3d65c87cb9a5b02887ff8fbbb38d8a031b748387
+    HELM_SHA=bd1d09f316558dda23698527859600936fed1371021ce0f2272d66b2fdcfa69c ;;
   linux-amd64)
     WASH_ASSET=wash-x86_64-unknown-linux-musl
-    WASH_SHA=a8aaac68f02b506f669789cdd8cdcf5e4633443a57e32445bf7ff2cc47b687f6
+    WASH_SHA=ba28e81516c3147519506e64b73d1351857088483deebcc6824e9b5d1fe72997
     NATS_SERVER_SHA=e5c20b1cb2c0566b54c544312e91e011f9e130c5c80f16a14f4cf28ef30b8be2
     NATS_CLI_SHA=d9fc93e9e9ab0310deff7e719a8a0da6f9d66f26d473f039aaee70155507aecc
     ZOT_SHA=a053169f97b4ceaa051e054d53971799188a398cb36acbaf5e08622ec8664c44
     WT_ASSET=x86_64-linux
-    WT_SHA=99b486a9ddc19af0260cd5f98f3b709a60817a3acd20efc9c582d719caebbf6d ;;
+    WT_SHA=99b486a9ddc19af0260cd5f98f3b709a60817a3acd20efc9c582d719caebbf6d
+    KIND_SHA=aee6151561422756b764a4ae28e7f44cda5af5a9eead3cc9985112b1de8d8e0d
+    KUBECTL_SHA=65691ff77eb6fa44c908b77a1082c9f092c3b9733b5cefabec0d1104890e21a8
+    HELM_SHA=1e4ab49e429626cf6c6958d914248b78c9730803c2751b87627e171dc800e7bb ;;
   linux-arm64)
     WASH_ASSET=wash-aarch64-unknown-linux-musl
-    WASH_SHA=87605a88428f84b33be1b3c33d510585bb0c38af9818369b1c1fc5a5ad32acdf
+    WASH_SHA=af79cb91a8a5c2fa26576e70308fc3a080ca51f34ab74c5cc30816be483b6b9b
     NATS_SERVER_SHA=50e0258a1b7290f3fe2e4f17506b74a90ffb1dd77867ae3a402eb0c9e2b0d40f
     NATS_CLI_SHA=39496b0e332ba8d1b7dcbac2019c7d1e7a7f0d0ccefef9da547e9d6eeed408c8
     ZOT_SHA=4224c23122c43638f92875d6fb4f23564472d2584a348cb057440bcf4b43bf08
     WT_ASSET=aarch64-linux
-    WT_SHA=4b9d10d460343bf7e13dcfa8ddc1e06661ff1894d4e3caf3920780c5b21dc1dd ;;
+    WT_SHA=4b9d10d460343bf7e13dcfa8ddc1e06661ff1894d4e3caf3920780c5b21dc1dd
+    KIND_SHA=20022bee6cfcd5086cb7234d218e3454e6090022f2a8f55d1fa7fcf42c3867a2
+    KUBECTL_SHA=ff749f4b78d9c4f1ec87307df9b50119ed819e2094aa9810cb9acffc3286c8c7
+    HELM_SHA=f14e804dfee240f55525b667488fe9adca349e63e00c9af634c0beb1421ac310 ;;
 esac
 
 sha256() {
@@ -145,6 +163,33 @@ if have wasm-tools "$WASM_TOOLS_VERSION"; then echo "ok  wasm-tools $WASM_TOOLS_
   tar -xzf "$DL/$f.tar.gz" -C "$DL" "$f/wasm-tools"
   install -m 0755 "$DL/$f/wasm-tools" "$TOOLS/wasm-tools"
   echo "ok  wasm-tools $WASM_TOOLS_VERSION"
+fi
+
+if have kind "v$KIND_VERSION"; then echo "ok  kind $KIND_VERSION (already there)"; else
+  fetch "https://github.com/kubernetes-sigs/kind/releases/download/v$KIND_VERSION/kind-$PLAT" \
+    "kind-$PLAT-$KIND_VERSION" "$KIND_SHA"
+  install -m 0755 "$DL/kind-$PLAT-$KIND_VERSION" "$TOOLS/kind"
+  echo "ok  kind $KIND_VERSION"
+fi
+
+# kubectl prints its version with `kubectl version --client`, not --version.
+if [ "$FORCE" = 0 ] && [ -x "$TOOLS/kubectl" ] && "$TOOLS/kubectl" version --client 2>/dev/null | grep -qF "v$KUBECTL_VERSION"; then
+  echo "ok  kubectl $KUBECTL_VERSION (already there)"
+else
+  fetch "https://dl.k8s.io/release/v$KUBECTL_VERSION/bin/${PLAT%-*}/${PLAT#*-}/kubectl" \
+    "kubectl-$PLAT-$KUBECTL_VERSION" "$KUBECTL_SHA"
+  install -m 0755 "$DL/kubectl-$PLAT-$KUBECTL_VERSION" "$TOOLS/kubectl"
+  echo "ok  kubectl $KUBECTL_VERSION"
+fi
+
+if [ "$FORCE" = 0 ] && [ -x "$TOOLS/helm" ] && "$TOOLS/helm" version --short 2>/dev/null | grep -qF "v$HELM_VERSION"; then
+  echo "ok  helm $HELM_VERSION (already there)"
+else
+  f="helm-v$HELM_VERSION-$PLAT"
+  fetch "https://get.helm.sh/$f.tar.gz" "$f.tar.gz" "$HELM_SHA"
+  tar -xzf "$DL/$f.tar.gz" -C "$DL" "$PLAT/helm"
+  install -m 0755 "$DL/$PLAT/helm" "$TOOLS/helm"
+  echo "ok  helm $HELM_VERSION"
 fi
 
 echo
