@@ -10,16 +10,16 @@ $ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'hello'
 $ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'read my notes'
 [user] read my notes
 [model] call read_note({"path":"todo.txt"})
-[tool read_note] error: the notes tool isn't installed yet
-[model] Done. Here is what each step returned: read_note: ERROR: the notes tool isn't installed yet
+[tool read_note] error: {"other":"the notes tool isn't installed yet"}
+[model] Done. Here is what each step returned: read_note: ERROR: {"other":"the notes tool isn't installed yet"}
 
 $ kubectl get workloads -A -o custom-columns=NAMESPACE:.metadata.namespace,HOST:.status.hostId
 NAMESPACE   HOST
-default     01a17e6a-bed4-7a10-a874-96cead6f2048
-default     01a17e6a-bed4-7a10-a874-96cead6f2048
+default     01a18381-6ae0-7a30-a852-8ac7bffb102f
+default     01a18381-6ae0-7a30-a852-8ac7bffb102f
 $ kubectl get pods -n wasmcloud -l wasmcloud.com/name=hostgroup
 NAME                                READY
-hostgroup-default-54db69d48-sxvf2   Running
+hostgroup-default-54db69d48-9f5tn   Running
 
 # The agent harness and model import no filesystem, no outgoing HTTP, no sockets:
 $ wasm-tools component wit artifacts/agent.wasm | grep -E 'filesystem|http/client|sockets' || echo none
@@ -28,9 +28,9 @@ $ wasm-tools component wit artifacts/model_scripted.wasm | grep -E 'filesystem|h
 model_scripted: none
 # The agent harness's imports from this workshop: the model and four typed, labelled tool slots
 $ wasm-tools component wit artifacts/agent.wasm | grep 'import .*workshop:toolbox'
-  import workshop:toolbox/types@0.2.0;
-  import model: workshop:toolbox/model@0.2.0;
-  import memory: workshop:toolbox/memory@0.2.0;
-  import notes: workshop:toolbox/notes@0.2.0;
-  import reports: workshop:toolbox/reports@0.2.0;
-  import web: workshop:toolbox/web@0.2.0;
+  import workshop:toolbox/types@0.3.0;
+  import model: workshop:toolbox/model@0.3.0;
+  import memory: workshop:toolbox/memory@0.3.0;
+  import notes: workshop:toolbox/notes@0.3.0;
+  import reports: workshop:toolbox/reports@0.3.0;
+  import web: workshop:toolbox/web@0.3.0;
