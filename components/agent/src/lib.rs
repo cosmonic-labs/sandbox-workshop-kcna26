@@ -10,7 +10,10 @@
 //! The harness itself holds no capabilities. Its world imports the model and
 //! four labelled tool slots and nothing else from the host; whatever a tool
 //! can reach is decided by the manifest entry of the component filling that
-//! slot. `tools.rs` translates the model's JSON into typed tool calls.
+//! slot. `tools.rs` translates the model's JSON into typed tool calls and
+//! builds the tool definitions the model sees: the work a host does for you
+//! on Cosmonic Desktop and Cosmonic Control, done by hand here because
+//! upstream wasmCloud doesn't do it yet.
 
 wit_bindgen::generate!({
     path: "../../wit",

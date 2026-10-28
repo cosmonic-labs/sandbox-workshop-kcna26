@@ -1,4 +1,4 @@
-//! The translation table: from the model's JSON tool calls to typed calls.
+//! The translation table: what a host does for you, written out by hand.
 //!
 //! A model only understands JSON. It is shown a list of tools, each with a
 //! name, a description and a JSON Schema for its arguments, and it answers
@@ -6,10 +6,32 @@
 //! "fact": "..."}}. The tools only understand typed functions such as
 //! `memory::remember(RememberArgs { key, fact })`.
 //!
-//! Something has to translate between the two. In an agent platform the host
-//! does this for you. Upstream wasmCloud has no host plugin for it, so the
-//! agent harness does it here, in plain sight: one row per function the
-//! model may call.
+//! Something has to translate between the two. On Cosmonic Desktop and
+//! Cosmonic Control the host does it: it reads each tool's WIT, builds the
+//! definitions the model sees from the WIT's names, types and doc comments,
+//! turns the model's JSON into a typed call, and turns the typed result or
+//! error back into text. Upstream wasmCloud has no host plugin for that yet,
+//! so the agent harness does it here, in plain sight: one row per function,
+//! written to match `wit/toolbox.wit`.
+//!
+//! The rows follow the same rules a host follows:
+//!
+//! - Each function takes one `<name>-args` record. The record's fields are
+//!   the tool's arguments: the field names are the JSON properties and the
+//!   field doc comments are their descriptions.
+//! - The function's doc comment is the tool's description.
+//! - The tool's name is the WIT function name in snake_case, or a name that
+//!   reads better to a model (`read_note` for `notes.read`). A host keeps a
+//!   rename table like that too.
+//! - A typed error reaches the model as `{"case": "payload"}`, the JSON form
+//!   of a WIT variant, so the model can tell a missing file from a denied
+//!   one.
+//! - A result with a `text` field (the web tool's `response`) shows its other
+//!   fields as one compact JSON line, then the text.
+//!
+//! One shortcut: a host shows any other result as compact JSON. The rows
+//! here write a short sentence instead, so the transcript reads well on a
+//! slide.
 
 use crate::{memory, notes, reports, web};
 use serde_json::{Value, json};
