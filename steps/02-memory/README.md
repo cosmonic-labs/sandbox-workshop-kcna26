@@ -2,18 +2,36 @@
 
 **Folder:** `steps/02-memory`
 
-You install the `memory` tool. Its interface is ordinary and typed:
+You install the `memory` tool. Its interface is ordinary and typed, with
+doc comments the model ends up reading (trimmed here):
 
 ```wit
-remember: async func(key: string, fact: string) -> result<_, string>;
-recall: async func(key: string) -> result<option<string>, string>;
-recall-all: async func() -> result<list<entry>, string>;
+/// Arguments for `remember`.
+record remember-args {
+  /// A short name for the fact, such as "favorite color".
+  key: string,
+  /// The fact itself.
+  fact: string,
+}
+
+/// Remember a fact under a short key, for later conversations. A fact
+/// already stored under the key is replaced.
+remember: async func(args: remember-args) -> result<_, error>;
+recall: async func(args: recall-args) -> result<option<string>, error>;
+recall-all: async func() -> result<list<entry>, error>;
 ```
 
-The tool knows nothing about agents or models. The model speaks JSON, so the
-agent harness translates: `components/agent/src/tools.rs` has one row per
-function, with the name and JSON Schema the model sees, and the typed call it
-makes.
+Each function takes one record, so every argument has a doc comment, and
+fails with the interface's own `error` variant: `no-such-store` when the
+bucket is missing, `access-denied` when the store refuses, and so on.
+
+The tool knows nothing about agents or models. The model speaks JSON, so
+something has to translate. On Cosmonic Desktop and Cosmonic Control the
+host builds the tool definitions from this WIT and its doc comments.
+Upstream wasmCloud doesn't do that yet, so the agent harness does it by
+hand: `components/agent/src/tools.rs` has one row per function, with the
+name, description and JSON Schema the model sees, copied from the WIT, and
+the typed call it makes.
 
 **The capability.** `memory` is the only component that imports keyvalue
 (`wasmcloud:keyvalue/store`). In `workload.yaml` the workload asks for it

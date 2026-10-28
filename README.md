@@ -157,33 +157,67 @@ granted.
 ### The tools are ordinary typed interfaces
 
 Each tool exports a plain interface, the kind you would write for any
-program. None of them knows anything about agents, models or JSON. From
-`wit/toolbox.wit`:
+program. None of them knows anything about agents, models or JSON. They
+follow Cosmonic's typed-tool conventions, the shape a host needs to offer a
+function to a model:
+
+- Each function takes one record, named `<function>-args`, whose fields are
+  the tool's arguments. WIT has no doc comments on parameters, but it has
+  them on record fields, so each argument gets a description.
+- Each interface has its own `variant error`: a fixed list of the ways the
+  tool can fail (`not-found`, `access-denied` and so on), ending in `other`.
+  A caller, or a model, can tell a missing file from a refused one without
+  reading a message.
+- Every interface, type, case, field and function has a doc comment,
+  written for the model as much as for a programmer.
+
+From `wit/toolbox.wit`, with the doc comments trimmed:
 
 ```wit
-/// Long term memory: short facts stored under a key.
 interface memory {
+  variant error {
+    invalid-argument(string), no-such-store(string),
+    access-denied(string), unavailable(string), other(option<string>),
+  }
   record entry { key: string, fact: string }
-  remember: async func(key: string, fact: string) -> result<_, string>;
-  recall: async func(key: string) -> result<option<string>, string>;
-  recall-all: async func() -> result<list<entry>, string>;
+  record remember-args { key: string, fact: string }
+  remember: async func(args: remember-args) -> result<_, error>;
+  record recall-args { key: string }
+  recall: async func(args: recall-args) -> result<option<string>, error>;
+  recall-all: async func() -> result<list<entry>, error>;
 }
 
-/// The user's notes: text files in one folder.
 interface notes {
-  read: async func(path: string) -> result<string, string>;
-  append: async func(path: string, line: string) -> result<_, string>;
+  variant error {
+    invalid-argument(string), not-found(string),
+    access-denied(string), other(option<string>),
+  }
+  record read-args { path: string }
+  read: async func(args: read-args) -> result<string, error>;
+  record append-args { path: string, line: string }
+  append: async func(args: append-args) -> result<_, error>;
 }
 
-/// Reports: named text documents kept in object storage.
 interface reports {
-  save: async func(name: string, body: string) -> result<_, string>;
+  variant error {
+    invalid-argument(string), access-denied(string),
+    unavailable(string), other(option<string>),
+  }
+  record save-args { name: string, body: string }
+  save: async func(args: save-args) -> result<_, error>;
 }
 
-/// The web: plain HTTP requests.
 interface web {
-  fetch: async func(url: string) -> result<string, string>;
-  post: async func(url: string, body: string) -> result<string, string>;
+  variant error {
+    invalid-argument(string), access-denied(string),
+    network(string), other(option<string>),
+  }
+  /// What a server answered, whatever its status.
+  record response { status: u16, text: string }
+  record fetch-args { url: string }
+  fetch: async func(args: fetch-args) -> result<response, error>;
+  record post-args { url: string, body: string }
+  post: async func(args: post-args) -> result<response, error>;
 }
 
 /// The agent harness: one model and one labelled slot per tool, and HTTP in.
@@ -203,23 +237,37 @@ blocking the host. `notes` has `append` and `web` has `post` because the two
 planted attacks need a way to write and a way to send; without them there
 would be nothing for the sandbox to refuse.
 
-### The translation table: from the model's JSON to typed calls
+### The translation table: what a host does for you, by hand
 
 A model only speaks JSON. It is shown a list of tools, each with a name, a
 description and a JSON Schema, and it answers with something like
 `{"name": "remember", "arguments": {"key": "...", "fact": "..."}}`. The tools
-only speak typed functions. Upstream wasmCloud has no host plugin that
-translates between the two, so the harness does it itself, in plain sight,
-in `components/agent/src/tools.rs`: one row per function the model may call,
-and one `match` arm that makes the typed call.
+only speak typed functions. Something has to translate between the two.
+
+On Cosmonic Desktop and Cosmonic Control, the host does that for you. It
+reads each tool's WIT and builds the definitions the model sees from the
+names, types and doc comments: the function's doc becomes the tool's
+description, and the record's fields become its arguments. It turns the
+model's JSON into a typed call, and the typed result or error back into
+text. Upstream wasmCloud has no host plugin for that yet, so this workshop's
+agent harness does it itself, in plain sight, in
+`components/agent/src/tools.rs`: one row per function, copied from the WIT,
+and one `match` arm that builds the args record and makes the typed call.
 
 ```rust
 "remember" => {
-    let (key, fact) = (a.get("key")?, a.get("fact")?);
-    memory::remember(key.clone(), fact.clone()).await?;
-    Ok(format!("remembered {key} = {fact}"))
+    let args = memory::RememberArgs { key: a.get("key")?, fact: a.get("fact")? };
+    let line = format!("remembered {} = {}", args.key, args.fact);
+    memory::remember(args).await.map_err(memory_error)?;
+    Ok(line)
 }
 ```
+
+A typed error reaches the model as the JSON form of the WIT variant, the same
+way a host renders it: `{"access-denied":"/notes/todo.txt: Operation not
+permitted"}`. The rows also give two functions names that read better to a
+model (`read_note` for `notes.read`, `save_report` for `reports.save`), the
+way a host keeps a rename table.
 
 ### Labelled slots
 
@@ -227,13 +275,15 @@ and one `match` arm that makes the typed call.
 the label to the component with the same `name` in the workload, with no
 extra composition step. So the manifest, not the harness code, decides which
 component sits behind each slot, and each tool keeps its own capabilities.
+Each tool interface defines its own types, so a slot brings everything its
+functions need with it.
 
 Every label must be filled or the workload will not start. Until a step
 installs a real tool, the slot is filled by `not-installed`: one image that
 exports all four tool interfaces, deployed under several names, whose every
-function returns `the <tool> tool isn't installed yet`. Labels are fixed when
-the harness is built, so adding a fifth tool means a rebuild; upstream has no
-dynamic tool discovery today.
+function returns its interface's `other` error, `the <tool> tool isn't
+installed yet`. Labels are fixed when the harness is built, so adding a fifth
+tool means a rebuild; upstream has no dynamic tool discovery today.
 
 ### The gullible model
 

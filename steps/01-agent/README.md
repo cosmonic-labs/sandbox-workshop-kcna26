@@ -34,9 +34,13 @@ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'read my notes'
 
 [user] read my notes
 [model] call read_note({"path":"todo.txt"})
-[tool read_note] error: the notes tool isn't installed yet
-[model] Done. Here is what each step returned: read_note: ERROR: the notes tool isn't installed yet
+[tool read_note] error: {"other":"the notes tool isn't installed yet"}
+[model] Done. Here is what each step returned: read_note: ERROR: {"other":"the notes tool isn't installed yet"}
 ```
+
+The error is typed. Each tool interface has its own `variant error`, a fixed
+list of the ways it can fail, and the harness shows the model which case it
+got as `{"case": "payload"}`. The placeholder answers with `other`.
 
 **Where it runs.** The operator placed the workload on the one wasmCloud host
 pod in the cluster:
@@ -58,12 +62,12 @@ wasm-tools component wit artifacts/agent.wasm | grep 'import .*workshop:toolbox'
 ```
 
 ```
-  import workshop:toolbox/types@0.2.0;
-  import model: workshop:toolbox/model@0.2.0;
-  import memory: workshop:toolbox/memory@0.2.0;
-  import notes: workshop:toolbox/notes@0.2.0;
-  import reports: workshop:toolbox/reports@0.2.0;
-  import web: workshop:toolbox/web@0.2.0;
+  import workshop:toolbox/types@0.3.0;
+  import model: workshop:toolbox/model@0.3.0;
+  import memory: workshop:toolbox/memory@0.3.0;
+  import notes: workshop:toolbox/notes@0.3.0;
+  import reports: workshop:toolbox/reports@0.3.0;
+  import web: workshop:toolbox/web@0.3.0;
 ```
 
 Each label (`memory`, `notes`, ...) names the component in the workload that
