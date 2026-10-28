@@ -6,8 +6,8 @@
 //! behind it would stop the workload from starting, so until a step installs
 //! the real tool, the manifest fills the slot with this component. One image
 //! exports all four tool interfaces, so the same image can sit behind any
-//! slot. Every function returns the same plain error, which the harness
-//! shows in its transcript.
+//! slot. Every function returns its interface's `other` error saying the
+//! tool isn't installed yet, which the harness shows in its transcript.
 
 wit_bindgen::generate!({
     path: "../../wit",
@@ -17,45 +17,45 @@ wit_bindgen::generate!({
 
 use exports::workshop::toolbox::{memory, notes, reports, web};
 
-fn missing<T>(tool: &str) -> Result<T, String> {
-    Err(format!("the {tool} tool isn't installed yet"))
+fn missing(tool: &str) -> Option<String> {
+    Some(format!("the {tool} tool isn't installed yet"))
 }
 
 struct NotInstalled;
 
 impl memory::Guest for NotInstalled {
-    async fn remember(_key: String, _fact: String) -> Result<(), String> {
-        missing("memory")
+    async fn remember(_: memory::RememberArgs) -> Result<(), memory::Error> {
+        Err(memory::Error::Other(missing("memory")))
     }
-    async fn recall(_key: String) -> Result<Option<String>, String> {
-        missing("memory")
+    async fn recall(_: memory::RecallArgs) -> Result<Option<String>, memory::Error> {
+        Err(memory::Error::Other(missing("memory")))
     }
-    async fn recall_all() -> Result<Vec<memory::Entry>, String> {
-        missing("memory")
+    async fn recall_all() -> Result<Vec<memory::Entry>, memory::Error> {
+        Err(memory::Error::Other(missing("memory")))
     }
 }
 
 impl notes::Guest for NotInstalled {
-    async fn read(_path: String) -> Result<String, String> {
-        missing("notes")
+    async fn read(_: notes::ReadArgs) -> Result<String, notes::Error> {
+        Err(notes::Error::Other(missing("notes")))
     }
-    async fn append(_path: String, _line: String) -> Result<(), String> {
-        missing("notes")
+    async fn append(_: notes::AppendArgs) -> Result<(), notes::Error> {
+        Err(notes::Error::Other(missing("notes")))
     }
 }
 
 impl reports::Guest for NotInstalled {
-    async fn save(_name: String, _body: String) -> Result<(), String> {
-        missing("reports")
+    async fn save(_: reports::SaveArgs) -> Result<(), reports::Error> {
+        Err(reports::Error::Other(missing("reports")))
     }
 }
 
 impl web::Guest for NotInstalled {
-    async fn fetch(_url: String) -> Result<String, String> {
-        missing("web")
+    async fn fetch(_: web::FetchArgs) -> Result<web::Response, web::Error> {
+        Err(web::Error::Other(missing("web")))
     }
-    async fn post(_url: String, _body: String) -> Result<String, String> {
-        missing("web")
+    async fn post(_: web::PostArgs) -> Result<web::Response, web::Error> {
+        Err(web::Error::Other(missing("web")))
     }
 }
 

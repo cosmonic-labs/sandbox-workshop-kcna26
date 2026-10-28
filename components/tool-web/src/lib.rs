@@ -13,26 +13,55 @@ wit_bindgen::generate!({
 #[path = "../../common/http_client.rs"]
 mod http_client;
 
-use exports::workshop::toolbox::web::Guest;
+use exports::workshop::toolbox::web::{Error, FetchArgs, Guest, PostArgs, Response};
+use http_client::SendError;
+use wasi::http::types::ErrorCode;
 
-/// Send one request and return the body of a successful response.
-async fn send(method: &str, url: &str, body: String) -> Result<String, String> {
+/// Why a request produced no response, as this tool's typed error.
+fn send_error(url: &str, e: SendError) -> Error {
+    match e {
+        SendError::Invalid(m) => Error::InvalidArgument(m),
+        SendError::Http(ErrorCode::HttpRequestDenied) => {
+            Error::AccessDenied(format!("{url}: this tool may not reach that host"))
+        }
+        SendError::Http(
+            code @ (ErrorCode::DnsTimeout
+            | ErrorCode::DnsError(_)
+            | ErrorCode::DestinationNotFound
+            | ErrorCode::DestinationUnavailable
+            | ErrorCode::DestinationIpProhibited
+            | ErrorCode::DestinationIpUnroutable
+            | ErrorCode::ConnectionRefused
+            | ErrorCode::ConnectionTerminated
+            | ErrorCode::ConnectionTimeout
+            | ErrorCode::ConnectionReadTimeout
+            | ErrorCode::ConnectionWriteTimeout
+            | ErrorCode::ConnectionLimitReached
+            | ErrorCode::TlsProtocolError
+            | ErrorCode::TlsCertificateError
+            | ErrorCode::TlsAlertReceived(_)),
+        ) => Error::Network(format!("{url}: {code:?}")),
+        SendError::Http(code) => Error::Other(Some(format!("{url}: {code:?}"))),
+    }
+}
+
+/// Send one request and return what the server answered, whatever its status.
+async fn send(method: &str, url: &str, body: String) -> Result<Response, Error> {
     let (status, bytes) = http_client::send(method, url, &[], body.into_bytes())
         .await
-        .map_err(|e| format!("{method} {url} failed: {e}"))?;
-    let text = String::from_utf8_lossy(&bytes).into_owned();
-    if (200..300).contains(&status) { Ok(text) } else { Err(format!("{method} {url}: HTTP {status}: {text}")) }
+        .map_err(|e| send_error(url, e))?;
+    Ok(Response { status, text: String::from_utf8_lossy(&bytes).into_owned() })
 }
 
 struct Web;
 
 impl Guest for Web {
-    async fn fetch(url: String) -> Result<String, String> {
-        send("GET", &url, String::new()).await
+    async fn fetch(args: FetchArgs) -> Result<Response, Error> {
+        send("GET", &args.url, String::new()).await
     }
 
-    async fn post(url: String, body: String) -> Result<String, String> {
-        send("POST", &url, body).await
+    async fn post(args: PostArgs) -> Result<Response, Error> {
+        send("POST", &args.url, args.body).await
     }
 }
 
