@@ -32,23 +32,23 @@ spec:
           interfaces: [store]
       components:
         - name: agent
-          image: workshop-toolbox-registry:5000/workshop/agent:0.2.0
+          image: workshop-toolbox-registry:5000/workshop/agent:0.3.0
         - name: model
-          image: workshop-toolbox-registry:5000/workshop/model-scripted:0.2.0
+          image: workshop-toolbox-registry:5000/workshop/model-scripted:0.3.0
         # memory is the only component that imports keyvalue. The platform
         # declares the backend (k8s/values.yaml) and creates the bucket.
         - name: memory
-          image: workshop-toolbox-registry:5000/workshop/tool-memory:0.2.0
+          image: workshop-toolbox-registry:5000/workshop/tool-memory:0.3.0
           localResources:
             environment:
               config:
                 MEMORY_BUCKET: tenant-a-memory
         - name: notes
-          image: workshop-toolbox-registry:5000/workshop/not-installed:0.2.0
+          image: workshop-toolbox-registry:5000/workshop/not-installed:0.3.0
         - name: reports
-          image: workshop-toolbox-registry:5000/workshop/not-installed:0.2.0
+          image: workshop-toolbox-registry:5000/workshop/not-installed:0.3.0
         - name: web
-          image: workshop-toolbox-registry:5000/workshop/not-installed:0.2.0
+          image: workshop-toolbox-registry:5000/workshop/not-installed:0.3.0
 ---
 apiVersion: v1
 kind: Namespace
@@ -76,20 +76,20 @@ spec:
           interfaces: [store]
       components:
         - name: agent
-          image: workshop-toolbox-registry:5000/workshop/agent:0.2.0
+          image: workshop-toolbox-registry:5000/workshop/agent:0.3.0
         - name: model
-          image: workshop-toolbox-registry:5000/workshop/model-scripted:0.2.0
+          image: workshop-toolbox-registry:5000/workshop/model-scripted:0.3.0
         # memory is the only component that imports keyvalue. The platform
         # declares the backend (k8s/values.yaml) and creates the bucket.
         - name: memory
-          image: workshop-toolbox-registry:5000/workshop/tool-memory:0.2.0
+          image: workshop-toolbox-registry:5000/workshop/tool-memory:0.3.0
           localResources:
             environment:
               config:
                 MEMORY_BUCKET: tenant-b-memory
         - name: notes
-          image: workshop-toolbox-registry:5000/workshop/not-installed:0.2.0
+          image: workshop-toolbox-registry:5000/workshop/not-installed:0.3.0
         - name: reports
-          image: workshop-toolbox-registry:5000/workshop/not-installed:0.2.0
+          image: workshop-toolbox-registry:5000/workshop/not-installed:0.3.0
         - name: web
-          image: workshop-toolbox-registry:5000/workshop/not-installed:0.2.0
+          image: workshop-toolbox-registry:5000/workshop/not-installed:0.3.0

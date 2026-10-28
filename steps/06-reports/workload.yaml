@@ -27,32 +27,32 @@ spec:
           interfaces: [blobstore, container, types]
       components:
         - name: agent
-          image: workshop-toolbox-registry:5000/workshop/agent:0.2.0
+          image: workshop-toolbox-registry:5000/workshop/agent:0.3.0
         - name: model
-          image: workshop-toolbox-registry:5000/workshop/model-scripted:0.2.0
+          image: workshop-toolbox-registry:5000/workshop/model-scripted:0.3.0
         # memory is the only component that imports keyvalue. The platform
         # declares the backend (k8s/values.yaml) and creates the bucket.
         - name: memory
-          image: workshop-toolbox-registry:5000/workshop/tool-memory:0.2.0
+          image: workshop-toolbox-registry:5000/workshop/tool-memory:0.3.0
           localResources:
             environment:
               config:
                 MEMORY_BUCKET: agent-memory
         - name: notes
-          image: workshop-toolbox-registry:5000/workshop/tool-notes:0.2.0
+          image: workshop-toolbox-registry:5000/workshop/tool-notes:0.3.0
           localResources:
             volumeMounts:
               - name: notes
                 mountPath: /notes
                 readOnly: true
         - name: reports
-          image: workshop-toolbox-registry:5000/workshop/tool-reports:0.2.0
+          image: workshop-toolbox-registry:5000/workshop/tool-reports:0.3.0
           localResources:
             environment:
               config:
                 REPORT_CONTAINER: reports
         - name: web
-          image: workshop-toolbox-registry:5000/workshop/not-installed:0.2.0
+          image: workshop-toolbox-registry:5000/workshop/not-installed:0.3.0
       volumes:
         - name: notes
           hostPath:
