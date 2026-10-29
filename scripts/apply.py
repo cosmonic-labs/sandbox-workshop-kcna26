@@ -13,7 +13,7 @@ the same YAML you would kubectl apply on a cluster.
 Differences from the operator, on purpose:
   * the cluster's names are mapped to this laptop: images from
     workshop-toolbox-registry:5000 come from $REGISTRY instead, and the node
-    paths /workshop/notes and /workshop/notes-rw become steps/05-notes/notes
+    paths /workshop/notes and /workshop/notes-rw become steps/06-notes/notes
     and .run/notes-rw. Other relative hostPath paths resolve against the
     manifest's directory.
   * environment.config only; configFrom/secretFrom need Kubernetes objects.
@@ -87,7 +87,7 @@ def pull_policy(p):
 CLUSTER_REGISTRY = "workshop-toolbox-registry:5000/"
 LOCAL_REGISTRY = os.environ.get("REGISTRY", "localhost:15051") + "/"
 NODE_PATHS = {
-    "/workshop/notes": os.path.join(ROOT, "steps", "05-notes", "notes"),
+    "/workshop/notes": os.path.join(ROOT, "steps", "06-notes", "notes"),
     "/workshop/notes-rw": os.path.join(ROOT, ".run", "notes-rw"),
 }
 

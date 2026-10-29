@@ -44,8 +44,8 @@ leaks=1
   false`, a read only root filesystem, seccomp: each closes one door, and you
   have to add it, for every pod, and keep it current.
 
-Steps 5 and 6 run the same hijack against the wasmCloud agent. There, each
-tool starts with nothing, and the only doors are the ones its manifest names.
+Step 5 runs the same hijack against the wasmCloud agent. There, each tool
+starts with nothing, and the only doors are the ones its manifest names.
 
 To run it again: `kubectl delete -f steps/04-container/gullible-agent.yaml`,
 then apply it again.

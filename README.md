@@ -13,7 +13,7 @@ watch the same gullible agent leak everything from an ordinary container, and
 then build the wasmCloud agent's tools one step at a time. Every tool runs in
 its own sandbox with only the access you grant it. The model is a scripted,
 gullible stand-in that obeys any instruction it reads, including instructions
-planted in a note or a web page. **The hijack always succeeds. The sandbox
+planted in a web page or a note. **The hijack always succeeds. The sandbox
 does not stop prompt injection; it decides what a hijacked agent can reach.**
 
 ## What you need
@@ -48,8 +48,8 @@ the commands to run and the output to expect (`expected-output.txt`).
 | 2 | Give it a memory tool | A capability is an interface the platform grants |
 | 3 | Two teams, two namespaces | One host pod, many tenants, each with its own memory and grants |
 | 4 | Run the same agent as a container | A container is not a sandbox: it leaks its Secret, its service account token and `/etc/passwd` |
-| 5 | A notes tool over one read only folder | Planted attack 1 fails at the folder boundary |
-| 6 | A web tool allowed one host | Planted attack 2 fails at the egress check |
+| 5 | A web tool allowed one host | Planted attack 1 fails at the egress check |
+| 6 | A notes tool over one read only folder | Planted attack 2 fails at the folder boundary |
 | 7 | Swap in a real model | Same slot, new implementation, no rebuild |
 
 Steps 1 to 5 tell the whole story. Steps 6 and 7 go as far as time allows.

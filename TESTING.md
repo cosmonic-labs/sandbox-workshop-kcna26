@@ -47,12 +47,12 @@ On a machine with Docker stopped:
       `make doctor` on its own; every Required line is green (Docker comes
       from the docker-in-docker feature).
 - [ ] `make up` completes inside the codespace. Note how long it takes.
-- [ ] Steps 1, 3, 4 and 6 run as written from the codespace terminal.
+- [ ] Steps 1, 3, 4 and 5 run as written from the codespace terminal.
 
 ## 4. Build it yourself
 
 - [ ] With Rust 1.98.1 and the `wasm32-wasip2` target: `make build && make
-      push-build`, then step 6 still refuses the leak.
+      push-build`, then step 5 still refuses the leak.
 
 ## 5. In the room
 
@@ -60,4 +60,4 @@ On a machine with Docker stopped:
       up` the day before needs no downloads (kind's node image and the chart
       images are cached).
 - [ ] Jumping ahead works: on a fresh `make up`, `kubectl apply -f
-      steps/06-web/workload.yaml` alone, then step 6's commands.
+      steps/05-web/workload.yaml` alone, then step 5's commands.

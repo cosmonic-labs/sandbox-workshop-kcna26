@@ -15,7 +15,7 @@ source "$(dirname "$0")/env.sh"
 CTX="kind-$CLUSTER"
 K() { kubectl --context "$CTX" "$@"; }
 
-# The notes folder (step 3), and a scratch copy for the read-write control
+# The notes folder (step 6), and a scratch copy for the read-write control
 # case, reach the host pod through the kind node: a node path, mounted into
 # the host container by k8s/values.yaml, and allowed by its hostPaths list.
 mkdir -p "$RUN_DIR/notes-rw"
@@ -33,7 +33,7 @@ nodes:
         hostPort: ${DATA_NATS_URL##*:}
         listenAddress: "127.0.0.1"
     extraMounts:
-      - hostPath: $ROOT/steps/05-notes/notes
+      - hostPath: $ROOT/steps/06-notes/notes
         containerPath: /workshop/notes
       - hostPath: $RUN_DIR/notes-rw
         containerPath: /workshop/notes-rw
