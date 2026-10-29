@@ -10,9 +10,9 @@
 # tool, repeat) imports a model and three labelled tool slots: memory, notes
 # and web. The host links each label to the component of the same name in
 # this workload, so every slot must be filled. With this step every slot has
-# its real tool: memory (step 2), web (step 5, still allowed planted.example
-# only) and notes. The harness and the model get nothing else: no
-# allowedHosts, no volumes, no environment.
+# its real tool: memory (step 2), web (step 5, still allowed
+# planted.workshop-sites.svc only) and notes. The harness and the model get
+# nothing else: no allowedHosts, no volumes, no environment.
 apiVersion: runtime.wasmcloud.dev/v1alpha1
 kind: WorkloadDeployment
 metadata:
@@ -21,6 +21,9 @@ spec:
   replicas: 1
   template:
     spec:
+      # The team host group; the toy sites have one of their own.
+      hostSelector:
+        hostgroup: default
       hostInterfaces:
         - namespace: wasi
           package: http
@@ -55,7 +58,7 @@ spec:
           image: workshop-toolbox-registry:5000/workshop/tool-web:0.4.0
           localResources:
             allowedHosts:
-              - planted.example
+              - planted.workshop-sites.svc
       volumes:
         - name: notes
           hostPath:

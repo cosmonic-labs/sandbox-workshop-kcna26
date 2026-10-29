@@ -123,7 +123,7 @@
   <button id="reset" type="button">Reset</button>
 </header>
 <main>
-  <p class="sub">Everything that reaches the attacker at <code>collector.example/collect</code> or <code>planted.example/collect</code>, newest first.</p>
+  <p class="sub">Everything that reaches the attacker at <code>collector.workshop-sites.svc/collect</code> or <code>planted.workshop-sites.svc/collect</code>, newest first.</p>
 
   <section class="counter" id="counter" aria-live="polite" aria-atomic="true">
     <span class="num display" id="num">0</span>
@@ -150,14 +150,14 @@
 
   function source(leak) {
     const ua = leak.agent || '';
-    if (leak.host === 'collector.example') {
-      return ['A component on the wasmCloud host', 'reached collector.example through local routing'];
-    }
-    if (leak.host === 'planted.example') {
-      return ['The web tool, through its one allowed host', 'reached planted.example, the host in its allowedHosts, through local routing'];
-    }
     if (/wget|curl/i.test(ua)) {
-      return ['A container in the cluster', 'came in through the cluster ingress as sites.localhost'];
+      return ['A container in the cluster', 'reached ' + (leak.host || 'the collector') + ' over the cluster network'];
+    }
+    if (leak.host === 'collector.workshop-sites.svc') {
+      return ['A component on the agents\' host', 'reached collector.workshop-sites.svc through its Kubernetes Service'];
+    }
+    if (leak.host === 'planted.workshop-sites.svc') {
+      return ['The web tool, through its one allowed host', 'reached planted.workshop-sites.svc, the host in its allowedHosts'];
     }
     return ['Unknown sender', 'came in as ' + (leak.host || 'no host')];
   }

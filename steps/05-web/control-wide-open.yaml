@@ -10,6 +10,9 @@ spec:
   replicas: 1
   template:
     spec:
+      # The team host group; the toy sites have one of their own.
+      hostSelector:
+        hostgroup: default
       hostInterfaces:
         - namespace: wasi
           package: http
