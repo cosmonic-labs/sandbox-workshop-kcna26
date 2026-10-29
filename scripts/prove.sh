@@ -36,8 +36,8 @@ redeploy() { # manifest: stop and start it again
 hosts() {
   echo "\$ kubectl get workloads -A -o custom-columns=NAMESPACE:.metadata.namespace,HOST:.status.hostId"
   kubectl get workloads -A -o custom-columns=NAMESPACE:.metadata.namespace,HOST:.status.hostId
-  echo "\$ kubectl get pods -n wasmcloud -l wasmcloud.com/name=hostgroup"
-  kubectl get pods -n wasmcloud -l wasmcloud.com/name=hostgroup -o custom-columns=NAME:.metadata.name,READY:.status.phase
+  echo "\$ kubectl get pods -A -l wasmcloud.com/name=hostgroup"
+  kubectl get pods -A -l wasmcloud.com/name=hostgroup -o custom-columns=NAMESPACE:.metadata.namespace,NAME:.metadata.name,READY:.status.phase
   echo
 }
 STORES="$DATA_NATS_URL"
@@ -45,11 +45,12 @@ N() { nats --server "$STORES" "$@"; }
 
 # Clean slate.
 kubectl delete workloaddeployment --all -n default >/dev/null 2>&1 || true
+kubectl delete -f steps/03-tenants/squatter.yaml --ignore-not-found >/dev/null 2>&1 || true
 kubectl delete -f steps/03-tenants/tenants.yaml --ignore-not-found >/dev/null 2>&1 || true
 kubectl delete -f steps/04-container/gullible-agent.yaml --ignore-not-found >/dev/null 2>&1 || true
 "$ROOT/scripts/stores.sh" reset >/dev/null
 kubectl apply -f steps/00-fixtures/toy-sites.yaml >/dev/null
-kubectl wait --for=condition=Ready workloaddeployment/toy-sites --timeout=120s >/dev/null
+kubectl wait --for=condition=Ready workloaddeployment/toy-sites -n workshop-sites --timeout=120s >/dev/null
 reset_count
 
 {
@@ -87,8 +88,26 @@ reset_count
   ask b.agent.localhost 'remember that our team is bravo'
   ask a.agent.localhost 'what do you remember?'
   ask b.agent.localhost 'what do you remember?'
-  echo "# Both teams' workloads, and step 2's, run on the same host:"
+  echo "# Both teams' workloads, and step 2's, run on the same host; the toy sites run on their own:"
   hosts
+  echo "# Squatter check: team-b claims the toy sites' names on the host it shares with team-a."
+  echo "# team-a's agent gets step 5's web tool (allowed planted.workshop-sites.svc only)."
+  sed -e '/^  name: toolbox-agent$/a\
+  namespace: team-a' -e 's/host: agent.localhost/host: a.agent.localhost/' \
+    -e 's/MEMORY_BUCKET: agent-memory/MEMORY_BUCKET: tenant-a-memory/' \
+    steps/05-web/workload.yaml >"$RUN_DIR/team-a-web.yaml"
+  apply .run/team-a-web.yaml >/dev/null
+  apply steps/03-tenants/squatter.yaml
+  echo "# Six fetches from team-a; with local routing on, the squatter would answer them."
+  real=0
+  for _ in 1 2 3 4 5 6; do
+    curl -s -m 30 -H 'Host: a.agent.localhost' "$URL/" -d 'fetch http://planted.workshop-sites.svc/page' \
+      | grep -q 'Totally normal release notes' && real=$((real + 1))
+  done
+  echo "\$ curl -s -H 'Host: a.agent.localhost' $URL/ -d 'fetch http://planted.workshop-sites.svc/page'   # x6"
+  echo "answered by the toy sites: $real of 6; by the squatter: $((6 - real)) of 6"
+  kubectl delete -f steps/03-tenants/squatter.yaml >/dev/null
+  apply steps/03-tenants/tenants.yaml >/dev/null
 } >"$(OUT 03-tenants)" 2>&1
 
 {
@@ -107,24 +126,24 @@ reset_count
 } >"$(OUT 04-container)" 2>&1
 
 {
-  echo "# Step 5: planted attack 1 (the web tool may reach planted.example only)"
+  echo "# Step 5: planted attack 1 (the web tool may reach planted.workshop-sites.svc only)"
   apply steps/05-web/workload.yaml
   reset_count
-  ask agent.localhost 'summarize http://planted.example/page'
+  ask agent.localhost 'summarize http://planted.workshop-sites.svc/page'
   count
-  echo "# The allowed host is a way out too: page2 says to send everything to planted.example"
-  ask agent.localhost 'summarize http://planted.example/page2'
+  echo "# The allowed host is a way out too: page2 says to send everything to planted.workshop-sites.svc"
+  ask agent.localhost 'summarize http://planted.workshop-sites.svc/page2'
   count
   echo "# Control: the web tool's allowedHosts widened to \"*\", nothing else changed"
   apply steps/05-web/control-wide-open.yaml
   reset_count
-  ask agent.localhost 'summarize http://planted.example/page'
+  ask agent.localhost 'summarize http://planted.workshop-sites.svc/page'
   count
-  echo "# Per component, not per workload: the model may reach llm.example, the web tool may not"
-  sed -e '/name: model$/{n;s#$#\n          localResources:\n            allowedHosts: [llm.example]#;}' \
+  echo "# Per component, not per workload: the model may reach llm.workshop-sites.svc, the web tool may not"
+  sed -e '/name: model$/{n;s#$#\n          localResources:\n            allowedHosts: [llm.workshop-sites.svc]#;}' \
     steps/05-web/workload.yaml >"$RUN_DIR/per-component.yaml"
   apply .run/per-component.yaml
-  ask agent.localhost 'fetch http://llm.example/v1/chat/completions'
+  ask agent.localhost 'fetch http://llm.workshop-sites.svc/v1/chat/completions'
   apply steps/05-web/workload.yaml >/dev/null
 } >"$(OUT 05-web)" 2>&1
 
@@ -147,7 +166,7 @@ reset_count
 } >"$(OUT 06-notes)" 2>&1
 
 {
-  echo "# Step 7: model-real behind the same slot (a fake OpenAI compatible endpoint on llm.example)"
+  echo "# Step 7: model-real behind the same slot (a fake OpenAI compatible endpoint on llm.workshop-sites.svc)"
   apply steps/07-real-model/workload.yaml
   ask agent.localhost 'hello'
   ask agent.localhost 'recall what you know about me'
