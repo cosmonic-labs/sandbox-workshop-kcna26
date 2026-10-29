@@ -15,16 +15,16 @@ $ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'read my notes'
 
 $ kubectl get workloads -A -o custom-columns=NAMESPACE:.metadata.namespace,HOST:.status.hostId
 NAMESPACE   HOST
-default     01a187fb-16fb-72c2-ac57-b26500fb7735
-default     01a187fb-16fb-72c2-ac57-b26500fb7735
+default     01a188fc-7aca-7b71-9098-f77187227bb4
+default     01a188fc-7aca-7b71-9098-f77187227bb4
 $ kubectl get pods -n wasmcloud -l wasmcloud.com/name=hostgroup
 NAME                                READY
-hostgroup-default-b9b84b45d-4phhw   Running
+hostgroup-default-b9b84b45d-gtbs2   Running
 
 # The agent harness and model import no filesystem, no outgoing HTTP, no sockets:
-$ wasm-tools component wit artifacts/agent.wasm | grep -E 'filesystem|http/client|sockets' || echo none
+$ wasm-tools component wit artifacts/agent.wasm | grep -E 'wasi:(http/client|filesystem|sockets)' || echo none
 agent: none
-$ wasm-tools component wit artifacts/model_scripted.wasm | grep -E 'filesystem|http/client|sockets' || echo none
+$ wasm-tools component wit artifacts/model_scripted.wasm | grep -E 'wasi:(http/client|filesystem|sockets)' || echo none
 model_scripted: none
 # The agent harness's imports from this workshop: the model and three typed, labelled tool slots
 $ wasm-tools component wit artifacts/agent.wasm | grep 'import .*workshop:toolbox'
