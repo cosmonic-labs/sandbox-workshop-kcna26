@@ -7,8 +7,8 @@
 # only, for this one component.
 #
 # The agent harness (the component that runs the loop: ask the model, call a
-# tool, repeat) imports a model and four labelled tool slots: memory, notes,
-# reports and web. The host links each label to the component of the same
+# tool, repeat) imports a model and three labelled tool slots: memory, notes
+# and web. The host links each label to the component of the same
 # name in this workload, so every slot must be filled. Until a step installs
 # the real tool, a slot is filled by not-installed: one image under several
 # names, whose every function answers "the <tool> tool isn't installed yet".
@@ -34,28 +34,26 @@ spec:
           interfaces: [store]
       components:
         - name: agent
-          image: workshop-toolbox-registry:5000/workshop/agent:0.3.0
+          image: workshop-toolbox-registry:5000/workshop/agent:0.4.0
         - name: model
-          image: workshop-toolbox-registry:5000/workshop/model-scripted:0.3.0
+          image: workshop-toolbox-registry:5000/workshop/model-scripted:0.4.0
         # memory is the only component that imports keyvalue. The platform
         # declares the backend (k8s/values.yaml) and creates the bucket.
         - name: memory
-          image: workshop-toolbox-registry:5000/workshop/tool-memory:0.3.0
+          image: workshop-toolbox-registry:5000/workshop/tool-memory:0.4.0
           localResources:
             environment:
               config:
                 MEMORY_BUCKET: agent-memory
         - name: notes
-          image: workshop-toolbox-registry:5000/workshop/tool-notes:0.3.0
+          image: workshop-toolbox-registry:5000/workshop/tool-notes:0.4.0
           localResources:
             volumeMounts:
               - name: notes
                 mountPath: /notes
                 readOnly: true
-        - name: reports
-          image: workshop-toolbox-registry:5000/workshop/not-installed:0.3.0
         - name: web
-          image: workshop-toolbox-registry:5000/workshop/not-installed:0.3.0
+          image: workshop-toolbox-registry:5000/workshop/not-installed:0.4.0
       volumes:
         - name: notes
           hostPath:

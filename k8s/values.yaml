@@ -25,18 +25,12 @@ runtime:
         # collector.example, llm.example). Upstream's threat model notes that
         # it lets any workload on the host claim a hostname.
         localBypassRouting: true
-      # The backends behind the WASI 0.3 keyvalue and blobstore interfaces,
-      # declared by the platform, not by workloads: since v2.11.0 a workload
-      # may not set a backend's url itself (workloadConfig defaults to deny).
-      # Both point at the workshop's data service (k8s/data-nats.yaml).
+      # The backend behind the WASI 0.3 keyvalue interface, declared by the
+      # platform, not by workloads: since v2.11.0 a workload may not set a
+      # backend's url itself (workloadConfig defaults to deny). It points at
+      # the workshop's data service (k8s/data-nats.yaml).
       plugins:
         - id: wasmcloud-keyvalue-multiplexed
-          allowedHosts: [data-nats.workshop-data.svc:4222]
-          allowedIpNameLookups: [data-nats.workshop-data.svc]
-          config:
-            backend: nats
-            url: nats://data-nats.workshop-data.svc:4222
-        - id: wasmcloud-blobstore-multiplexed
           allowedHosts: [data-nats.workshop-data.svc:4222]
           allowedIpNameLookups: [data-nats.workshop-data.svc]
           config:

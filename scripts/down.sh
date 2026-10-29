@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Stop everything up.sh and up-local.sh started. Pass --all to also delete the
 # kind cluster, the registry container, the zot registry's storage and the
-# NATS data (keyvalue buckets and object store).
+# NATS data (keyvalue buckets).
 set -uo pipefail
 source "$(dirname "$0")/env.sh"
 for p in host nats registry; do

@@ -304,13 +304,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "tool-reports"
-version = "0.1.0"
-dependencies = [
- "wit-bindgen",
-]
-
-[[package]]
 name = "tool-web"
 version = "0.1.0"
 dependencies = [

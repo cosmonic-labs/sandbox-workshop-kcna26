@@ -40,7 +40,9 @@ under `hostInterfaces`, and the memory component names its bucket in
 platform's decision: `k8s/values.yaml` declares the backend (the cluster's
 data service) under `plugins:`, and `scripts/stores.sh` created the bucket.
 A workload can open a bucket the platform made; it cannot create one, and it
-cannot point keyvalue at an address of its own choosing.
+cannot point keyvalue at an address of its own choosing. Blobstore (object
+storage) works the same way: the platform declares the backend and creates
+the store, and the workload only asks for the interface.
 
 **Run:**
 

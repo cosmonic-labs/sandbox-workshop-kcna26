@@ -33,7 +33,7 @@
 //! here write a short sentence instead, so the transcript reads well on a
 //! slide.
 
-use crate::{memory, notes, reports, web};
+use crate::{memory, notes, web};
 use serde_json::{Value, json};
 
 /// One function the model may call.
@@ -87,16 +87,6 @@ pub const TOOLS: &[Tool] = &[
         params: &[
             ("path", "The file's path inside the notes folder, such as todo.txt."),
             ("line", "The text to add. A line break is added after it."),
-        ],
-    },
-    // workshop:toolbox/reports.save
-    Tool {
-        name: "save_report",
-        description: "Save a text report to object storage. A report with the same name is \
-                      replaced.",
-        params: &[
-            ("name", "The report's file name, such as report.txt."),
-            ("body", "The report's text."),
         ],
     },
     // workshop:toolbox/web.fetch
@@ -153,12 +143,6 @@ pub async fn call(name: &str, a: &Args) -> Result<String, String> {
             notes::append(args).await.map_err(notes_error)?;
             Ok(format!("appended to {path}"))
         }
-        "save_report" => {
-            let args = reports::SaveArgs { name: a.get("name")?, body: a.get("body")? };
-            let line = format!("saved {} bytes as {}", args.body.len(), args.name);
-            reports::save(args).await.map_err(reports_error)?;
-            Ok(line)
-        }
         "fetch" => {
             let args = web::FetchArgs { url: a.get("url")? };
             web::fetch(args).await.map(response).map_err(web_error)
@@ -201,16 +185,6 @@ fn notes_error(e: notes::Error) -> String {
         InvalidArgument(m) => variant("invalid-argument", Some(m)),
         NotFound(m) => variant("not-found", Some(m)),
         AccessDenied(m) => variant("access-denied", Some(m)),
-        Other(m) => variant("other", m),
-    }
-}
-
-fn reports_error(e: reports::Error) -> String {
-    use reports::Error::*;
-    match e {
-        InvalidArgument(m) => variant("invalid-argument", Some(m)),
-        AccessDenied(m) => variant("access-denied", Some(m)),
-        Unavailable(m) => variant("unavailable", Some(m)),
         Other(m) => variant("other", m),
     }
 }

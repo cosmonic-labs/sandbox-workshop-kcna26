@@ -2,7 +2,7 @@
 # The no-Docker fallback: a local upstream wasmCloud v2 stack with no Kubernetes
 # (the workshop itself runs on kind, scripts/up.sh). Apply steps with
 # scripts/apply.py instead of kubectl.
-#   nats-server (JetStream) -> scheduler bus + keyvalue/blobstore backend
+#   nats-server (JetStream) -> scheduler bus + keyvalue backend
 #   zot (or registry:2)     -> OCI registry the host pulls components from
 #   wash host               -> the wasmCloud host (same binary the chart runs)
 set -euo pipefail
@@ -49,17 +49,13 @@ if ! host_running; then
   fi
   rm -f "$RUN_DIR/host.id"
   # The same platform declaration as the chart's plugins: (k8s/values.yaml):
-  # keyvalue and blobstore are backed by this NATS, and workloads only ask.
+  # keyvalue is backed by this NATS, and workloads only ask.
   # A plugin reaches this machine's loopback only with --allow-host-loopback
   # and a port named in its own allowedHostLoopbackPorts.
   cat >"$RUN_DIR/host-config.yaml" <<YAML
 host:
   plugins:
     - id: wasmcloud-keyvalue-multiplexed
-      config: { backend: nats, url: "$NATS_URL" }
-      allowedHosts: ["127.0.0.1:$NATS_PORT"]
-      allowedHostLoopbackPorts: ["$NATS_PORT"]
-    - id: wasmcloud-blobstore-multiplexed
       config: { backend: nats, url: "$NATS_URL" }
       allowedHosts: ["127.0.0.1:$NATS_PORT"]
       allowedHostLoopbackPorts: ["$NATS_PORT"]

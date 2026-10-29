@@ -1,8 +1,8 @@
 # The workshop's data service: a plain NATS server with JetStream, in its own
-# namespace. The platform declares it as the backend for the keyvalue and
-# blobstore plugins (k8s/values.yaml, `plugins:`); workloads only ask for
-# "keyvalue" or "blobstore" and never see this address. It is separate from the
-# wasmCloud control plane's NATS, which requires mutual TLS.
+# namespace. The platform declares it as the backend for the keyvalue plugin
+# (k8s/values.yaml, `plugins:`); workloads only ask for "keyvalue" and never
+# see this address. It is separate from the wasmCloud control plane's NATS,
+# which requires mutual TLS.
 apiVersion: v1
 kind: Namespace
 metadata:

@@ -82,7 +82,7 @@ reset_count
     echo "\$ wasm-tools component wit artifacts/$c.wasm | grep -E 'filesystem|http/client|sockets' || echo none"
     wasm-tools component wit "artifacts/$c.wasm" | grep -E 'filesystem|http/client|sockets' || echo "$c: none"
   done
-  echo "# The agent harness's imports from this workshop: the model and four typed, labelled tool slots"
+  echo "# The agent harness's imports from this workshop: the model and three typed, labelled tool slots"
   echo "\$ wasm-tools component wit artifacts/agent.wasm | grep 'import .*workshop:toolbox'"
   wasm-tools component wit artifacts/agent.wasm | grep 'import .*workshop:toolbox'
 } >"$(OUT 01-agent)" 2>&1
@@ -139,16 +139,6 @@ reset_count
   tail -1 "$RUN_DIR/notes-rw/todo.txt"
   apply steps/05-notes/workload.yaml >/dev/null
 } >"$(OUT 05-notes)" 2>&1
-
-{
-  echo "# Step 6: the reports tool saves to object storage"
-  apply steps/06-reports/workload.yaml
-  ask agent.localhost 'what do you remember? Then save a report'
-  echo "\$ nats --server $STORES object get reports report.txt"
-  N object get reports report.txt -O "$RUN_DIR/report.txt" --force >/dev/null
-  cat "$RUN_DIR/report.txt"
-  echo
-} >"$(OUT 06-reports)" 2>&1
 
 {
   echo "# Step 7: planted attack 2 (the web tool may reach planted.example only)"

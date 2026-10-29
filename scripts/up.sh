@@ -3,7 +3,7 @@
 #   kind              a one-node Kubernetes cluster in Docker (context kind-workshop-toolbox)
 #   registry:2        an OCI registry container on the kind network
 #   runtime-operator  the upstream wasmCloud chart, v2.11.0: operator, NATS, one host pod
-#   data-nats         the data service behind keyvalue and blobstore (k8s/data-nats.yaml)
+#   data-nats         the data service behind keyvalue (k8s/data-nats.yaml)
 # then push the prebuilt components (or SRC=<dir>). 127.0.0.1:18180 reaches the
 # host pods through a NodePort Service (k8s/ingress.yaml) that kind maps to
 # your laptop, so every step's curl command works unchanged.

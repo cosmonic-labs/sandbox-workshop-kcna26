@@ -5,7 +5,7 @@
 //! each label to the workload component of the same name. A slot with nothing
 //! behind it would stop the workload from starting, so until a step installs
 //! the real tool, the manifest fills the slot with this component. One image
-//! exports all four tool interfaces, so the same image can sit behind any
+//! exports all three tool interfaces, so the same image can sit behind any
 //! slot. Every function returns its interface's `other` error saying the
 //! tool isn't installed yet, which the harness shows in its transcript.
 
@@ -15,7 +15,7 @@ wit_bindgen::generate!({
     generate_all,
 });
 
-use exports::workshop::toolbox::{memory, notes, reports, web};
+use exports::workshop::toolbox::{memory, notes, web};
 
 fn missing(tool: &str) -> Option<String> {
     Some(format!("the {tool} tool isn't installed yet"))
@@ -41,12 +41,6 @@ impl notes::Guest for NotInstalled {
     }
     async fn append(_: notes::AppendArgs) -> Result<(), notes::Error> {
         Err(notes::Error::Other(missing("notes")))
-    }
-}
-
-impl reports::Guest for NotInstalled {
-    async fn save(_: reports::SaveArgs) -> Result<(), reports::Error> {
-        Err(reports::Error::Other(missing("reports")))
     }
 }
 

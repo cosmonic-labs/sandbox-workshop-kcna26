@@ -1,8 +1,8 @@
 # Step 1: the agent answers over HTTP.
 #
 # The agent harness (the component that runs the loop: ask the model, call a
-# tool, repeat) imports a model and four labelled tool slots: memory, notes,
-# reports and web. The host links each label to the component of the same
+# tool, repeat) imports a model and three labelled tool slots: memory, notes
+# and web. The host links each label to the component of the same
 # name in this workload, so every slot must be filled. Until a step installs
 # the real tool, a slot is filled by not-installed: one image under several
 # names, whose every function answers "the <tool> tool isn't installed yet".
@@ -24,14 +24,12 @@ spec:
             host: agent.localhost
       components:
         - name: agent
-          image: workshop-toolbox-registry:5000/workshop/agent:0.3.0
+          image: workshop-toolbox-registry:5000/workshop/agent:0.4.0
         - name: model
-          image: workshop-toolbox-registry:5000/workshop/model-scripted:0.3.0
+          image: workshop-toolbox-registry:5000/workshop/model-scripted:0.4.0
         - name: memory
-          image: workshop-toolbox-registry:5000/workshop/not-installed:0.3.0
+          image: workshop-toolbox-registry:5000/workshop/not-installed:0.4.0
         - name: notes
-          image: workshop-toolbox-registry:5000/workshop/not-installed:0.3.0
-        - name: reports
-          image: workshop-toolbox-registry:5000/workshop/not-installed:0.3.0
+          image: workshop-toolbox-registry:5000/workshop/not-installed:0.4.0
         - name: web
-          image: workshop-toolbox-registry:5000/workshop/not-installed:0.3.0
+          image: workshop-toolbox-registry:5000/workshop/not-installed:0.4.0

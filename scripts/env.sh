@@ -20,5 +20,5 @@ export KIND_REGISTRY_PORT=15052
 export DATA_NATS_URL="nats://127.0.0.1:14322"
 export HOST_HTTP="${HOST_HTTP:-127.0.0.1:18180}"   # agent and sites ingress
 export HOST_PROBE="${HOST_PROBE:-127.0.0.1:18181}"
-export TAG="${TAG:-0.3.0}"
+export TAG="${TAG:-0.4.0}"
 mkdir -p "$RUN_DIR"

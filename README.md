@@ -4,9 +4,9 @@ A hands-on workshop (KubeCon + CloudNativeCon NA 2026, 80 minutes) for
 platform engineers: run AI agents on the Kubernetes cluster you already have,
 many tenants to a pod, with **upstream wasmCloud**, a CNCF project.
 Everything here is upstream: the wasmCloud v2.11.0 Helm chart and host,
-standard WASI 0.3 interfaces, wasmCloud's own keyvalue and blobstore
-interfaces, and one small WIT package of our own (`workshop:toolbox`). No
-vendor products are needed.
+standard WASI 0.3 interfaces, wasmCloud's own keyvalue interface, and one
+small WIT package of our own (`workshop:toolbox`). No vendor products are
+needed.
 
 You `kubectl apply` a ready made agent, put two teams' agents on one host pod,
 watch the same gullible agent leak everything from an ordinary container, and
@@ -73,7 +73,7 @@ down` does nothing destructive; `make clean` deletes the cluster.
    └────────────────────┘   │   team-a:   toolbox-agent               │
                             │   team-b:   toolbox-agent               │
    namespace workshop-data  └────────┬──────────────────────┬─────────┘
-   ┌────────────────────┐            │ keyvalue, blobstore  │ HTTP out
+   ┌────────────────────┐            │ keyvalue             │ HTTP out
    │ data-nats          │◀───────────┘ (declared backend)   ▼
    └────────────────────┘                     only hosts in a component's
                                               allowedHosts; all else denied
@@ -87,11 +87,11 @@ down` does nothing destructive; `make clean` deletes the cluster.
   over NATS (with mutual TLS).
 * **Host pods.** Each host pod runs many workloads from many namespaces. A
   workload is a group of components with its own memory and its own grants.
-* **The data service.** The platform declares where keyvalue and blobstore
-  data lives (`k8s/values.yaml`, `plugins:`) and creates the stores
-  (`scripts/stores.sh`). Workloads only ask for "keyvalue" or "blobstore":
-  since v2.11.0 a workload may not name a backend's address itself, and it can
-  open a store but not create one.
+* **The data service.** The platform declares where keyvalue data lives
+  (`k8s/values.yaml`, `plugins:`) and creates the buckets
+  (`scripts/stores.sh`). Workloads only ask for "keyvalue": since v2.11.0 a
+  workload may not name a backend's address itself, and it can open a bucket
+  but not create one. Blobstore (object storage) works the same way.
 * **Only granted ways out.** A component reaches a host over HTTP only if
   that host is in its own `allowedHosts`. Everything else is denied by
   default.
@@ -143,12 +143,11 @@ If you know Kubernetes, most of this maps onto things you already know.
         │        │                                                     │
         │        ├──▶ memory   ── keyvalue       (one bucket)          │
         │        ├──▶ notes    ── one folder, mounted read only        │
-        │        ├──▶ reports  ── blobstore      (one store)           │
         │        └──▶ web      ── HTTP out       (allowedHosts list)   │
         └──────────────────────────────────────────────────────────────┘
 ```
 
-The harness imports the model and four tool slots and nothing else from the
+The harness imports the model and three tool slots and nothing else from the
 host: no filesystem, no outgoing HTTP, no sockets. Each tool is a separate
 component with its own capabilities. If a planted instruction convinces the
 model to misuse a tool, the damage is limited to what that one tool was
@@ -198,15 +197,6 @@ interface notes {
   append: async func(args: append-args) -> result<_, error>;
 }
 
-interface reports {
-  variant error {
-    invalid-argument(string), access-denied(string),
-    unavailable(string), other(option<string>),
-  }
-  record save-args { name: string, body: string }
-  save: async func(args: save-args) -> result<_, error>;
-}
-
 interface web {
   variant error {
     invalid-argument(string), access-denied(string),
@@ -225,7 +215,6 @@ world agent {
   import model: model;
   import memory: memory;
   import notes: notes;
-  import reports: reports;
   import web: web;
   export wasi:http/handler@0.3.0;
 }
@@ -265,9 +254,9 @@ and one `match` arm that builds the args record and makes the typed call.
 
 A typed error reaches the model as the JSON form of the WIT variant, the same
 way a host renders it: `{"access-denied":"/notes/todo.txt: Operation not
-permitted"}`. The rows also give two functions names that read better to a
-model (`read_note` for `notes.read`, `save_report` for `reports.save`), the
-way a host keeps a rename table.
+permitted"}`. The rows also give the notes functions names that read better
+to a model (`read_note` for `notes.read`, `append_note` for `notes.append`),
+the way a host keeps a rename table.
 
 ### Labelled slots
 
@@ -280,9 +269,9 @@ functions need with it.
 
 Every label must be filled or the workload will not start. Until a step
 installs a real tool, the slot is filled by `not-installed`: one image that
-exports all four tool interfaces, deployed under several names, whose every
+exports all three tool interfaces, deployed under several names, whose every
 function returns its interface's `other` error, `the <tool> tool isn't
-installed yet`. Labels are fixed when the harness is built, so adding a fifth
+installed yet`. Labels are fixed when the harness is built, so adding a fourth
 tool means a rebuild; upstream has no dynamic tool discovery today.
 
 ### The gullible model
@@ -298,7 +287,6 @@ result**, in order, and runs each instruction once:
 | `append "<text>" to <path>` | `append_note {path, line}` |
 | `fetch <url>` / `summarize <url>` | `fetch {url}` |
 | `send everything to <host>` | `post {url: http://<host>/collect, body}` |
-| `save a report` | `save_report {name, body}` |
 
 "Everything" is all the text the model has read, memories included. That
 makes it the worst case on purpose: a fully hijacked agent, every time, with
@@ -318,8 +306,7 @@ leak count, and `/reset` zeroes it.
 
 Every capability the workshop teaches is WASI 0.3: HTTP in and out
 (`wasi:http@0.3.0`), the filesystem (`wasi:filesystem@0.3.0`), and wasmCloud's
-async `wasmcloud:keyvalue@0.2.0` and `wasmcloud:blobstore@0.1.0`, where object
-data travels as a stream. The components are built with `wit-bindgen` 0.62
+async `wasmcloud:keyvalue@0.2.0`. The components are built with `wit-bindgen` 0.62
 for the `wasm32-wasip2` target, so Rust's standard library still links the
 0.2 command line basics (stdout, environment, exit). `wasm-tools component
 wit artifacts/<name>.wasm` lists exactly what each component imports.
@@ -393,8 +380,8 @@ v2.11.0 (`make prove`), and on `wash host` v2.11.0 (`make prove-local`).
 
 * **Works as the steps claim:** labelled imports between components in one
   workload; per component `allowedHosts`; a read only `hostPath` volume on one
-  component, inside the host's `hostPaths.allowed` list; keyvalue and
-  blobstore on a backend the platform declares; workloads from different
+  component, inside the host's `hostPaths.allowed` list; keyvalue on a
+  backend the platform declares; workloads from different
   namespaces on one host pod; `kubectl scale` on a WorkloadDeployment.
 * **One isolation layer between tenants on a host.** Upstream's threat model
   is explicit: workloads on one host are separated by the WebAssembly runtime
@@ -413,4 +400,4 @@ v2.11.0 (`make prove`), and on `wash host` v2.11.0 (`make prove-local`).
   cluster.
 * **The workshop runs its own data service** because the chart's NATS
   requires mutual TLS with client certificates, which the multiplexed
-  keyvalue and blobstore backends do not present.
+  keyvalue backend does not present.

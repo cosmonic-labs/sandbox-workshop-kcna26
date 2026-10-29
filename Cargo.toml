@@ -7,7 +7,6 @@ members = [
   "components/not-installed",
   "components/tool-memory",
   "components/tool-notes",
-  "components/tool-reports",
   "components/tool-web",
   "components/toy-sites",
 ]

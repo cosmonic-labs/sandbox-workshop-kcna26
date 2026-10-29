@@ -1,4 +1,4 @@
-/// The workshop's own interfaces: four tools, the model, and the worlds that
+/// The workshop's own interfaces: three tools, the model, and the worlds that
 /// say what each component may touch.
 ///
 /// The tools follow Cosmonic's typed-tool conventions. Each function takes
@@ -7,7 +7,7 @@
 /// has a doc comment. A host that offers a tool to a model builds the tool's
 /// definition from these names, types and doc comments, so the comments are
 /// written for the model as much as for a programmer.
-package workshop:toolbox@0.3.0;
+package workshop:toolbox@0.4.0;
 
 // ---------------------------------------------------------------------------
 // The tools.
@@ -128,43 +128,6 @@ interface notes {
   append: async func(args: append-args) -> result<_, error>;
 }
 
-/// Reports: named text documents kept in object storage.
-///
-/// An implementation writes to the object store its manifest grants it, and
-/// reaches nothing else.
-@since(version = 0.3.0)
-interface reports {
-  /// Why a reports call failed.
-  ///
-  /// Payload strings are diagnostic. Their wording is not stable, and
-  /// programs should not parse them.
-  variant error {
-    /// An argument is missing or malformed, such as an empty name. The
-    /// payload says which and why.
-    invalid-argument(string),
-    /// This tool is not allowed to use the object store. The payload names
-    /// the container.
-    access-denied(string),
-    /// The object store is busy, unreachable or over its quota. Trying again
-    /// later may work. The payload says what happened.
-    unavailable(string),
-    /// Any other failure. Treat it as a generic failure.
-    other(option<string>),
-  }
-
-  /// Arguments for `save`.
-  record save-args {
-    /// The report's file name, such as report.txt.
-    name: string,
-    /// The report's text.
-    body: string,
-  }
-
-  /// Save a text report to object storage. A report with the same name is
-  /// replaced.
-  save: async func(args: save-args) -> result<_, error>;
-}
-
 /// The web: plain HTTP requests.
 ///
 /// An implementation reaches only the hosts in its manifest's
@@ -282,7 +245,7 @@ interface model {
 // ---------------------------------------------------------------------------
 // Worlds: what each component imports and exports. Everything is WASI 0.3:
 // the functions above are async, HTTP is wasi:http@0.3.0, and storage is
-// wasmCloud's async keyvalue and blobstore interfaces.
+// wasmCloud's async keyvalue interface.
 // ---------------------------------------------------------------------------
 
 /// The agent harness. It answers HTTP and imports one model and one labelled
@@ -294,7 +257,6 @@ world agent {
   import model: model;
   import memory: memory;
   import notes: notes;
-  import reports: reports;
   import web: web;
   export wasi:http/handler@0.3.0;
 }
@@ -330,15 +292,6 @@ world notes-tool {
   export notes;
 }
 
-/// The reports tool: an object store, and the container name from its
-/// environment.
-@since(version = 0.3.0)
-world reports-tool {
-  import wasi:cli/environment@0.3.0;
-  import wasmcloud:blobstore/blobstore@0.1.0;
-  export reports;
-}
-
 /// The web tool: outgoing HTTP, only to the hosts in this component's
 /// allowedHosts.
 @since(version = 0.3.0)
@@ -348,13 +301,12 @@ world web-tool {
 }
 
 /// The placeholder that fills every slot until a step installs the real
-/// tool. One image, all four interfaces, every function returns an error
+/// tool. One image, all three interfaces, every function returns an error
 /// saying the tool isn't installed yet.
 @since(version = 0.3.0)
 world not-installed {
   export memory;
   export notes;
-  export reports;
   export web;
 }
 

@@ -5,8 +5,8 @@
 The agent here is four parts: an agent harness (the component that runs the
 loop: send the conversation to the model, call the tool the model asks for,
 send the result back, repeat), a model, tools, and the storage the tools use.
-In this step you deploy the harness and the scripted model. The four tool
-slots (`memory`, `notes`, `reports`, `web`) are all filled by `not-installed`,
+In this step you deploy the harness and the scripted model. The three tool
+slots (`memory`, `notes`, `web`) are all filled by `not-installed`,
 one placeholder image whose every function answers "the <tool> tool isn't
 installed yet".
 
@@ -30,7 +30,7 @@ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'read my notes'
 
 ```
 [user] hello
-[model] Hello! I am the workshop agent running a scripted model. Ask me to remember something, read my notes, fetch a page, or save a report.
+[model] Hello! I am the workshop agent running a scripted model. Ask me to remember something, read my notes, or fetch a page.
 
 [user] read my notes
 [model] call read_note({"path":"todo.txt"})
@@ -54,7 +54,7 @@ You see two workloads (your agent and the toy sites) on one host id, and one
 host pod.
 
 **Look inside.** The harness's WIT (the list of what it imports and exports)
-shows the model and four typed, labelled tool slots, and no filesystem,
+shows the model and three typed, labelled tool slots, and no filesystem,
 outgoing HTTP or sockets:
 
 ```sh
@@ -62,12 +62,11 @@ wasm-tools component wit artifacts/agent.wasm | grep 'import .*workshop:toolbox'
 ```
 
 ```
-  import workshop:toolbox/types@0.3.0;
-  import model: workshop:toolbox/model@0.3.0;
-  import memory: workshop:toolbox/memory@0.3.0;
-  import notes: workshop:toolbox/notes@0.3.0;
-  import reports: workshop:toolbox/reports@0.3.0;
-  import web: workshop:toolbox/web@0.3.0;
+  import workshop:toolbox/types@0.4.0;
+  import model: workshop:toolbox/model@0.4.0;
+  import memory: workshop:toolbox/memory@0.4.0;
+  import notes: workshop:toolbox/notes@0.4.0;
+  import web: workshop:toolbox/web@0.4.0;
 ```
 
 Each label (`memory`, `notes`, ...) names the component in the workload that
