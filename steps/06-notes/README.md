@@ -46,6 +46,14 @@ only. `todo.txt` is unchanged. The typed errors say which: `access-denied`
 for a path outside the folder and for the write to a read only folder,
 `not-found` for a file that isn't in the tool's world at all.
 
+**Two caveats.** The host's `hostPaths.allowed` list is host wide: any
+workload on that host may mount any directory on it (wasmCloud's
+THREAT_MODEL.md: "Every workload on a host may mount any directory the
+operator allowed"). So admission policy, not the host, decides who may mount
+what. And components linked in one workload can currently see each other's
+mounts (draft wasmCloud#5756). That is harmless here, because `notes` is the
+only component that imports a filesystem.
+
 **Control case.** `make prove` applies the same manifest with `readOnly:
 false`, on a scratch copy of the notes (`/workshop/notes-rw`). The append goes
 through; the reads outside the folder still fail.

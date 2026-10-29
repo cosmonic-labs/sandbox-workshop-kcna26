@@ -376,6 +376,16 @@ v2.11.0 (`make prove`).
   component, inside the host's `hostPaths.allowed` list; keyvalue on a
   backend the platform declares; workloads from different
   namespaces on one host pod; `kubectl scale` on a WorkloadDeployment.
+* **A grant belongs to one component, for calls made one after another.**
+  Concurrent calls through linked components can currently borrow a
+  sibling's grants (wasmCloud#5756). The workshop's harness calls its tools
+  one at a time.
+* **`hostPaths.allowed` is host wide.** Any workload on a host may mount any
+  directory in that list (wasmCloud's THREAT_MODEL.md: "Every workload on a
+  host may mount any directory the operator allowed"), so admission policy
+  decides who may mount what. Components linked in one workload can
+  currently see each other's mounts (draft wasmCloud#5756); harmless here,
+  because the notes tool is the only component that imports a filesystem.
 * **One isolation layer between tenants on a host.** Upstream's threat model
   is explicit: workloads on one host are separated by the WebAssembly runtime
   alone. For mutually hostile tenants, use separate host groups or nodes, and
