@@ -1,10 +1,10 @@
-# Step 8: model-real behind the same slot (a fake OpenAI compatible endpoint on llm.example)
-$ kubectl apply -f steps/08-real-model/workload.yaml
+# Step 7: model-real behind the same slot (a fake OpenAI compatible endpoint on llm.example)
+$ kubectl apply -f steps/07-real-model/workload.yaml
 workloaddeployment.runtime.wasmcloud.dev/toolbox-agent configured
 
 $ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'hello'
 [user] hello
-[model] (fake-llm via llm.example) I got 2 messages and 8 tools
+[model] (fake-llm via llm.example) I got 2 messages and 7 tools
 
 $ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'recall what you know about me'
 [user] recall what you know about me

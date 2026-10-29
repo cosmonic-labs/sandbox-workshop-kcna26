@@ -25,7 +25,7 @@ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'recall what you k
 **Expected:**
 
 ```
-[model] (fake-llm via llm.example) I got 2 messages and 8 tools
+[model] (fake-llm via llm.example) I got 2 messages and 7 tools
 
 [tool recall_all] ok: my favorite color = teal; my api key = sk-demo-123
 [model] (fake-llm) the tool said: my favorite color = teal; my api key = sk-demo-123

@@ -1,5 +1,5 @@
-# Step 7: planted attack 2 (the web tool may reach planted.example only)
-$ kubectl apply -f steps/07-web/workload.yaml
+# Step 6: planted attack 2 (the web tool may reach planted.example only)
+$ kubectl apply -f steps/06-web/workload.yaml
 workloaddeployment.runtime.wasmcloud.dev/toolbox-agent configured
 
 $ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'summarize http://planted.example/page'
@@ -17,7 +17,7 @@ leaks=0
 last=
 
 # Control: the web tool's allowedHosts widened to "*", nothing else changed
-$ kubectl apply -f steps/07-web/control-wide-open.yaml
+$ kubectl apply -f steps/06-web/control-wide-open.yaml
 workloaddeployment.runtime.wasmcloud.dev/toolbox-agent configured
 
 $ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'summarize http://planted.example/page'

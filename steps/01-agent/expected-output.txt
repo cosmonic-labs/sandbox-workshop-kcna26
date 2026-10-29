@@ -4,7 +4,7 @@ workloaddeployment.runtime.wasmcloud.dev/toolbox-agent created
 
 $ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'hello'
 [user] hello
-[model] Hello! I am the workshop agent running a scripted model. Ask me to remember something, read my notes, fetch a page, or save a report.
+[model] Hello! I am the workshop agent running a scripted model. Ask me to remember something, read my notes, or fetch a page.
 
 # Every tool slot is filled by not-installed, so a tool call gets a clear error:
 $ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'read my notes'
@@ -15,22 +15,21 @@ $ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'read my notes'
 
 $ kubectl get workloads -A -o custom-columns=NAMESPACE:.metadata.namespace,HOST:.status.hostId
 NAMESPACE   HOST
-default     01a18381-6ae0-7a30-a852-8ac7bffb102f
-default     01a18381-6ae0-7a30-a852-8ac7bffb102f
+default     01a187f1-9787-7f33-b159-9541d82f9063
+default     01a187f1-9787-7f33-b159-9541d82f9063
 $ kubectl get pods -n wasmcloud -l wasmcloud.com/name=hostgroup
 NAME                                READY
-hostgroup-default-54db69d48-9f5tn   Running
+hostgroup-default-b9b84b45d-lb49p   Running
 
 # The agent harness and model import no filesystem, no outgoing HTTP, no sockets:
 $ wasm-tools component wit artifacts/agent.wasm | grep -E 'filesystem|http/client|sockets' || echo none
 agent: none
 $ wasm-tools component wit artifacts/model_scripted.wasm | grep -E 'filesystem|http/client|sockets' || echo none
 model_scripted: none
-# The agent harness's imports from this workshop: the model and four typed, labelled tool slots
+# The agent harness's imports from this workshop: the model and three typed, labelled tool slots
 $ wasm-tools component wit artifacts/agent.wasm | grep 'import .*workshop:toolbox'
-  import workshop:toolbox/types@0.3.0;
-  import model: workshop:toolbox/model@0.3.0;
-  import memory: workshop:toolbox/memory@0.3.0;
-  import notes: workshop:toolbox/notes@0.3.0;
-  import reports: workshop:toolbox/reports@0.3.0;
-  import web: workshop:toolbox/web@0.3.0;
+  import workshop:toolbox/types@0.4.0;
+  import model: workshop:toolbox/model@0.4.0;
+  import memory: workshop:toolbox/memory@0.4.0;
+  import notes: workshop:toolbox/notes@0.4.0;
+  import web: workshop:toolbox/web@0.4.0;
