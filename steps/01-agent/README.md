@@ -38,6 +38,10 @@ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'read my notes'
 [model] Done. Here is what each step returned: read_note: ERROR: {"other":"the notes tool isn't installed yet"}
 ```
 
+Optional: on your own machine you can also open http://agent.localhost:18180
+in a browser, which sends prompts the same way and draws each transcript as a
+timeline. In Codespaces, use the curl commands.
+
 The error is typed. Each tool interface has its own `variant error`, a fixed
 list of the ways it can fail, and the harness shows the model which case it
 got as `{"case": "payload"}`. The placeholder answers with `other`.

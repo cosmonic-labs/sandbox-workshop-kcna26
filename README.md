@@ -56,6 +56,12 @@ Steps 1 to 5 tell the whole story. Steps 6 and 7 go as far as time allows.
 Every step's manifest is complete, so you can jump to any step with one
 `kubectl apply`.
 
+Two optional browser pages help on a projector: http://agent.localhost:18180
+sends prompts and draws each transcript as a timeline, and
+http://sites.localhost:18180 shows live what has reached the attacker. Your
+browser sends `*.localhost` to your own machine, so they work locally, not in
+Codespaces. curl stays the way every step is written.
+
 `make prove` replays every step and rewrites the expected outputs. `make
 down` does nothing destructive; `make clean` deletes the cluster.
 
@@ -299,7 +305,8 @@ by `make up`: `planted.example/page` (a page with a hidden instruction),
 `llm.example` (a fake OpenAI compatible model for step 7). Other workloads on
 the host reach them in memory through local routing; nothing leaves your
 machine. `curl -H 'Host: sites.localhost' 127.0.0.1:18180/count` shows the
-leak count, and `/reset` zeroes it.
+leak count, and `/reset` zeroes it. In a browser, http://sites.localhost:18180
+shows each leak as it arrives.
 
 ## WASI 0.3
 

@@ -31,6 +31,10 @@ curl -s -H 'Host: sites.localhost' http://127.0.0.1:18180/count
 leaks=0
 ```
 
+Optional: keep http://sites.localhost:18180 open in a browser (on your own
+machine; in Codespaces, use the curl commands). It still shows only step 4's
+leak.
+
 Compare step 4: the same instruction, the same kind of secret, and this time
 nothing arrives. The web tool may reach one host, the harness may reach none,
 and the memory tool, which holds the key, has no network at all.

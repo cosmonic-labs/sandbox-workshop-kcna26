@@ -33,6 +33,10 @@ collector: thanks, that is leak #1
 leaks=1
 ```
 
+Optional: open http://sites.localhost:18180 in a browser to watch what
+reaches the attacker. That works on your own machine; in Codespaces, use the
+curl commands.
+
 **Why it worked.** A container is not a sandbox:
 
 * **No deny by default.** The process starts with the network, the
