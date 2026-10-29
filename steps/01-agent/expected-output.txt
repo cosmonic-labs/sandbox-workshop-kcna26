@@ -14,12 +14,13 @@ $ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'read my notes'
 [model] Done. Here is what each step returned: read_note: ERROR: {"other":"the notes tool isn't installed yet"}
 
 $ kubectl get workloads -A -o custom-columns=NAMESPACE:.metadata.namespace,HOST:.status.hostId
-NAMESPACE   HOST
-default     01a188fc-7aca-7b71-9098-f77187227bb4
-default     01a188fc-7aca-7b71-9098-f77187227bb4
-$ kubectl get pods -n wasmcloud -l wasmcloud.com/name=hostgroup
-NAME                                READY
-hostgroup-default-b9b84b45d-gtbs2   Running
+NAMESPACE        HOST
+default          01a18913-77bd-72c0-96d9-0d2edacf7159
+workshop-sites   01a18912-df5c-7142-b829-a264b900915e
+$ kubectl get pods -A -l wasmcloud.com/name=hostgroup
+NAMESPACE        NAME                                  READY
+wasmcloud        hostgroup-default-5b55c5b579-k8wcb    Running
+workshop-sites   hostgroup-fixtures-547bdccd9d-sbnrf   Running
 
 # The agent harness and model import no filesystem, no outgoing HTTP, no sockets:
 $ wasm-tools component wit artifacts/agent.wasm | grep -E 'wasi:(http/client|filesystem|sockets)' || echo none
