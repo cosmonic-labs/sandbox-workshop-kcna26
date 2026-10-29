@@ -101,7 +101,9 @@ reset_count
   echo "\$ kubectl logs job/gullible-agent"
   kubectl logs job/gullible-agent
   echo
-  count
+  # The collector got the whole service account token; keep it out of the
+  # committed transcript, which would change on every run.
+  count | sed -E '/^last=/s/(eyJ[A-Za-z0-9_-]{17})[A-Za-z0-9_.-]+/\1...(the full token)/'
 } >"$(OUT 04-container)" 2>&1
 
 {

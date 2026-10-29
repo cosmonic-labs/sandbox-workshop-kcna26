@@ -47,7 +47,7 @@ the commands to run and the output to expect (`expected-output.txt`).
 | 1 | `kubectl apply` the agent | A Workload is a custom resource; it runs on a wasmCloud host pod |
 | 2 | Give it a memory tool | A capability is an interface the platform grants |
 | 3 | Two teams, two namespaces | One host pod, many tenants, each with its own memory and grants |
-| 4 | Run the same agent as a container | A container is not a sandbox: it leaks its Secret, its service account token and `/etc/passwd` |
+| 4 | Run the same agent as a container | Kubernetes defaults start open: it leaks its Secret and its service account token |
 | 5 | A web tool allowed one host | Planted attack 1 fails at the egress check, but the one allowed host is still a way out |
 | 6 | A notes tool over one read only folder | Planted attack 2 fails at the folder boundary |
 | 7 | Swap in a real model | Same slot, new implementation, no rebuild |
