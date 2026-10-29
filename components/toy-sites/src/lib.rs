@@ -8,7 +8,7 @@
 //!   any host         GET  /count    how many leaks arrived, and the last one
 //!   any host         POST /reset    zero the counter
 //!
-//! Under local routing (the chart's localBypassRouting, or `wash host --http-local-routing`) these names are declared as
+//! Under local routing (the chart's localBypassRouting) these names are declared as
 //! `localRoute`s, so a co-located workload reaches them in memory. Nothing
 //! leaves the machine.
 

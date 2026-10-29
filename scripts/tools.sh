@@ -3,11 +3,9 @@
 # against a SHA256 recorded here. Nothing is installed outside this folder,
 # and nothing runs with sudo.
 #
-#   wash         v2.11.0   wasmCloud CLI and host (digests from the release's
+#   wash         v2.11.0   wasmCloud CLI; pushes the components (digests from the release's
 #                          sigstore attestation, wash.sigstore.json)
-#   nats-server  v2.14.7   message bus plus key value and object storage
-#   nats         v0.5.0    NATS command line client
-#   zot          v2.1.22   small single binary OCI registry (replaces Docker)
+#   nats         v0.5.0    NATS command line client (creates the keyvalue buckets)
 #   wasm-tools   v1.258.3  inspects component imports (step 1, make prove)
 #   kind         v0.33.0   a Kubernetes cluster in Docker (needs Docker)
 #   kubectl      v1.37.1   the Kubernetes CLI
@@ -21,9 +19,7 @@ DL="$TOOLS/dl"
 FORCE=0; [ "${1:-}" = "--force" ] && FORCE=1
 
 WASH_VERSION=2.11.0
-NATS_SERVER_VERSION=2.14.7
 NATS_CLI_VERSION=0.5.0
-ZOT_VERSION=2.1.22
 WASM_TOOLS_VERSION=1.258.3
 KIND_VERSION=0.33.0
 KUBECTL_VERSION=1.37.1
@@ -45,9 +41,7 @@ case "$PLAT" in
   darwin-arm64)
     WASH_ASSET=wash-aarch64-apple-darwin
     WASH_SHA=365d896eaed3894f1c551a1ed7351c2aae9dfa5548ce82041ead92e6253d1954
-    NATS_SERVER_SHA=9fc225cddebc67438345ad988c5d6bfc6daad16a7609bcceaafa88bcab9b9001
     NATS_CLI_SHA=37a6f924bc42c72a38856d9c6125c38885732b2a13387b8bc15d1ff80987520b
-    ZOT_SHA=c81a26040ae79c7e8a90c306a2377c69982a86ff35c259427bd9accea0eca14c
     WT_ASSET=aarch64-macos
     WT_SHA=dacd5e6a79c0ad513c369373eb0e595dafadae01fddbb47cda8dee543a31495d
     KIND_SHA=0c8c7dbe5e23594a198b786c4bc13dacc101fa6196b0cb0b23a1ca44e61f4b4f
@@ -56,9 +50,7 @@ case "$PLAT" in
   darwin-amd64)
     WASH_ASSET=wash-x86_64-apple-darwin
     WASH_SHA=9c287ea9e027f0c2d391400e7897c8e8225109cfee6efaf2e7b238afea233f17
-    NATS_SERVER_SHA=c35bd7c1b84ee0b2de25f7aa0a9f1bb4834640ac8a93698a6b79f9d1de3cf5ff
     NATS_CLI_SHA=9fcf6dbe6462c78a1564d03c8970158f50f50c31ebda5350d2da4a597de796e7
-    ZOT_SHA=3b18f445a8229372b0b521c07945dfd18a0a8ec1745601a22974f554f7614fb9
     WT_ASSET=x86_64-macos
     WT_SHA=c0d8452e2e564d414cc1c7273c0cc5c8013d3de1ccc7650deea87eeda1ad3f26
     KIND_SHA=5a99f26f57246dc9319dd294803313197a0f34d33c525b3ea8b655db5916ece0
@@ -67,9 +59,7 @@ case "$PLAT" in
   linux-amd64)
     WASH_ASSET=wash-x86_64-unknown-linux-musl
     WASH_SHA=ba28e81516c3147519506e64b73d1351857088483deebcc6824e9b5d1fe72997
-    NATS_SERVER_SHA=e5c20b1cb2c0566b54c544312e91e011f9e130c5c80f16a14f4cf28ef30b8be2
     NATS_CLI_SHA=d9fc93e9e9ab0310deff7e719a8a0da6f9d66f26d473f039aaee70155507aecc
-    ZOT_SHA=a053169f97b4ceaa051e054d53971799188a398cb36acbaf5e08622ec8664c44
     WT_ASSET=x86_64-linux
     WT_SHA=99b486a9ddc19af0260cd5f98f3b709a60817a3acd20efc9c582d719caebbf6d
     KIND_SHA=aee6151561422756b764a4ae28e7f44cda5af5a9eead3cc9985112b1de8d8e0d
@@ -78,9 +68,7 @@ case "$PLAT" in
   linux-arm64)
     WASH_ASSET=wash-aarch64-unknown-linux-musl
     WASH_SHA=af79cb91a8a5c2fa26576e70308fc3a080ca51f34ab74c5cc30816be483b6b9b
-    NATS_SERVER_SHA=50e0258a1b7290f3fe2e4f17506b74a90ffb1dd77867ae3a402eb0c9e2b0d40f
     NATS_CLI_SHA=39496b0e332ba8d1b7dcbac2019c7d1e7a7f0d0ccefef9da547e9d6eeed408c8
-    ZOT_SHA=4224c23122c43638f92875d6fb4f23564472d2584a348cb057440bcf4b43bf08
     WT_ASSET=aarch64-linux
     WT_SHA=4b9d10d460343bf7e13dcfa8ddc1e06661ff1894d4e3caf3920780c5b21dc1dd
     KIND_SHA=20022bee6cfcd5086cb7234d218e3454e6090022f2a8f55d1fa7fcf42c3867a2
@@ -130,15 +118,6 @@ if have wash "wash $WASH_VERSION"; then echo "ok  wash $WASH_VERSION (already th
   echo "ok  wash $WASH_VERSION"
 fi
 
-if have nats-server "v$NATS_SERVER_VERSION"; then echo "ok  nats-server $NATS_SERVER_VERSION (already there)"; else
-  f="nats-server-v$NATS_SERVER_VERSION-$PLAT"
-  fetch "https://github.com/nats-io/nats-server/releases/download/v$NATS_SERVER_VERSION/$f.tar.gz" \
-    "$f.tar.gz" "$NATS_SERVER_SHA"
-  tar -xzf "$DL/$f.tar.gz" -C "$DL" "$f/nats-server"
-  install -m 0755 "$DL/$f/nats-server" "$TOOLS/nats-server"
-  echo "ok  nats-server $NATS_SERVER_VERSION"
-fi
-
 if have nats "$NATS_CLI_VERSION"; then echo "ok  nats $NATS_CLI_VERSION (already there)"; else
   f="nats-$NATS_CLI_VERSION-$PLAT"
   fetch "https://github.com/nats-io/natscli/releases/download/v$NATS_CLI_VERSION/$f.zip" \
@@ -146,14 +125,6 @@ if have nats "$NATS_CLI_VERSION"; then echo "ok  nats $NATS_CLI_VERSION (already
   unzip_to "$DL/$f.zip" "$DL"
   install -m 0755 "$DL/$f/nats" "$TOOLS/nats"
   echo "ok  nats $NATS_CLI_VERSION"
-fi
-
-if have zot "v$ZOT_VERSION"; then echo "ok  zot $ZOT_VERSION (already there)"; else
-  f="zot-$PLAT-minimal"
-  fetch "https://github.com/project-zot/zot/releases/download/v$ZOT_VERSION/$f" \
-    "$f-$ZOT_VERSION" "$ZOT_SHA"
-  install -m 0755 "$DL/$f-$ZOT_VERSION" "$TOOLS/zot"
-  echo "ok  zot $ZOT_VERSION"
 fi
 
 if have wasm-tools "$WASM_TOOLS_VERSION"; then echo "ok  wasm-tools $WASM_TOOLS_VERSION (already there)"; else

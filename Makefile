@@ -7,18 +7,14 @@
 #   make push-build  push your own build from target/ to the cluster's registry
 #   make build       build every component (needs Rust 1.98.1 + wasm32-wasip2)
 #   make prove       replay every step on the cluster, rewrite steps/*/expected-output.txt
-#   make down        stop the port-forward (make clean also deletes the cluster)
+#   make down        changes nothing; make clean deletes the cluster and the registry
 #
-#   No Docker? The same steps on a local wasmCloud host, applied with
-#   scripts/apply.py instead of kubectl:
-#   make up-local    start NATS, a registry and wash host; then make push-local
-#   make push-local  push artifacts/ to the local registry
-#   make prove-local replay every step on the local host
+#   No Docker? Open the repo in GitHub Codespaces (see README.md).
 
 SHELL := /bin/bash
 .DEFAULT_GOAL := help
 
-.PHONY: help tools doctor up push-build build prove down clean up-local push-local prove-local
+.PHONY: help tools doctor up push-build build prove down clean
 
 help:
 	@sed -n 's/^#   //p' $(firstword $(MAKEFILE_LIST))
@@ -46,12 +42,3 @@ down:
 
 clean:
 	@./scripts/down.sh --all
-
-up-local:
-	@./scripts/up-local.sh
-
-push-local:
-	@./scripts/push.sh artifacts
-
-prove-local:
-	@LOCAL=1 ./scripts/prove.sh

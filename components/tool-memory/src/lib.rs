@@ -3,7 +3,7 @@
 //! The only capability this component imports is wasmcloud:keyvalue/store
 //! (async, WASI 0.3). The bucket name comes from the MEMORY_BUCKET environment
 //! variable (default "agent-memory"); the host decides what backs it (the
-//! cluster's NATS JetStream key value store on Kubernetes or `wash host`).
+//! cluster's NATS JetStream key value store in this workshop).
 
 wit_bindgen::generate!({
     path: "../../wit",

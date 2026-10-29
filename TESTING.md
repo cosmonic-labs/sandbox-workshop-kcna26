@@ -15,10 +15,10 @@ cd agent-toolbox-workshop
 make doctor
 ```
 
-- [ ] `make doctor` before `make tools`: red `FAIL` on wash, kind, kubectl and
-      helm, each with `fix: make tools`. Exit is nonzero.
-- [ ] `make tools`: eight `ok` lines (wash, nats-server, nats, zot,
-      wasm-tools, kind, kubectl, helm), under a minute on good Wi-Fi.
+- [ ] `make doctor` before `make tools`: red `FAIL` on wash, kind, kubectl,
+      helm and nats, each with `fix: make tools`. Exit is nonzero.
+- [ ] `make tools`: six `ok` lines (wash, nats, wasm-tools, kind, kubectl,
+      helm), under a minute on good Wi-Fi.
 - [ ] `make doctor`: every Required line green, ending in `Ready.`
 - [ ] `make up`: ends with the cluster, registry and ingress lines and a
       `stores` line, in about 2 minutes the first time. `kubectl config
@@ -32,16 +32,7 @@ make doctor
 - [ ] `make clean`: the cluster and the registry container are gone; your
       previous kubectl context still exists (`kubectl config get-contexts`).
 
-## 2. No Docker: the local fallback
-
-On a machine with Docker stopped:
-
-- [ ] `make doctor` fails the Docker line and shows the fallback section green.
-- [ ] `make up-local && make push-local`, then steps 1 to 3 and 5 to 7 with
-      `python3 scripts/apply.py <manifest>` instead of `kubectl apply -f`.
-- [ ] `make prove-local`: six files in `.run/local/`.
-
-## 3. GitHub Codespaces (not yet verified)
+## 2. GitHub Codespaces, the no-Docker path (not yet verified)
 
 - [ ] Create a codespace on a 4 core machine. The build finishes and runs
       `make doctor` on its own; every Required line is green (Docker comes
@@ -49,12 +40,12 @@ On a machine with Docker stopped:
 - [ ] `make up` completes inside the codespace. Note how long it takes.
 - [ ] Steps 1, 3, 4 and 5 run as written from the codespace terminal.
 
-## 4. Build it yourself
+## 3. Build it yourself
 
 - [ ] With Rust 1.98.1 and the `wasm32-wasip2` target: `make build && make
       push-build`, then step 5 still refuses the leak.
 
-## 5. In the room
+## 4. In the room
 
 - [ ] Conference Wi-Fi: `make up` on a machine that ran `make tools && make
       up` the day before needs no downloads (kind's node image and the chart

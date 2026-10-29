@@ -323,23 +323,7 @@ make push-build   # push target/wasm32-wasip2/release/*.wasm to the cluster's re
 Each component depends only on `wit-bindgen` and `serde_json`, so builds are
 fast and need no network once the crates are fetched.
 
-## No Docker? The local fallback
-
-The same steps run on a single wasmCloud host on your laptop, with no
-Kubernetes, applied with `scripts/apply.py` instead of `kubectl`:
-
-```sh
-make up-local      # NATS, a local registry (zot) and wash host
-make push-local
-python3 scripts/apply.py steps/02-memory/workload.yaml
-```
-
-`apply.py` sends the workload to the host the way the operator would, and
-maps the cluster's registry name and node paths back to your laptop. Step 4
-needs Kubernetes and is skipped. `make prove-local` replays the rest into
-`.run/local/`.
-
-## GitHub Codespaces
+## No Docker? GitHub Codespaces
 
 The devcontainer installs everything, including Docker, so the cluster runs
 inside the codespace. Pick a 4 core machine. Open a terminal and run `make
@@ -367,15 +351,15 @@ artifacts/        prebuilt components and SHA256SUMS (what make up pushes)
 components/       the Rust source: agent, models, tools, not-installed, toy-sites
   common/         HTTP helpers over wasi:http@0.3.0, shared by source path
 k8s/              chart values, the data service, the ingress Service
-scripts/          up, down, stores, prove, push, tools, doctor; up-local and apply.py
+scripts/          up, down, stores, prove, push, tools, doctor
 steps/            one folder per step: manifest, README, expected output
 wit/              workshop:toolbox and the WASI 0.3 / wasmCloud WIT it uses
 ```
 
 ## What wasmCloud v2.11.0 does and does not give you here
 
-Verified on 2026-10-27 on macOS arm64, kind v0.33.0 and the upstream chart
-v2.11.0 (`make prove`), and on `wash host` v2.11.0 (`make prove-local`).
+Verified on 2026-10-29 on macOS arm64, kind v0.33.0 and the upstream chart
+v2.11.0 (`make prove`).
 
 * **Works as the steps claim:** labelled imports between components in one
   workload; per component `allowedHosts`; a read only `hostPath` volume on one

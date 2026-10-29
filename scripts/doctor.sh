@@ -5,15 +5,12 @@
 #
 #   OK    ready
 #   FAIL  required: the workshop will not work until you fix it
-#   --    optional: only needed for building tools yourself, make prove, or
-#         the no-Docker fallback (make up-local)
+#   --    optional: only needed for building tools yourself or make prove
 #
 # Exit status is nonzero when any required check fails.
 set -uo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TOOLS="$ROOT/.tools"
-RUN_DIR="$ROOT/.run"
-REGISTRY_MODE="${REGISTRY_MODE:-zot}"
 WASH_VERSION=2.11.0
 RUST_VERSION=1.98.1
 
@@ -61,17 +58,18 @@ fi
 
 section "Required"
 
-# wash: the wasmCloud command line tool. Its `host` subcommand is the runtime.
+# wash: the wasmCloud command line tool. make up uses it to push the
+# components to the cluster's registry.
 if [ -x "$TOOLS/wash" ]; then
   v=$("$TOOLS/wash" --version 2>/dev/null | head -1)
   if [ "$v" = "wash $WASH_VERSION" ]; then
-    ok "wash $WASH_VERSION in .tools/wash (the wasmCloud CLI and host)"
+    ok "wash $WASH_VERSION in .tools/wash (the wasmCloud CLI; pushes the components)"
   else
     fail "wash in .tools/wash is '${v:-unreadable}', the workshop needs $WASH_VERSION" \
       "fix: ./scripts/tools.sh --force    (re-downloads every pinned tool)"
   fi
 else
-  fail "wash $WASH_VERSION is missing from .tools/wash (the wasmCloud CLI and host)" \
+  fail "wash $WASH_VERSION is missing from .tools/wash (the wasmCloud CLI; pushes the components)" \
     "fix: make tools"
 fi
 
@@ -92,7 +90,7 @@ else
     ok "Docker is running ($((mem / 1000000000)) GB for containers)"
   fi
 fi
-for t in kind kubectl helm; do
+for t in kind kubectl helm nats; do
   p=$(find_tool "$t")
   if [ -n "$p" ]; then ok "$t ($p)"; else fail "$t is missing" "fix: make tools"; fi
 done
@@ -107,34 +105,18 @@ for t in curl nc; do
   fi
 done
 
-# Ports. One that this workshop's own stack holds (make up) counts as fine.
-own_pid_for_port() {
-  case "$1" in
-    14222) echo nats ;; 15051) echo registry ;; 18180) echo pf ;; 18181) echo host ;;
-  esac
-}
-for port in 18180; do
-  if ! (command -v nc >/dev/null 2>&1 && nc -z 127.0.0.1 "$port" 2>/dev/null); then
-    ok "port $port is free"
-    continue
-  fi
-  f="$RUN_DIR/$(own_pid_for_port "$port").pid"
-  if [ -f "$f" ] && kill -0 "$(cat "$f")" 2>/dev/null; then
-    ok "port $port is in use by this workshop (make up is running; make down stops it)"
-  elif [ "$port" = 15051 ] && command -v docker >/dev/null 2>&1 &&
-       docker ps --format '{{.Names}}' 2>/dev/null | grep -qx workshop-toolbox-registry; then
-    ok "port $port is in use by this workshop's registry container"
-  else
-    case "$port" in
-      18180) alt="or pick another port for this run: HOST_HTTP=127.0.0.1:18190 make up" ;;
-      18181) alt="or pick another port for this run: HOST_PROBE=127.0.0.1:18191 make up" ;;
-      *) alt="(this port is fixed in the workshop files, so the other program has to stop)" ;;
-    esac
-    fail "port $port is taken by another program" \
-      "see which one: lsof -nP -iTCP:$port -sTCP:LISTEN" \
-      "fix: stop that program, $alt"
-  fi
-done
+# The ingress port. The workshop's own kind cluster holding it counts as fine.
+port="${HOST_HTTP:-127.0.0.1:18180}"; port="${port##*:}"
+if ! (command -v nc >/dev/null 2>&1 && nc -z 127.0.0.1 "$port" 2>/dev/null); then
+  ok "port $port is free"
+elif command -v docker >/dev/null 2>&1 &&
+     docker ps --format '{{.Names}}' 2>/dev/null | grep -qx workshop-toolbox-control-plane; then
+  ok "port $port is in use by this workshop's cluster (make clean deletes it)"
+else
+  fail "port $port is taken by another program" \
+    "see which one: lsof -nP -iTCP:$port -sTCP:LISTEN" \
+    "fix: stop that program, or pick another port: HOST_HTTP=127.0.0.1:18190 make up"
+fi
 
 # Prebuilt components.
 if [ -f "$ROOT/artifacts/SHA256SUMS" ]; then
@@ -185,58 +167,6 @@ if command -v rustup >/dev/null 2>&1; then
 else
   opt "Rust (rustup) was not found on your PATH (only needed to build; the prebuilt artifacts/ work without it)" \
     "fix: see https://rustup.rs, then: rustup toolchain install $RUST_VERSION --target wasm32-wasip2"
-fi
-
-section "No Docker? The local fallback (make up-local)"
-
-# nats-server: the message bus the host listens on; also stores keyvalue and objects.
-p=$(find_tool nats-server)
-if [ -n "$p" ]; then
-  ok "nats-server $("$p" --version 2>/dev/null | awk '{print $2}') ($p)"
-else
-  opt "nats-server is missing (the message bus and storage the host uses)" "fix: make tools    (only for make up-local)"
-fi
-
-# nats: the command line client; apply.py uses it to send workloads to the host.
-p=$(find_tool nats)
-if [ -n "$p" ]; then
-  ok "nats CLI $("$p" --version 2>&1 | head -1) ($p)"
-else
-  opt "nats CLI is missing (used to send workloads to the host)" "fix: make tools    (only for make up-local)"
-fi
-
-# The OCI registry the host pulls components from.
-if [ "$REGISTRY_MODE" = docker ]; then
-  if ! command -v docker >/dev/null 2>&1; then
-    opt "Docker is not installed (REGISTRY_MODE=docker runs the registry in a container)" \
-      "fix: install Docker Desktop (https://docs.docker.com/get-docker/), or unset REGISTRY_MODE to use zot"
-  elif ! docker info >/dev/null 2>&1; then
-    opt "Docker is installed but not running" \
-      "fix: $(pkg_hint 'open -a Docker' 'sudo systemctl start docker')    (then wait until it says it is running)"
-  elif ! docker image inspect registry:2 >/dev/null 2>&1; then
-    opt "the registry:2 image is not pulled yet" "fix: docker pull registry:2"
-  else
-    ok "Docker is running and registry:2 is pulled (REGISTRY_MODE=docker)"
-  fi
-else
-  if [ -x "$TOOLS/zot" ]; then
-    ok "zot in .tools/zot (the local OCI registry; no Docker needed)"
-  else
-    opt "zot is missing from .tools/zot (the local OCI registry components are pulled from)" \
-      "fix: make tools    (only for make up-local)"
-  fi
-fi
-
-# Python 3 and PyYAML: apply.py reads the workload YAML.
-if ! command -v python3 >/dev/null 2>&1; then
-  opt "Python 3 is missing (scripts/apply.py needs it)" \
-    "fix: $(pkg_hint 'xcode-select --install    (or: brew install python)' 'sudo apt-get install -y python3 python3-yaml')"
-elif ! python3 -c 'import yaml' 2>/dev/null; then
-  opt "Python 3 is here, but the PyYAML package is not ($(python3 --version 2>&1))" \
-    "fix: $(pkg_hint 'python3 -m pip install --user pyyaml    (Homebrew Python: brew install pyyaml)' \
-                     'sudo apt-get install -y python3-yaml    (Fedora: sudo dnf install -y python3-pyyaml)')"
-else
-  ok "$(python3 --version 2>&1) with PyYAML"
 fi
 
 echo

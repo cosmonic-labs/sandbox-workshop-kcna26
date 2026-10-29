@@ -1,18 +1,14 @@
 #!/usr/bin/env bash
 # Replay every step on the kind cluster (make up) and write each step's
-# transcript to steps/<step>/expected-output.txt. With LOCAL=1 (make
-# prove-local) it replays them on the no-Docker fallback instead, applying
-# with scripts/apply.py, skipping step 4 (it needs Kubernetes), and writing
-# the transcripts to .run/local/. Resets the demo state first
+# transcript to steps/<step>/expected-output.txt. Resets the demo state first
 # so the outputs are repeatable. The commands echoed with "$" are the ones the
 # step READMEs ask attendees to run.
 set -euo pipefail
 source "$(dirname "$0")/env.sh"
 cd "$ROOT"
-LOCAL="${LOCAL:-0}"
 URL="http://$HOST_HTTP"
-OUT() { if [ "$LOCAL" = 1 ]; then mkdir -p "$RUN_DIR/local"; echo "$RUN_DIR/local/$1.txt"; else echo "steps/$1/expected-output.txt"; fi; }
-if [ "$LOCAL" = 0 ]; then kubectl config use-context "kind-$CLUSTER" >/dev/null; fi
+OUT() { echo "steps/$1/expected-output.txt"; }
+kubectl config use-context "kind-$CLUSTER" >/dev/null
 ask() { # host, prompt
   echo "\$ curl -s -H 'Host: $1' $URL/ -d '$2'"
   curl -s -m 30 -H "Host: $1" "$URL/" -d "$2"
@@ -25,9 +21,6 @@ count() {
 }
 reset_count() { curl -s -X POST -H 'Host: sites.localhost' "$URL/reset" >/dev/null; }
 apply() { # manifest: apply it and wait until every workload in it is ready
-  if [ "$LOCAL" = 1 ]; then
-    echo "\$ scripts/apply.py $1"; python3 scripts/apply.py "$1"; echo; return
-  fi
   echo "\$ kubectl apply -f $1"
   kubectl apply -f "$1"
   sleep 3
@@ -35,39 +28,28 @@ apply() { # manifest: apply it and wait until every workload in it is ready
   echo
 }
 redeploy() { # manifest: stop and start it again
-  if [ "$LOCAL" = 1 ]; then
-    echo "\$ scripts/apply.py --delete $1 && scripts/apply.py $1"
-    python3 scripts/apply.py --delete "$1" >/dev/null; python3 scripts/apply.py "$1" >/dev/null; echo; return
-  fi
   echo "\$ kubectl delete -f $1 && kubectl apply -f $1"
   kubectl delete -f "$1" >/dev/null
   apply "$1" >/dev/null
   echo
 }
 hosts() {
-  [ "$LOCAL" = 1 ] && { echo "# (one wash host; nothing to list)"; return; }
   echo "\$ kubectl get workloads -A -o custom-columns=NAMESPACE:.metadata.namespace,HOST:.status.hostId"
   kubectl get workloads -A -o custom-columns=NAMESPACE:.metadata.namespace,HOST:.status.hostId
   echo "\$ kubectl get pods -n wasmcloud -l wasmcloud.com/name=hostgroup"
   kubectl get pods -n wasmcloud -l wasmcloud.com/name=hostgroup -o custom-columns=NAME:.metadata.name,READY:.status.phase
   echo
 }
-if [ "$LOCAL" = 1 ]; then STORES="$NATS_URL"; else STORES="$DATA_NATS_URL"; fi
+STORES="$DATA_NATS_URL"
 N() { nats --server "$STORES" "$@"; }
 
 # Clean slate.
-if [ "$LOCAL" = 1 ]; then
-  python3 scripts/apply.py --delete steps/03-tenants/tenants.yaml steps/05-web/workload.yaml >/dev/null 2>&1 || true
-  STORES_URL="$NATS_URL" "$ROOT/scripts/stores.sh" reset >/dev/null
-  python3 scripts/apply.py steps/00-fixtures/toy-sites.yaml >/dev/null
-else
-  kubectl delete workloaddeployment --all -n default >/dev/null 2>&1 || true
-  kubectl delete -f steps/03-tenants/tenants.yaml --ignore-not-found >/dev/null 2>&1 || true
-  kubectl delete -f steps/04-container/gullible-agent.yaml --ignore-not-found >/dev/null 2>&1 || true
-  "$ROOT/scripts/stores.sh" reset >/dev/null
-  kubectl apply -f steps/00-fixtures/toy-sites.yaml >/dev/null
-  kubectl wait --for=condition=Ready workloaddeployment/toy-sites --timeout=120s >/dev/null
-fi
+kubectl delete workloaddeployment --all -n default >/dev/null 2>&1 || true
+kubectl delete -f steps/03-tenants/tenants.yaml --ignore-not-found >/dev/null 2>&1 || true
+kubectl delete -f steps/04-container/gullible-agent.yaml --ignore-not-found >/dev/null 2>&1 || true
+"$ROOT/scripts/stores.sh" reset >/dev/null
+kubectl apply -f steps/00-fixtures/toy-sites.yaml >/dev/null
+kubectl wait --for=condition=Ready workloaddeployment/toy-sites --timeout=120s >/dev/null
 reset_count
 
 {
@@ -109,7 +91,7 @@ reset_count
   hosts
 } >"$(OUT 03-tenants)" 2>&1
 
-[ "$LOCAL" = 1 ] || {
+{
   echo "# Step 4: the same gullible agent as an ordinary container"
   reset_count
   echo "\$ kubectl apply -f steps/04-container/gullible-agent.yaml"
@@ -167,4 +149,4 @@ reset_count
 } >"$(OUT 07-real-model)" 2>&1
 
 echo "proofs written:"
-if [ "$LOCAL" = 1 ]; then ls "$RUN_DIR"/local/*.txt; else ls steps/*/expected-output.txt; fi
+ls steps/*/expected-output.txt

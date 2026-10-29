@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # The key value buckets the workshop's workloads use, on the cluster's data
-# service (or, with NATS_URL, on the local fallback's NATS).
+# service.
 # The platform creates them; a workload may open a store, never create one.
 #
 #   scripts/stores.sh create   create any that are missing
