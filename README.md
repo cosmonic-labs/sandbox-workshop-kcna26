@@ -162,8 +162,8 @@ granted.
 
 Each tool exports a plain interface, the kind you would write for any
 program. None of them knows anything about agents, models or JSON. They
-follow Cosmonic's typed-tool conventions, the shape a host needs to offer a
-function to a model:
+follow typed-tool conventions, the shape a host needs to offer a function to
+a model:
 
 - Each function takes one record, named `<function>-args`, whose fields are
   the tool's arguments. WIT has no doc comments on parameters, but it has
@@ -238,13 +238,12 @@ description and a JSON Schema, and it answers with something like
 `{"name": "remember", "arguments": {"key": "...", "fact": "..."}}`. The tools
 only speak typed functions. Something has to translate between the two.
 
-On Cosmonic Desktop and Cosmonic Control, the host does that for you. It
-reads each tool's WIT and builds the definitions the model sees from the
-names, types and doc comments: the function's doc becomes the tool's
-description, and the record's fields become its arguments. It turns the
-model's JSON into a typed call, and the typed result or error back into
-text. Upstream wasmCloud has no host plugin for that yet, so this workshop's
-agent harness does it itself, in plain sight, in
+A host could do that for you. It could read each tool's WIT and build the
+definitions the model sees from the names, types and doc comments: the
+function's doc becomes the tool's description, and the record's fields
+become its arguments. It would turn the model's JSON into a typed call, and
+the typed result or error back into text. Upstream wasmCloud doesn't do that
+yet, so this workshop's agent harness does it by hand, in plain sight, in
 `components/agent/src/tools.rs`: one row per function, copied from the WIT,
 and one `match` arm that builds the args record and makes the typed call.
 

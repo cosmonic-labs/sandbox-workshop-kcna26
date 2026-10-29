@@ -73,6 +73,13 @@ wasm-tools component wit artifacts/agent.wasm | grep 'import .*workshop:toolbox'
   import web: workshop:toolbox/web@0.4.0;
 ```
 
+And this check prints nothing, because the harness imports no outgoing HTTP
+client, no filesystem and no sockets:
+
+```sh
+wasm-tools component wit artifacts/agent.wasm | grep -E 'wasi:(http/client|filesystem|sockets)'
+```
+
 Each label (`memory`, `notes`, ...) names the component in the workload that
 fills it. Swapping a tool is a manifest change, not a rebuild.
 

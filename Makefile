@@ -3,7 +3,7 @@
 #
 #   make tools       download the pinned tools into .tools/ (checksums verified)
 #   make doctor      check this machine; changes nothing
-#   make up          kind cluster + the wasmCloud chart; pushes artifacts/; forwards :18180
+#   make up          kind cluster + the wasmCloud chart; pushes artifacts/; maps :18180 to the ingress NodePort
 #   make push-build  push your own build from target/ to the cluster's registry
 #   make build       build every component (needs Rust 1.98.1 + wasm32-wasip2)
 #   make prove       replay every step on the cluster, rewrite steps/*/expected-output.txt

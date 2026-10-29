@@ -6,13 +6,12 @@
 //! "fact": "..."}}. The tools only understand typed functions such as
 //! `memory::remember(RememberArgs { key, fact })`.
 //!
-//! Something has to translate between the two. On Cosmonic Desktop and
-//! Cosmonic Control the host does it: it reads each tool's WIT, builds the
-//! definitions the model sees from the WIT's names, types and doc comments,
-//! turns the model's JSON into a typed call, and turns the typed result or
-//! error back into text. Upstream wasmCloud has no host plugin for that yet,
-//! so the agent harness does it here, in plain sight: one row per function,
-//! written to match `wit/toolbox.wit`.
+//! Something has to translate between the two. A host could do it: read each
+//! tool's WIT, build the definitions the model sees from the WIT's names,
+//! types and doc comments, turn the model's JSON into a typed call, and turn
+//! the typed result or error back into text. Upstream wasmCloud doesn't do
+//! that yet, so the agent harness does it here, in plain sight: one row per
+//! function, written to match `wit/toolbox.wit`.
 //!
 //! The rows follow the same rules a host follows:
 //!

@@ -1,7 +1,7 @@
 /// The workshop's own interfaces: three tools, the model, and the worlds that
 /// say what each component may touch.
 ///
-/// The tools follow Cosmonic's typed-tool conventions. Each function takes
+/// The tools follow typed-tool conventions. Each function takes
 /// one record whose fields are the tool's arguments, each interface has its
 /// own `variant error`, and every interface, type, case, field and function
 /// has a doc comment. A host that offers a tool to a model builds the tool's

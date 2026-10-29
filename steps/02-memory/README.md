@@ -26,10 +26,9 @@ fails with the interface's own `error` variant: `no-such-store` when the
 bucket is missing, `access-denied` when the store refuses, and so on.
 
 The tool knows nothing about agents or models. The model speaks JSON, so
-something has to translate. On Cosmonic Desktop and Cosmonic Control the
-host builds the tool definitions from this WIT and its doc comments.
-Upstream wasmCloud doesn't do that yet, so the agent harness does it by
-hand: `components/agent/src/tools.rs` has one row per function, with the
+something has to translate. A host could build these tool definitions from
+the WIT and its doc comments; upstream wasmCloud doesn't do that yet, so this
+workshop's harness does it by hand: `components/agent/src/tools.rs` has one row per function, with the
 name, description and JSON Schema the model sees, copied from the WIT, and
 the typed call it makes.
 

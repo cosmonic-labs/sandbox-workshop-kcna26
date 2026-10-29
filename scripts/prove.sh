@@ -61,8 +61,8 @@ reset_count
   hosts
   echo "# The agent harness and model import no filesystem, no outgoing HTTP, no sockets:"
   for c in agent model_scripted; do
-    echo "\$ wasm-tools component wit artifacts/$c.wasm | grep -E 'filesystem|http/client|sockets' || echo none"
-    wasm-tools component wit "artifacts/$c.wasm" | grep -E 'filesystem|http/client|sockets' || echo "$c: none"
+    echo "\$ wasm-tools component wit artifacts/$c.wasm | grep -E 'wasi:(http/client|filesystem|sockets)' || echo none"
+    wasm-tools component wit "artifacts/$c.wasm" | grep -E 'wasi:(http/client|filesystem|sockets)' || echo "$c: none"
   done
   echo "# The agent harness's imports from this workshop: the model and three typed, labelled tool slots"
   echo "\$ wasm-tools component wit artifacts/agent.wasm | grep 'import .*workshop:toolbox'"
