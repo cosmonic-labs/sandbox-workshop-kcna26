@@ -9,7 +9,7 @@ FROM mcr.microsoft.com/devcontainers/base:2-ubuntu-24.04
 
 RUN apt-get update \
  && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-      apache2-utils ca-certificates curl make netcat-openbsd unzip \
+      ca-certificates curl make netcat-openbsd unzip \
  && rm -rf /var/lib/apt/lists/*
 
 # The pinned tools go in /opt/workshop-tools. postCreateCommand links them into

@@ -341,7 +341,7 @@ name, not `agent.localhost`. Use `curl`.
 | `curl: (7) Failed to connect to 127.0.0.1 port 18180` | The cluster is not up | `make up` |
 | `kubectl` talks to another cluster | Your context changed back | `kubectl config use-context kind-workshop-toolbox` |
 | `kubectl wait` times out | The host is still pulling | `kubectl get workloads -A`, then try again; `make up` reloads everything |
-| A tool says `NoSuchStore` | The stores were reset or never made | `scripts/stores.sh create` |
+| A tool says `{"no-such-store":"bucket ..."}` | The stores were reset or never made | `scripts/stores.sh create` |
 | Port 18180 is taken | Another program has it | `HOST_HTTP=127.0.0.1:18190 make up` after `make clean` (the port is fixed when the cluster is created) |
 
 ## Layout

@@ -34,8 +34,7 @@ team-b      01a17e54-...
 Every workload in the cluster runs on the same host id: one host pod, many
 tenants. That is the point of a wasmCloud host: a pod that runs many small,
 separate workloads, each with its own memory and only its own grants, instead
-of one pod per agent. (Running a very large number of agents at once is
-coming up in the session itself.)
+of one pod per agent.
 
 **One isolation layer.** Upstream wasmCloud's threat model says it plainly:
 workloads on one host are separated by the WebAssembly runtime alone. For

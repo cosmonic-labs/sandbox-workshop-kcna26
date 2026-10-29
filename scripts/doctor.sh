@@ -142,13 +142,6 @@ else
   opt "wasm-tools is missing: needed for make prove and step 1's 'look inside'" "fix: make tools"
 fi
 
-if command -v ab >/dev/null 2>&1; then
-  ok "ab (load test in make prove, step 6)"
-else
-  opt "ab (ApacheBench) is missing: needed only for make prove's load test in step 6" \
-    "fix: $(pkg_hint 'it ships with macOS; brew install httpd adds it' 'sudo apt-get install -y apache2-utils')"
-fi
-
 # Rust, only to build the components yourself. RUSTUP_AUTO_INSTALL=0 stops
 # rustup from installing the pinned toolchain just because we asked.
 if command -v rustup >/dev/null 2>&1; then
@@ -174,4 +167,4 @@ if [ "$FAILS" -gt 0 ]; then
   echo "${R}Not ready:${N} $FAILS required check(s) failed. Run each 'fix:' command above, then make doctor again."
   exit 1
 fi
-echo "${G}Ready.${N} Next: make up, then follow steps/01-agent-http/README.md."
+echo "${G}Ready.${N} Next: make up, then follow steps/01-agent/README.md."
