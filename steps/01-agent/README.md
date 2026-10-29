@@ -46,16 +46,17 @@ The error is typed. Each tool interface has its own `variant error`, a fixed
 list of the ways it can fail, and the harness shows the model which case it
 got as `{"case": "payload"}`. The placeholder answers with `other`.
 
-**Where it runs.** The operator placed the workload on the one wasmCloud host
-pod in the cluster:
+**Where it runs.** The operator placed the workload on a wasmCloud host pod
+in the `default` host group, the one its `hostSelector` asks for:
 
 ```sh
 kubectl get workloads -A -o custom-columns=NAMESPACE:.metadata.namespace,HOST:.status.hostId
-kubectl get pods -n wasmcloud -l wasmcloud.com/name=hostgroup
+kubectl get pods -A -l wasmcloud.com/name=hostgroup
 ```
 
-You see two workloads (your agent and the toy sites) on one host id, and one
-host pod.
+You see two workloads on two host ids, and two host pods: your agent on the
+`default` host group, and the toy sites on a host group of their own,
+`fixtures`, in the `workshop-sites` namespace (step 3 says why).
 
 **Look inside.** The harness's WIT (the list of what it imports and exports)
 shows the model and three typed, labelled tool slots, and no filesystem,

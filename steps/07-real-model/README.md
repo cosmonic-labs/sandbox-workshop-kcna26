@@ -5,11 +5,12 @@
 The `model` slot is a label like any tool slot, so swapping the model is a
 manifest change: the component named `model` now runs the `model-real` image,
 which speaks the OpenAI chat completions API. Nothing is rebuilt. Only
-`model-real` may reach the model endpoint (`allowedHosts: [llm.example]`); no
-tool gets that host.
+`model-real` may reach the model endpoint
+(`allowedHosts: [llm.workshop-sites.svc]`); no tool gets that host.
 
-To stay offline, `LLM_URL` points at `llm.example`, the fake endpoint in the
-toy sites. For a hosted model, set `LLM_URL` (for example
+To stay offline, `LLM_URL` points at `llm.workshop-sites.svc`, the fake
+endpoint in the toy sites, a Kubernetes Service in front of their own host
+group. For a hosted model, set `LLM_URL` (for example
 `https://api.openai.com/v1/chat/completions`), put that host in
 `allowedHosts`, and pass `LLM_API_KEY` from a Kubernetes Secret
 (`environment.secretFrom`).
@@ -25,7 +26,7 @@ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'recall what you k
 **Expected:**
 
 ```
-[model] (fake-llm via llm.example) I got 2 messages and 7 tools
+[model] (fake-llm via llm.workshop-sites.svc) I got 2 messages and 7 tools
 
 [tool recall_all] ok: my favorite color = teal; my api key = sk-demo-123
 [model] (fake-llm) the tool said: my favorite color = teal; my api key = sk-demo-123

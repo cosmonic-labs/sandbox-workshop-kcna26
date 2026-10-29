@@ -21,7 +21,8 @@
 //! the evidence by posting to its /reset.
 //!
 //! The workload runs on its own host group (steps/00-fixtures/toy-sites.yaml),
-//! with local routing off, so no other workload can answer for these names.
+//! with local routing off, so a workload on another host group cannot answer
+//! for these names. Admission policy decides who may use the fixtures group.
 
 wit_bindgen::generate!({
     path: "../../wit",

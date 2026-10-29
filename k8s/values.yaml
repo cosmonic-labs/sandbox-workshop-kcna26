@@ -10,7 +10,7 @@
 # hostile tenants their own host group). So agents reach the toy sites the
 # ordinary way: cluster DNS and a Kubernetes Service.
 gateway:
-  # Deprecated upstream; HTTP reaches the host pod directly.
+  # Deprecated upstream; HTTP reaches the host pods through k8s/ingress.yaml.
   enabled: false
 # The chart's baseline NetworkPolicies (ingress only) are on by default since
 # v2.11.0. On kind v0.33.0, kindnet's policy enforcement then drops the DNS

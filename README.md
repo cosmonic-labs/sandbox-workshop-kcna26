@@ -69,29 +69,34 @@ down` does nothing destructive; `make clean` deletes the cluster.
 
 ```
                          kind cluster ("your cluster")
-  curl ──▶ 127.0.0.1:18180 ──▶ Service workshop-ingress (NodePort)
-                                      │
-   namespace wasmcloud                ▼
-   ┌────────────────────┐   ┌─────────────────────────────────────────┐
-   │ runtime-operator   │──▶│ host pod (wasmCloud host)               │
-   │ NATS (control)     │   │   default:  toolbox-agent, toy-sites    │
-   └────────────────────┘   │   team-a:   toolbox-agent               │
-                            │   team-b:   toolbox-agent               │
-   namespace workshop-data  └────────┬──────────────────────┬─────────┘
-   ┌────────────────────┐            │ keyvalue             │ HTTP out
-   │ data-nats          │◀───────────┘ (declared backend)   ▼
-   └────────────────────┘                     only hosts in a component's
-                                              allowedHosts; all else denied
+  curl ──▶ 127.0.0.1:18180 ──▶ workshop-ingress (nginx): picks a host group by Host
+                                  │ agent.localhost, a.agent...     │ sites.localhost
+   namespace wasmcloud            ▼                                 │
+   ┌──────────────────┐  ┌──────────────────────────┐  namespace    │ workshop-sites
+   │ runtime-operator │─▶│ host pod, group default  │  ┌────────────▼──────────────┐
+   │ NATS (control)   │  │   default: toolbox-agent │  │ host pod, group fixtures  │
+   └──────────────────┘  │   team-a:  toolbox-agent │  │   toy-sites               │
+                         │   team-b:  toolbox-agent │  └───────────────────────────┘
+   namespace             └──┬────────────────────┬──┘    ▲ Services planted, collector,
+   workshop-data            │ keyvalue           │ HTTP  │ llm (.workshop-sites.svc)
+   ┌──────────────────┐     │                    └───────┘
+   │ data-nats        │◀────┘                      only hosts in a component's
+   └──────────────────┘                            allowedHosts; all else denied
 ```
 
-* **One way in.** A NodePort Service in front of the host pods
-  (`k8s/ingress.yaml`). The host sends each request to a workload by its
-  `Host` header. kind maps the node port to `127.0.0.1:18180`.
+* **One way in.** A small nginx behind a NodePort (`k8s/ingress.yaml`)
+  sends `sites.localhost` to the fixtures host group and every other name
+  to the default one, the job an ingress controller or Gateway API does in a
+  real cluster. kind maps the node port to `127.0.0.1:18180`. Inside a host
+  group, the host sends each request to a workload by its `Host` header.
 * **The control plane.** The runtime operator watches Workload resources and
   places them on hosts, like a Deployment controller; it talks to the hosts
   over NATS (with mutual TLS).
 * **Host pods.** Each host pod runs many workloads from many namespaces. A
   workload is a group of components with its own memory and its own grants.
+  There are two host groups: `default` for the teams' agents, and
+  `fixtures`, in its own namespace, for the toy sites. A workload picks one
+  with `hostSelector: {hostgroup: ...}`.
 * **The data service.** The platform declares where keyvalue data lives
   (`k8s/values.yaml`, `plugins:`) and creates the buckets
   (`scripts/stores.sh`). Workloads only ask for "keyvalue": since v2.11.0 a
@@ -99,7 +104,9 @@ down` does nothing destructive; `make clean` deletes the cluster.
   but not create one. Blobstore (object storage) works the same way.
 * **Only granted ways out.** A component reaches a host over HTTP only if
   that host is in its own `allowedHosts`. Everything else is denied by
-  default.
+  default. The toy sites are ordinary Kubernetes Services, so an agent's
+  request to `planted.workshop-sites.svc` leaves its host pod and crosses the
+  cluster network like any other.
 
 ## Words we use
 
@@ -299,11 +306,12 @@ no API keys, no GPU and the same result on every laptop.
 ### The toy sites
 
 `steps/00-fixtures/` runs one component that serves three fake sites, started
-by `make up`: `planted.example/page` and `/page2` (pages with hidden
-instructions), `collector.example/collect` (the attacker; it counts every
-leak), `planted.example/collect` (the attacker's own site collects too) and
-`llm.example` (a fake OpenAI compatible model for step 7). Other workloads on
-the host reach them in memory through local routing; nothing leaves your
+by `make up`: `planted.workshop-sites.svc/page` and `/page2` (pages with
+hidden instructions), `collector.workshop-sites.svc/collect` (the attacker; it
+counts every leak), `planted.workshop-sites.svc/collect` (the attacker's own
+site collects too) and `llm.workshop-sites.svc` (a fake OpenAI compatible
+model for step 7). Each name is a Kubernetes Service (`k8s/sites.yaml`) in
+front of the fixtures host group, which runs nothing else; nothing leaves your
 machine. `curl -H 'Host: sites.localhost' 127.0.0.1:18180/count` shows the
 leak count, and a POST to `/reset` zeroes it. Only the name
 `sites.localhost` may reset or list the leaks, so a hijacked agent cannot
@@ -359,7 +367,7 @@ name, not `agent.localhost`. Use `curl`.
 artifacts/        prebuilt components and SHA256SUMS (what make up pushes)
 components/       the Rust source: agent, models, tools, not-installed, toy-sites
   common/         HTTP helpers over wasi:http@0.3.0, shared by source path
-k8s/              chart values, the data service, the ingress Service
+k8s/              chart values, the data service, the toy sites' Services, the ingress
 scripts/          up, down, stores, prove, push, tools, doctor
 steps/            one folder per step: manifest, README, expected output
 wit/              workshop:toolbox and the WASI 0.3 / wasmCloud WIT it uses
@@ -390,9 +398,27 @@ v2.11.0 (`make prove`).
   alone. For mutually hostile tenants, use separate host groups or nodes, and
   decide who may apply Workloads with RBAC and admission policy (wasmCloud
   ships no admission controller).
-* **Local routing lets any workload on a host claim a hostname.** The toy
-  sites rely on it (`localBypassRouting`). It is a workshop convenience, not
-  a production setting.
+* **Local routing is off, and the toy sites have a host group of their
+  own.** The chart's `localBypassRouting` lets any workload on a host claim
+  any hostname with `localRoute`, with no check of who owns it, and answer
+  the other workloads' requests to it in memory. With it on, a team-b
+  workload that claimed the toy sites' names answered 8 of 8 of team-a's
+  requests to them. So it is off on every host group, and the agents reach
+  the toy sites by Kubernetes Services. `make prove` checks that the same
+  claim now catches nothing.
+* **A workload chooses its own host group.** `hostSelector` is part of the
+  Workload spec, so nothing stops team-b from asking for
+  `hostgroup: fixtures` and claiming `planted.workshop-sites.svc` there with
+  `host-aliases`. Requests for a name are spread over every workload that
+  claims it, so that squatter would get a share (3 of 8 in a test). Admission
+  policy has to decide which namespaces may use which host group, and the
+  same holds for ingress names such as `a.agent.localhost` on a shared host.
+* **Service names are listed by hand.** The operator adds a Service's DNS
+  names to a workload's routes by itself only for wasi:http 0.2 handlers
+  (`kubernetes.service`, wasmCloud#5582). The toy sites are WASI 0.3, so
+  `toy-sites.yaml` lists them in `host-aliases`. `allowedHosts` matches the
+  name exactly: a component allowed `planted.workshop-sites.svc` may not
+  call `planted.workshop-sites.svc.cluster.local`.
 * **`--allow-insecure-registries`** turns off TLS for every registry the host
   pulls from. The workshop's registry is plain HTTP on the kind network; the
   chart's `ociCaPaths` is the safer choice for a real registry.
