@@ -23,10 +23,10 @@ make doctor
 - [ ] `make up`: ends with the cluster, registry and ingress lines and a
       `stores` line, in about 2 minutes the first time. `kubectl config
       current-context` says `kind-workshop-toolbox`.
-- [ ] `export PATH="$PWD/.tools:$PATH"`, then walk steps 1 to 8 by hand from
+- [ ] `export PATH="$PWD/.tools:$PATH"`, then walk steps 1 to 7 by hand from
       each `steps/*/README.md`. Every command runs as written and the output
       matches the **Expected** block.
-- [ ] `make prove`: ends with `proofs written:` and eight files. `git diff
+- [ ] `make prove`: ends with `proofs written:` and seven files. `git diff
       steps` shows only host ids, the service account token prefix and pod
       names.
 - [ ] `make clean`: the cluster and the registry container are gone; your
@@ -37,9 +37,9 @@ make doctor
 On a machine with Docker stopped:
 
 - [ ] `make doctor` fails the Docker line and shows the fallback section green.
-- [ ] `make up-local && make push-local`, then steps 1 to 3 and 5 to 8 with
+- [ ] `make up-local && make push-local`, then steps 1 to 3 and 5 to 7 with
       `python3 scripts/apply.py <manifest>` instead of `kubectl apply -f`.
-- [ ] `make prove-local`: seven files in `.run/local/`.
+- [ ] `make prove-local`: six files in `.run/local/`.
 
 ## 3. GitHub Codespaces (not yet verified)
 
@@ -47,12 +47,12 @@ On a machine with Docker stopped:
       `make doctor` on its own; every Required line is green (Docker comes
       from the docker-in-docker feature).
 - [ ] `make up` completes inside the codespace. Note how long it takes.
-- [ ] Steps 1, 3, 4 and 7 run as written from the codespace terminal.
+- [ ] Steps 1, 3, 4 and 6 run as written from the codespace terminal.
 
 ## 4. Build it yourself
 
 - [ ] With Rust 1.98.1 and the `wasm32-wasip2` target: `make build && make
-      push-build`, then step 7 still refuses the leak.
+      push-build`, then step 6 still refuses the leak.
 
 ## 5. In the room
 
@@ -60,4 +60,4 @@ On a machine with Docker stopped:
       up` the day before needs no downloads (kind's node image and the chart
       images are cached).
 - [ ] Jumping ahead works: on a fresh `make up`, `kubectl apply -f
-      steps/07-web/workload.yaml` alone, then step 7's commands.
+      steps/06-web/workload.yaml` alone, then step 6's commands.

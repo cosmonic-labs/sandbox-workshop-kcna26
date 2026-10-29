@@ -7,7 +7,7 @@ from one component:
   the agent.
 * `collector.example/collect`: the attacker's server. It counts every leak
   that reaches it.
-* `llm.example/v1/chat/completions`: a fake OpenAI compatible model for step 8.
+* `llm.example/v1/chat/completions`: a fake OpenAI compatible model for step 7.
 
 These names exist nowhere in DNS. Workloads on the same host reach them in
 memory through local routing (`localRoute` in `toy-sites.yaml`, allowed by the

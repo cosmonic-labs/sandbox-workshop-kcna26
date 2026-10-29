@@ -161,9 +161,9 @@ else
 fi
 
 if command -v ab >/dev/null 2>&1; then
-  ok "ab (load test in make prove, step 7)"
+  ok "ab (load test in make prove, step 6)"
 else
-  opt "ab (ApacheBench) is missing: needed only for make prove's load test in step 7" \
+  opt "ab (ApacheBench) is missing: needed only for make prove's load test in step 6" \
     "fix: $(pkg_hint 'it ships with macOS; brew install httpd adds it' 'sudo apt-get install -y apache2-utils')"
 fi
 

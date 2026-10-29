@@ -1,7 +1,5 @@
-# Step 7 control case: the same workload with web's allowedHosts widened
-# to "*". Nothing else changes: same agent, same gullible model, same planted
-# page. This time the leak reaches the collector, which shows the boundary
-# (allowedHosts on the one component with network) is what stopped it.
+# Step 7: swap in a real model. Same workload as step 6; only the model slot
+# changes, from model-scripted to model-real. Nothing is rebuilt.
 apiVersion: runtime.wasmcloud.dev/v1alpha1
 kind: WorkloadDeployment
 metadata:
@@ -23,8 +21,20 @@ spec:
       components:
         - name: agent
           image: workshop-toolbox-registry:5000/workshop/agent:0.4.0
+        # The same model slot, now filled by model-real: an OpenAI compatible
+        # client. It is the only component allowed to reach the model's host.
+        # LLM_URL points at the fake endpoint in the toy sites, so this runs
+        # offline; for a hosted model, change LLM_URL and allowedHosts and pass
+        # LLM_API_KEY from a Secret (environment.secretFrom).
         - name: model
-          image: workshop-toolbox-registry:5000/workshop/model-scripted:0.4.0
+          image: workshop-toolbox-registry:5000/workshop/model-real:0.4.0
+          localResources:
+            allowedHosts:
+              - llm.example
+            environment:
+              config:
+                LLM_URL: http://llm.example/v1/chat/completions
+                LLM_MODEL: fake-model
         # memory is the only component that imports keyvalue. The platform
         # declares the backend (k8s/values.yaml) and creates the bucket.
         - name: memory
@@ -44,7 +54,7 @@ spec:
           image: workshop-toolbox-registry:5000/workshop/tool-web:0.4.0
           localResources:
             allowedHosts:
-              - "*"
+              - planted.example
       volumes:
         - name: notes
           hostPath:

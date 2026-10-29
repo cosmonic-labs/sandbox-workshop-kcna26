@@ -64,7 +64,7 @@ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'what do you remem
 
 The memory survives the redeploy because it lives in the data service, not
 in the component. Every call to a tool runs in a fresh instance; nothing is
-kept in memory between calls. Remember the API key: step 7 tries to steal it.
+kept in memory between calls. Remember the API key: step 6 tries to steal it.
 
 ```sh
 nats --server nats://127.0.0.1:14322 kv ls agent-memory

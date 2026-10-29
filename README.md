@@ -49,11 +49,10 @@ the commands to run and the output to expect (`expected-output.txt`).
 | 3 | Two teams, two namespaces | One host pod, many tenants, each with its own memory and grants |
 | 4 | Run the same agent as a container | A container is not a sandbox: it leaks its Secret, its service account token and `/etc/passwd` |
 | 5 | A notes tool over one read only folder | Planted attack 1 fails at the folder boundary |
-| 6 | A reports tool on object storage | Durable state through a granted interface |
-| 7 | A web tool allowed one host | Planted attack 2 fails at the egress check |
-| 8 | Swap in a real model | Same slot, new implementation, no rebuild |
+| 6 | A web tool allowed one host | Planted attack 2 fails at the egress check |
+| 7 | Swap in a real model | Same slot, new implementation, no rebuild |
 
-Steps 1 to 5 tell the whole story. Steps 6 to 8 go as far as time allows.
+Steps 1 to 5 tell the whole story. Steps 6 and 7 go as far as time allows.
 Every step's manifest is complete, so you can jump to any step with one
 `kubectl apply`.
 
@@ -297,7 +296,7 @@ no API keys, no GPU and the same result on every laptop.
 `steps/00-fixtures/` runs one component that serves three fake sites, started
 by `make up`: `planted.example/page` (a page with a hidden instruction),
 `collector.example/collect` (the attacker; it counts every leak) and
-`llm.example` (a fake OpenAI compatible model for step 8). Other workloads on
+`llm.example` (a fake OpenAI compatible model for step 7). Other workloads on
 the host reach them in memory through local routing; nothing leaves your
 machine. `curl -H 'Host: sites.localhost' 127.0.0.1:18180/count` shows the
 leak count, and `/reset` zeroes it.

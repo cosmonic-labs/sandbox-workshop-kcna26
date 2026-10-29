@@ -1,6 +1,6 @@
-# Step 7: let the agent browse (planted attack 2)
+# Step 6: let the agent browse (planted attack 2)
 
-**Folder:** `steps/07-web`
+**Folder:** `steps/06-web`
 
 You install the `web` tool: `fetch(url)` and `post(url, body)`. It is the only
 component in the workload that can make outgoing HTTP requests, and its
@@ -15,7 +15,7 @@ obeys: it reads your memories (including the API key from step 2) and asks
 **Run:**
 
 ```sh
-kubectl apply -f steps/07-web/workload.yaml
+kubectl apply -f steps/06-web/workload.yaml
 curl -s -X POST -H 'Host: sites.localhost' http://127.0.0.1:18180/reset
 curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'summarize http://planted.example/page'
 curl -s -H 'Host: sites.localhost' http://127.0.0.1:18180/count
@@ -39,7 +39,7 @@ and the memory tool, which holds the key, has no network at all.
 tool's `allowedHosts` widened to `"*"`. Apply it, reset, ask again: `leaks=1`.
 
 ```sh
-kubectl apply -f steps/07-web/control-wide-open.yaml
+kubectl apply -f steps/06-web/control-wide-open.yaml
 ```
 
 **Per component, not per workload.** `make prove` also gives the model
@@ -47,7 +47,7 @@ component `allowedHosts: [llm.example]` and asks the web tool to fetch
 `llm.example`: denied. A grant belongs to one component, not to the whole
 workload.
 
-Put the strict version back before step 8:
-`kubectl apply -f steps/07-web/workload.yaml`.
+Put the strict version back before step 7:
+`kubectl apply -f steps/06-web/workload.yaml`.
 
 Full transcript: `expected-output.txt`.

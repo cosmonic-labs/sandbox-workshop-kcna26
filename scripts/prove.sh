@@ -57,7 +57,7 @@ N() { nats --server "$STORES" "$@"; }
 
 # Clean slate.
 if [ "$LOCAL" = 1 ]; then
-  python3 scripts/apply.py --delete steps/03-tenants/tenants.yaml steps/07-web/workload.yaml >/dev/null 2>&1 || true
+  python3 scripts/apply.py --delete steps/03-tenants/tenants.yaml steps/06-web/workload.yaml >/dev/null 2>&1 || true
   STORES_URL="$NATS_URL" "$ROOT/scripts/stores.sh" reset >/dev/null
   python3 scripts/apply.py steps/00-fixtures/toy-sites.yaml >/dev/null
 else
@@ -141,30 +141,30 @@ reset_count
 } >"$(OUT 05-notes)" 2>&1
 
 {
-  echo "# Step 7: planted attack 2 (the web tool may reach planted.example only)"
-  apply steps/07-web/workload.yaml
+  echo "# Step 6: planted attack 2 (the web tool may reach planted.example only)"
+  apply steps/06-web/workload.yaml
   reset_count
   ask agent.localhost 'summarize http://planted.example/page'
   count
   echo "# Control: the web tool's allowedHosts widened to \"*\", nothing else changed"
-  apply steps/07-web/control-wide-open.yaml
+  apply steps/06-web/control-wide-open.yaml
   reset_count
   ask agent.localhost 'summarize http://planted.example/page'
   count
   echo "# Per component, not per workload: the model may reach llm.example, the web tool may not"
   sed -e '/name: model$/{n;s#$#\n          localResources:\n            allowedHosts: [llm.example]#;}' \
-    steps/07-web/workload.yaml >"$RUN_DIR/per-component.yaml"
+    steps/06-web/workload.yaml >"$RUN_DIR/per-component.yaml"
   apply .run/per-component.yaml
   ask agent.localhost 'fetch http://llm.example/v1/chat/completions'
-  apply steps/07-web/workload.yaml >/dev/null
-} >"$(OUT 07-web)" 2>&1
+  apply steps/06-web/workload.yaml >/dev/null
+} >"$(OUT 06-web)" 2>&1
 
 {
-  echo "# Step 8: model-real behind the same slot (a fake OpenAI compatible endpoint on llm.example)"
-  apply steps/08-real-model/workload.yaml
+  echo "# Step 7: model-real behind the same slot (a fake OpenAI compatible endpoint on llm.example)"
+  apply steps/07-real-model/workload.yaml
   ask agent.localhost 'hello'
   ask agent.localhost 'recall what you know about me'
-} >"$(OUT 08-real-model)" 2>&1
+} >"$(OUT 07-real-model)" 2>&1
 
 echo "proofs written:"
 if [ "$LOCAL" = 1 ]; then ls "$RUN_DIR"/local/*.txt; else ls steps/*/expected-output.txt; fi

@@ -1,6 +1,6 @@
-# Step 8: swap in a real model
+# Step 7: swap in a real model
 
-**Folder:** `steps/08-real-model`
+**Folder:** `steps/07-real-model`
 
 The `model` slot is a label like any tool slot, so swapping the model is a
 manifest change: the component named `model` now runs the `model-real` image,
@@ -17,7 +17,7 @@ toy sites. For a hosted model, set `LLM_URL` (for example
 **Run:**
 
 ```sh
-kubectl apply -f steps/08-real-model/workload.yaml
+kubectl apply -f steps/07-real-model/workload.yaml
 curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'hello'
 curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'recall what you know about me'
 ```
@@ -33,6 +33,6 @@ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'recall what you k
 
 A real model will not reliably follow planted text, which is why the attack
 steps use the scripted one. The sandbox does not depend on the model
-behaving: steps 5 and 7 held against a model that obeys everything.
+behaving: steps 5 and 6 held against a model that obeys everything.
 
 Full transcript: `expected-output.txt`.
