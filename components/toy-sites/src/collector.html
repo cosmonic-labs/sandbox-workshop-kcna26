@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:,">
+<title>Attacker's collector</title>
+<style>
+  :root {
+    --bg: #ffffff; --fg: #111111; --muted: #555555; --line: #d4d4d4;
+    --panel: #f4f4f4; --accent: #c4001a; --accent-bg: #fdecee; --focus: #1a56db;
+    color-scheme: light dark;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #111214; --fg: #f2f2f2; --muted: #a8a8a8; --line: #3a3b3f;
+      --panel: #1c1d21; --accent: #ff5468; --accent-bg: #3a1218; --focus: #7aa7ff;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { font-size: 20px; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font: 1rem/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  main { max-width: 64rem; margin: 0 auto; padding: 1.5rem 1rem 3rem; }
+  header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 0.5rem 1rem; }
+  h1 { font-size: 1.6rem; margin: 0; }
+  .sub { color: var(--muted); margin: 0.25rem 0 0; }
+  code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  button {
+    font: inherit; font-weight: 600; padding: 0.5rem 1.1rem; border-radius: 0.4rem;
+    border: 2px solid var(--fg); background: var(--bg); color: var(--fg); cursor: pointer;
+  }
+  button:hover { background: var(--panel); }
+  :focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
+  .counter {
+    margin: 1.5rem 0; padding: 1.5rem; border: 2px solid var(--line); border-radius: 0.6rem;
+    display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 2rem;
+  }
+  .counter.hot { border-color: var(--accent); background: var(--accent-bg); }
+  .num { font-size: 7rem; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+  .hot .num { color: var(--accent); }
+  .label { font-size: 1.5rem; font-weight: 600; }
+  .status { color: var(--muted); margin: 0.25rem 0 0; }
+  .empty { font-size: 1.4rem; color: var(--muted); padding: 1rem 0; }
+  ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 1rem; }
+  li { border: 2px solid var(--line); border-left: 0.5rem solid var(--accent); border-radius: 0.5rem; padding: 1rem 1.25rem; }
+  .meta { display: flex; flex-wrap: wrap; gap: 0.25rem 1.25rem; align-items: baseline; }
+  .meta strong { font-size: 1.25rem; }
+  .source { font-weight: 600; }
+  .detail { color: var(--muted); font-size: 0.85rem; margin: 0.25rem 0 0.75rem; overflow-wrap: anywhere; }
+  .payload { margin: 0; padding: 0; list-style: none; display: grid; gap: 0.35rem; }
+  .payload li { border: 0; padding: 0.4rem 0.75rem; border-radius: 0.3rem; background: var(--panel); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.9rem; overflow-wrap: anywhere; white-space: pre-wrap; }
+  .payload li.secret { background: var(--accent-bg); color: var(--fg); font-weight: 600; box-shadow: inset 0.25rem 0 0 var(--accent); }
+  .badge { font-size: 0.8rem; font-weight: 700; color: var(--accent); border: 2px solid var(--accent); border-radius: 1rem; padding: 0 0.6rem; }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div>
+      <h1>The attacker's collector</h1>
+      <p class="sub">Everything that reaches <code>collector.example/collect</code>, newest first.</p>
+    </div>
+    <button id="reset" type="button">Reset</button>
+  </header>
+
+  <section class="counter" id="counter" aria-live="polite" aria-atomic="true">
+    <span class="num" id="num">0</span>
+    <div>
+      <div class="label" id="label">leaks received</div>
+      <p class="status" id="status">Connecting...</p>
+    </div>
+  </section>
+
+  <p class="empty" id="empty">Nothing has reached the attacker.</p>
+  <ol id="list" aria-label="Leaks, newest first"></ol>
+</main>
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const KEY = 'collector-seen';
+  let seen = {};
+  try { seen = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch (e) { seen = {}; }
+  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(seen)); } catch (e) {} };
+  let known = null;
+  let first = true;
+
+  const fmtTime = (ms) => new Date(ms).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+  function source(leak) {
+    const ua = leak.agent || '';
+    if (leak.host === 'collector.example') {
+      return ['A component on the wasmCloud host', 'reached collector.example through local routing'];
+    }
+    if (/wget|curl/i.test(ua)) {
+      return ['A container in the cluster', 'came in through the cluster ingress as sites.localhost'];
+    }
+    return ['Unknown sender', 'came in as ' + (leak.host || 'no host')];
+  }
+
+  const SECRET = /(sk-[\w-]+|token|eyJ[\w-]+|api[ _]?key|password|\/etc\/passwd|root:x:)/i;
+
+  function payloadLines(body) {
+    return body.split(/ \| |\n/).map((s) => s.trim()).filter(Boolean);
+  }
+
+  function render(data) {
+    const n = data.count;
+    $('num').textContent = n;
+    $('label').textContent = n === 1 ? 'leak received' : 'leaks received';
+    $('counter').classList.toggle('hot', n > 0);
+    $('empty').hidden = n > 0;
+    const list = $('list');
+    list.textContent = '';
+    for (const leak of data.leaks) {
+      // Keyed by number and size, so a slot from before a reset in another tab is not reused.
+      const id = leak.n + ':' + leak.bytes;
+      if (!seen[id]) seen[id] = first ? -1 : Date.now();
+      const t = seen[id];
+      const li = document.createElement('li');
+      const meta = document.createElement('div');
+      meta.className = 'meta';
+      const num = document.createElement('strong');
+      num.textContent = 'Leak #' + leak.n;
+      const when = document.createElement('span');
+      when.textContent = t > 0 ? 'seen at ' + fmtTime(t) : 'before this page opened';
+      const [who, how] = source(leak);
+      const src = document.createElement('span');
+      src.className = 'source';
+      src.textContent = who;
+      meta.append(num, src, when);
+      if (t > 0 && Date.now() - t < 10000) {
+        const b = document.createElement('span');
+        b.className = 'badge';
+        b.textContent = 'new';
+        meta.append(b);
+      }
+      const detail = document.createElement('p');
+      detail.className = 'detail';
+      detail.textContent = how + '. Host: ' + (leak.host || 'none') + ', User-Agent: ' +
+        (leak.agent || 'none') + ', ' + leak.bytes + ' bytes.';
+      const payload = document.createElement('ul');
+      payload.className = 'payload';
+      payload.setAttribute('aria-label', 'What it sent');
+      for (const line of payloadLines(leak.body || '')) {
+        const p = document.createElement('li');
+        p.textContent = line;
+        if (SECRET.test(line)) p.className = 'secret';
+        payload.append(p);
+      }
+      li.append(meta, detail, payload);
+      list.append(li);
+    }
+    save();
+  }
+
+  async function poll() {
+    try {
+      const url = known === null ? '/leaks' : '/leaks?since=' + known;
+      const res = await fetch(url, { cache: 'no-store' });
+      if (!res.ok) throw new Error(res.status);
+      const data = await res.json();
+      if (!data.unchanged) {
+        if (known !== null && data.count < known) seen = {};
+        render(data);
+        known = data.count;
+        first = false;
+      } else {
+        // Refresh the "new" badges without another request.
+        if (document.querySelector('.badge')) { known = null; }
+      }
+      $('status').textContent = 'Live. Checks every second.';
+    } catch (e) {
+      $('status').textContent = 'Cannot reach the collector. Is the cluster up?';
+    }
+  }
+
+  $('reset').addEventListener('click', async () => {
+    try {
+      await fetch('/reset', { method: 'POST' });
+      seen = {};
+      save();
+      known = null;
+      await poll();
+      $('status').textContent = 'Reset. Live. Checks every second.';
+    } catch (e) {
+      $('status').textContent = 'Reset failed: cannot reach the collector.';
+    }
+  });
+
+  poll();
+  setInterval(poll, 1000);
+})();
+</script>
+</body>
+</html>

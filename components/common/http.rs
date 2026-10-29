@@ -16,11 +16,33 @@ pub async fn request_body(req: Request) -> Vec<u8> {
 /// A response with a text body.
 #[allow(dead_code)]
 pub fn text_response(status: u16, text: String) -> Result<Response, ErrorCode> {
-    let headers = Fields::from_list(&[(
-        "content-type".to_string(),
-        b"text/plain; charset=utf-8".to_vec(),
-    )])
-    .map_err(|e| ErrorCode::InternalError(Some(format!("headers: {e:?}"))))?;
+    typed_response(status, "text/plain; charset=utf-8", false, text)
+}
+
+/// A response with an HTML page, for the pages a browser opens.
+#[allow(dead_code)]
+pub fn html_response(status: u16, page: &str) -> Result<Response, ErrorCode> {
+    typed_response(status, "text/html; charset=utf-8", true, page.to_string())
+}
+
+/// A response with a JSON body.
+#[allow(dead_code)]
+pub fn json_response(status: u16, json: String) -> Result<Response, ErrorCode> {
+    typed_response(status, "application/json", true, json)
+}
+
+fn typed_response(
+    status: u16,
+    content_type: &str,
+    no_store: bool,
+    text: String,
+) -> Result<Response, ErrorCode> {
+    let mut list = vec![("content-type".to_string(), content_type.as_bytes().to_vec())];
+    if no_store {
+        list.push(("cache-control".to_string(), b"no-store".to_vec()));
+    }
+    let headers = Fields::from_list(&list)
+        .map_err(|e| ErrorCode::InternalError(Some(format!("headers: {e:?}"))))?;
     let (mut body_tx, body_rx) = crate::wit_stream::new();
     let (trailers_tx, trailers_rx) = crate::wit_future::new(|| Ok(None));
     wit_bindgen::spawn_local(async move {
