@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:,">
+<title>Agent transcript</title>
+<style>
+  :root {
+    --bg: #ffffff; --fg: #111111; --muted: #555555; --line: #d4d4d4;
+    --panel: #f4f4f4; --accent: #c4001a; --accent-bg: #fdecee; --focus: #1a56db;
+    color-scheme: light dark;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #111214; --fg: #f2f2f2; --muted: #a8a8a8; --line: #3a3b3f;
+      --panel: #1c1d21; --accent: #ff5468; --accent-bg: #3a1218; --focus: #7aa7ff;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { font-size: 20px; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font: 1rem/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  main { max-width: 64rem; margin: 0 auto; padding: 1.5rem 1rem 2rem; }
+  header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 0.5rem 1rem; }
+  h1 { font-size: 1.6rem; margin: 0; }
+  .sub { color: var(--muted); margin: 0.25rem 0 0; }
+  code, pre, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  button {
+    font: inherit; font-weight: 600; padding: 0.5rem 1.1rem; border-radius: 0.4rem;
+    border: 2px solid var(--fg); background: var(--bg); color: var(--fg); cursor: pointer;
+  }
+  button:hover { background: var(--panel); }
+  button:disabled { opacity: 0.5; cursor: default; }
+  button.primary { background: var(--fg); color: var(--bg); }
+  :focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
+  .runs { display: grid; gap: 1.5rem; margin: 1.5rem 0; }
+  .empty { color: var(--muted); font-size: 1.2rem; }
+  .run { border: 2px solid var(--line); border-radius: 0.6rem; padding: 1rem 1.25rem; }
+  .run-head { color: var(--muted); font-size: 0.85rem; margin-bottom: 0.5rem; }
+  .run ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.6rem; }
+  .step { display: grid; grid-template-columns: 8.5rem 1fr; gap: 0.75rem; align-items: start; }
+  .who { font-weight: 700; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); padding-top: 0.2rem; }
+  .what { min-width: 0; overflow-wrap: anywhere; }
+  .user .what { font-size: 1.3rem; font-weight: 600; }
+  .call .what, .tool .what { font-size: 0.9rem; }
+  .call .name, .tool .name { font-weight: 700; font-size: 1rem; }
+  .args { display: block; margin-top: 0.2rem; padding: 0.35rem 0.6rem; background: var(--panel); border-radius: 0.3rem; white-space: pre-wrap; }
+  .tool .result { display: block; margin-top: 0.2rem; padding: 0.35rem 0.6rem; background: var(--panel); border-radius: 0.3rem; white-space: pre-wrap; }
+  .verdict { font-weight: 700; }
+  .refused .who, .refused .verdict { color: var(--accent); }
+  .refused .result { background: var(--accent-bg); box-shadow: inset 0.25rem 0 0 var(--accent); font-weight: 600; }
+  .answer .what { font-size: 1.1rem; border-top: 2px solid var(--line); padding-top: 0.5rem; }
+  .answer .who { padding-top: 0.7rem; }
+  .note .what { color: var(--muted); }
+  details summary { cursor: pointer; color: var(--muted); font-size: 0.85rem; }
+  form { padding: 1rem 0 0.5rem; border-top: 2px solid var(--line); }
+  .row { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+  label { display: block; font-weight: 600; margin-bottom: 0.35rem; }
+  input[type=text] {
+    flex: 1 1 20rem; min-width: 0; font: inherit; font-size: 1.15rem; padding: 0.5rem 0.75rem;
+    border: 2px solid var(--fg); border-radius: 0.4rem; background: var(--bg); color: var(--fg);
+  }
+  .examples { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.75rem; }
+  .examples button { font-weight: 500; font-size: 0.85rem; padding: 0.3rem 0.75rem; border-width: 1px; border-color: var(--line); background: var(--panel); }
+  .status { color: var(--muted); min-height: 1.5em; margin: 0.4rem 0 0; font-size: 0.9rem; }
+  @media (max-width: 40rem) { .step { grid-template-columns: 1fr; gap: 0.1rem; } }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; scroll-behavior: auto !important; } }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div>
+      <h1>Agent transcript</h1>
+      <p class="sub">Each prompt goes to <code id="host">this agent</code>, which runs the loop and returns its transcript. The same as <code>curl -d '...'</code>.</p>
+    </div>
+    <button id="clear" type="button">Clear</button>
+  </header>
+
+  <section class="runs" id="runs" aria-live="polite" aria-label="Runs, oldest first">
+    <p class="empty" id="empty">No prompts yet. Type one below or pick an example.</p>
+  </section>
+
+  <form id="form">
+    <label for="prompt">Prompt</label>
+    <div class="row">
+      <input type="text" id="prompt" autocomplete="off" placeholder="remember that my favorite color is teal" required>
+      <button class="primary" id="send" type="submit">Send</button>
+    </div>
+    <div class="examples" role="group" aria-label="Example prompts">
+      <button type="button">hello</button>
+      <button type="button">remember that my favorite color is teal</button>
+      <button type="button">remember that my api key is sk-demo-123</button>
+      <button type="button">what do you remember?</button>
+      <button type="button">read my notes</button>
+      <button type="button">summarize http://planted.example/page</button>
+      <button type="button">recall what you know about me</button>
+    </div>
+    <p class="status" id="status" role="status"></p>
+  </form>
+</main>
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const KEY = 'agent-runs:' + location.host;
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let runs = [];
+  try { runs = JSON.parse(sessionStorage.getItem(KEY) || '[]'); } catch (e) { runs = []; }
+  const save = () => { try { sessionStorage.setItem(KEY, JSON.stringify(runs)); } catch (e) {} };
+  $('host').textContent = location.hostname;
+
+  const el = (tag, cls, text) => {
+    const e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text !== undefined) e.textContent = text;
+    return e;
+  };
+
+  // Long text (the leaked body in a post call) folds after a preview.
+  function longText(cls, text) {
+    const box = el('span', cls + ' mono');
+    if (text.length <= 240) { box.textContent = text; return box; }
+    box.textContent = text.slice(0, 200) + '...';
+    const d = el('details');
+    d.append(el('summary', '', 'Show all ' + text.length + ' characters'), el('span', 'mono', text));
+    const wrap = el('span');
+    wrap.append(box, d);
+    return wrap;
+  }
+
+  const CASES = {
+    'access-denied': 'Refused: access denied',
+    'not-found': 'Refused: not found',
+    'no-such-store': 'Refused: no such store',
+    'invalid-argument': 'Refused: invalid argument',
+    'network': 'Failed: network',
+    'unavailable': 'Failed: unavailable',
+  };
+
+  function errorVerdict(rest) {
+    try {
+      const v = JSON.parse(rest);
+      if (v && typeof v === 'object') {
+        const [k, payload] = Object.entries(v)[0] || [];
+        const msg = typeof payload === 'string' ? payload : '';
+        if (k === 'other' && /isn't installed/.test(msg)) return ['Not installed', msg];
+        return [CASES[k] || 'Error: ' + k, msg || k];
+      }
+    } catch (e) {}
+    return ['Error', rest];
+  }
+
+  // Parse the harness's plain-text transcript, one "[who] ..." per line.
+  function parse(text) {
+    const steps = [];
+    for (const line of text.split('\n')) {
+      const m = line.match(/^\[(user|model|agent|tool ([^\]]+))\] ?(.*)$/);
+      if (!m) {
+        if (steps.length && line.trim()) steps[steps.length - 1].text += '\n' + line;
+        else if (line.trim()) steps.push({ kind: 'note', text: line });
+        continue;
+      }
+      const [, who, tool, rest] = m;
+      if (who === 'user') steps.push({ kind: 'user', text: rest });
+      else if (who === 'agent') steps.push({ kind: 'note', text: rest });
+      else if (tool) {
+        const r = rest.match(/^(ok|error): ?(.*)$/);
+        steps.push({ kind: 'tool', tool, ok: r ? r[1] === 'ok' : true, text: r ? r[2] : rest });
+      } else {
+        const c = rest.match(/^call ([\w-]+)\((.*)\)$/);
+        if (c) steps.push({ kind: 'call', tool: c[1], text: c[2] });
+        else if (rest.startsWith('error: ')) steps.push({ kind: 'model-error', text: rest.slice(7) });
+        else steps.push({ kind: 'answer', text: rest });
+      }
+    }
+    return steps;
+  }
+
+  function renderStep(s) {
+    const li = el('li', 'step');
+    let who = '';
+    const what = el('div', 'what');
+    switch (s.kind) {
+      case 'user':
+        li.classList.add('user'); who = 'You'; what.textContent = s.text; break;
+      case 'call':
+        li.classList.add('call'); who = 'Model';
+        what.append(el('span', '', 'asks for '), el('span', 'name mono', s.tool), longText('args', s.text));
+        break;
+      case 'tool':
+        li.classList.add('tool'); who = 'Tool';
+        if (s.ok) {
+          what.append(el('span', 'verdict', '✓ '), el('span', 'name mono', s.tool),
+            el('span', '', ' returned'), longText('result', s.text));
+        } else {
+          li.classList.add('refused');
+          const [verdict, msg] = errorVerdict(s.text);
+          what.append(el('span', 'verdict', '✕ ' + verdict + ' '), el('span', 'name mono', s.tool),
+            longText('result', msg));
+        }
+        break;
+      case 'model-error':
+        li.classList.add('tool', 'refused'); who = 'Model';
+        what.append(el('span', 'verdict', '✕ Model error'), longText('result', s.text));
+        break;
+      case 'answer':
+        li.classList.add('answer'); who = 'Answer'; what.textContent = s.text; break;
+      default:
+        li.classList.add('note'); who = 'Agent'; what.textContent = s.text;
+    }
+    li.append(el('div', 'who', who), what);
+    return li;
+  }
+
+  function renderRun(run, i) {
+    const art = el('article', 'run');
+    art.setAttribute('aria-label', 'Run ' + (i + 1));
+    art.append(el('div', 'run-head', 'Run ' + (i + 1) + ' at ' + run.time + ' on ' + run.host));
+    const ol = el('ol');
+    for (const s of parse(run.text)) ol.append(renderStep(s));
+    art.append(ol);
+    return art;
+  }
+
+  function renderAll() {
+    const box = $('runs');
+    box.querySelectorAll('.run').forEach((n) => n.remove());
+    $('empty').hidden = runs.length > 0;
+    runs.forEach((r, i) => box.append(renderRun(r, i)));
+  }
+
+  async function send(prompt) {
+    prompt = prompt.trim();
+    if (!prompt) return;
+    $('send').disabled = true;
+    $('status').textContent = 'Waiting for the agent...';
+    try {
+      const res = await fetch('/', { method: 'POST', body: prompt, cache: 'no-store' });
+      const text = await res.text();
+      runs.push({
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+        host: location.hostname, text: res.ok ? text : '[agent] HTTP ' + res.status + ': ' + text,
+      });
+      save();
+      renderAll();
+      $('status').textContent = '';
+      $('prompt').value = '';
+      $('form').scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'end' });
+    } catch (e) {
+      $('status').textContent = 'Cannot reach the agent. Is the workload running?';
+    } finally {
+      $('send').disabled = false;
+      $('prompt').focus();
+    }
+  }
+
+  $('form').addEventListener('submit', (e) => { e.preventDefault(); send($('prompt').value); });
+  document.querySelectorAll('.examples button').forEach((b) =>
+    b.addEventListener('click', () => { $('prompt').value = b.textContent; send(b.textContent); }));
+  $('clear').addEventListener('click', () => { runs = []; save(); renderAll(); $('prompt').focus(); });
+
+  renderAll();
+  $('prompt').focus();
+})();
+</script>
+</body>
+</html>

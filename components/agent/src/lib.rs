@@ -5,7 +5,9 @@
 //! send a prompt as the request body (or `?q=`) and it asks the model what to
 //! do, runs the tool the model asks for, feeds the result back, and repeats
 //! until the model answers in text. The response is the whole transcript so
-//! you can watch every step.
+//! you can watch every step. A browser that opens the root with no prompt
+//! gets a page (`transcript.html`) that sends prompts the same way and draws
+//! the transcript as a timeline; curl gets the same text as ever.
 //!
 //! The harness itself holds no capabilities. Its world imports the model and
 //! three labelled tool slots and nothing else from the host; whatever a tool
@@ -27,11 +29,14 @@ mod tools;
 
 use exports::wasi::http::handler::Guest;
 use tools::{Args, TOOLS};
-use wasi::http::types::{ErrorCode, Request, Response};
+use wasi::http::types::{ErrorCode, Method, Request, Response};
 use workshop::toolbox::types::{Completion, Message, ToolDef};
 
 /// Hard stop so a hijacked model cannot loop forever.
 const MAX_STEPS: usize = 8;
+
+/// The transcript page, for a browser at http://agent.localhost:18180/.
+const PAGE: &str = include_str!("transcript.html");
 
 struct Agent;
 
@@ -41,6 +46,13 @@ impl Guest for Agent {
             .get_path_with_query()
             .and_then(|p| p.split_once('?').map(|(_, q)| q.to_string()))
             .unwrap_or_default();
+        // A browser asks for HTML; curl sends */*. Only a browser gets the page.
+        let wants_page = matches!(req.get_method(), Method::Get)
+            && req
+                .get_headers()
+                .get("accept")
+                .iter()
+                .any(|v| String::from_utf8_lossy(v).contains("text/html"));
         let body = http::request_body(req).await;
         let mut prompt = String::from_utf8_lossy(&body).trim().to_string();
         if prompt.is_empty() {
@@ -49,6 +61,9 @@ impl Guest for Agent {
                 .find_map(|kv| kv.strip_prefix("q="))
                 .map(url_decode)
                 .unwrap_or_default();
+        }
+        if prompt.is_empty() && wants_page {
+            return http::html_response(200, PAGE);
         }
         let transcript = if prompt.is_empty() {
             "send a prompt as the request body, e.g. curl -d 'hello' ...\n".to_string()
