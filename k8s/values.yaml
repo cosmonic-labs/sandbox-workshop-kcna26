@@ -1,4 +1,14 @@
-# Helm values for charts/runtime-operator v2.11.0 on kind: one host pod.
+# Helm values for charts/runtime-operator v2.11.0 on kind: two host groups,
+# one host pod each.
+#
+#   default   the teams' agents (namespace wasmcloud)
+#   fixtures  the toy sites only (namespace workshop-sites, k8s/sites.yaml)
+#
+# Local routing (localBypassRouting) is off on both. With it on, any workload
+# on a host may claim any hostname with localRoute and receive a share of the
+# other workloads' requests to it (upstream's threat model: give mutually
+# hostile tenants their own host group). So agents reach the toy sites the
+# ordinary way: cluster DNS and a Kubernetes Service.
 gateway:
   # Deprecated upstream; HTTP reaches the host pod directly.
   enabled: false
@@ -21,10 +31,10 @@ runtime:
       http:
         enabled: true
         port: 80
-        # Same-host local routing for the toy sites (planted.example,
-        # collector.example, llm.example). Upstream's threat model notes that
-        # it lets any workload on the host claim a hostname.
-        localBypassRouting: true
+        localBypassRouting: false
+      # A ClusterIP Service, hostgroup-default, for the ingress to send to.
+      service:
+        type: ClusterIP
       # The backend behind the WASI 0.3 keyvalue interface, declared by the
       # platform, not by workloads: since v2.11.0 a workload may not set a
       # backend's url itself (workloadConfig defaults to deny). It points at
@@ -58,3 +68,23 @@ runtime:
           mountPath: /workshop/notes
         - name: notes-rw
           mountPath: /workshop/notes-rw
+    # The toy sites (steps/00-fixtures) get a host group of their own, in
+    # their own namespace, so the Services in k8s/sites.yaml can select its
+    # pods. Workloads land here only by asking: hostSelector hostgroup: fixtures.
+    - name: fixtures
+      namespace: workshop-sites
+      replicas: 1
+      http:
+        enabled: true
+        port: 80
+        localBypassRouting: false
+      service:
+        type: ClusterIP
+      # The collector keeps its count in keyvalue too.
+      plugins:
+        - id: wasmcloud-keyvalue-multiplexed
+          allowedHosts: [data-nats.workshop-data.svc:4222]
+          allowedIpNameLookups: [data-nats.workshop-data.svc]
+          config:
+            backend: nats
+            url: nats://data-nats.workshop-data.svc:4222

@@ -2,11 +2,15 @@
 # Start the workshop cluster:
 #   kind              a one-node Kubernetes cluster in Docker (context kind-workshop-toolbox)
 #   registry:2        an OCI registry container on the kind network
-#   runtime-operator  the upstream wasmCloud chart, v2.11.0: operator, NATS, one host pod
+#   runtime-operator  the upstream wasmCloud chart, v2.11.0: operator, NATS and
+#                     two host groups (default for the agents, fixtures for the
+#                     toy sites), one host pod each
 #   data-nats         the data service behind keyvalue (k8s/data-nats.yaml)
+#   workshop-sites    the toy sites' namespace and Services (k8s/sites.yaml)
 # then push the prebuilt components (or SRC=<dir>). 127.0.0.1:18180 reaches the
-# host pods through a NodePort Service (k8s/ingress.yaml) that kind maps to
-# your laptop, so every step's curl command works unchanged.
+# host pods through a small ingress (k8s/ingress.yaml) that kind maps to your
+# laptop and that picks the host group by Host header, so every step's curl
+# command works unchanged.
 #
 # kind adds the context to your kubeconfig and switches to it, as it always
 # does. `kubectl config use-context <yours>` switches back.
@@ -58,28 +62,37 @@ docker network connect kind "$REGISTRY_CONTAINER" 2>/dev/null || true
 REGISTRY="localhost:$KIND_REGISTRY_PORT" "$ROOT/scripts/push.sh" "${SRC:-$ROOT/artifacts}"
 
 K apply -f "$ROOT/k8s/data-nats.yaml" >/dev/null
+# The fixtures host group runs in workshop-sites, which must exist first.
+K apply -f "$ROOT/k8s/sites.yaml" >/dev/null
 helm --kube-context "$CTX" upgrade --install wasmcloud "$ROOT/.upstream/charts/runtime-operator" \
   --namespace wasmcloud --create-namespace -f "$ROOT/k8s/values.yaml" --wait --timeout 10m
 K -n wasmcloud rollout status deploy/hostgroup-default --timeout 5m >/dev/null
+K -n workshop-sites rollout status deploy/hostgroup-fixtures --timeout 5m >/dev/null
 
+# The ingress image, and step 4's container image, are loaded into the node
+# so nothing pulls at the workshop.
+for img in docker.io/library/nginx:1.27.5-alpine busybox:1.36; do
+  docker image inspect "$img" >/dev/null 2>&1 || docker pull -q "$img" >/dev/null
+  kind load docker-image "$img" --name "$CLUSTER" >/dev/null 2>&1 || true
+done
 K apply -f "$ROOT/k8s/ingress.yaml" >/dev/null
+K -n wasmcloud rollout status deploy/workshop-ingress --timeout 3m >/dev/null
 
 # The platform provisions the stores; a workload can open a store but not
 # create one. scripts/stores.sh lists them.
 K -n workshop-data rollout status deploy/data-nats --timeout 3m >/dev/null
 "$ROOT/scripts/stores.sh" create
 
-# The toy sites (planted page, collector, fake model) run from the start, and
-# step 4's container image is loaded into the node so nothing pulls at the
-# workshop.
+# The toy sites (planted page, collector, fake model) run from the start, on
+# the fixtures host group.
 K apply -f "$ROOT/steps/00-fixtures/toy-sites.yaml" >/dev/null
-docker image inspect busybox:1.36 >/dev/null 2>&1 || docker pull -q busybox:1.36 >/dev/null
-kind load docker-image busybox:1.36 --name "$CLUSTER" >/dev/null 2>&1 || true
+K -n workshop-sites wait --for=condition=Ready workloaddeployment/toy-sites --timeout=180s >/dev/null || true
 for _ in $(seq 1 30); do
   curl -s -o /dev/null -m 2 "http://$HOST_HTTP/" && break; sleep 1
 done
 
-K -n wasmcloud get pods
+K get pods -n wasmcloud
+K get pods -n workshop-sites
 echo
 echo "cluster   kubectl context $CTX"
 echo "registry  $REGISTRY_CONTAINER:5000 inside the cluster (127.0.0.1:$KIND_REGISTRY_PORT from here)"

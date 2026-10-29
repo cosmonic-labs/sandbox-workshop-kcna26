@@ -1,0 +1,50 @@
+# The toy sites' namespace and the names agents call them by.
+#
+# The fixtures host group (k8s/values.yaml) runs its host pods in this
+# namespace, and the toy-sites workload runs on it. Each Service below is an
+# ordinary ClusterIP Service on port 80 that selects those host pods, so
+# http://planted.workshop-sites.svc reaches the fixtures host over the cluster
+# network like any other Service. The host sends the request to the workload
+# that serves its Host header (steps/00-fixtures/toy-sites.yaml).
+#
+# Created before the chart, which expects a host group's namespace to exist.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: workshop-sites
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: planted
+  namespace: workshop-sites
+spec:
+  selector:
+    wasmcloud.com/name: hostgroup
+    wasmcloud.com/hostgroup: fixtures
+  ports:
+    - { name: http, port: 80, targetPort: 80 }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: collector
+  namespace: workshop-sites
+spec:
+  selector:
+    wasmcloud.com/name: hostgroup
+    wasmcloud.com/hostgroup: fixtures
+  ports:
+    - { name: http, port: 80, targetPort: 80 }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: llm
+  namespace: workshop-sites
+spec:
+  selector:
+    wasmcloud.com/name: hostgroup
+    wasmcloud.com/hostgroup: fixtures
+  ports:
+    - { name: http, port: 80, targetPort: 80 }

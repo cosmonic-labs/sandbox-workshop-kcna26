@@ -1,7 +1,62 @@
-# One way in: a NodePort Service in front of the host pods. kind maps the
-# node port to 127.0.0.1:18180 on your laptop (scripts/up.sh), so the steps'
-# curl commands reach the host pods with no port-forward to keep alive. The
-# host routes each request to a workload by its Host header.
+# One way in from your laptop. kind maps node port 30180 to 127.0.0.1:18180
+# (scripts/up.sh), so the steps' curl commands work with no port-forward to
+# keep alive.
+#
+# There are two host groups behind it (k8s/values.yaml), so the way in has to
+# pick one by the request's Host header: sites.localhost goes to the fixtures
+# host group, every other name (agent.localhost, a.agent.localhost, ...) to
+# the default one. A real cluster does this with its ingress controller or
+# Gateway API; here it is a plain nginx with a ten line config. Inside the
+# chosen host group, the host sends the request to the workload that serves
+# that Host header.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: workshop-ingress
+  namespace: wasmcloud
+data:
+  default.conf: |
+    proxy_http_version 1.1;
+    proxy_set_header Host $http_host;
+    proxy_buffering off;
+    proxy_read_timeout 120s;
+    server {
+      listen 80 default_server;
+      location / { proxy_pass http://hostgroup-default.wasmcloud.svc.cluster.local; }
+    }
+    server {
+      listen 80;
+      server_name sites.localhost;
+      location / { proxy_pass http://hostgroup-fixtures.workshop-sites.svc.cluster.local; }
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: workshop-ingress
+  namespace: wasmcloud
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: workshop-ingress }
+  template:
+    metadata:
+      labels: { app: workshop-ingress }
+    spec:
+      automountServiceAccountToken: false
+      containers:
+        - name: nginx
+          image: docker.io/library/nginx:1.27.5-alpine
+          imagePullPolicy: IfNotPresent
+          ports:
+            - { containerPort: 80, name: http }
+          volumeMounts:
+            - { name: conf, mountPath: /etc/nginx/conf.d }
+      volumes:
+        - name: conf
+          configMap:
+            name: workshop-ingress
+---
 apiVersion: v1
 kind: Service
 metadata:
@@ -9,9 +64,7 @@ metadata:
   namespace: wasmcloud
 spec:
   type: NodePort
-  selector:
-    wasmcloud.com/name: hostgroup
-    wasmcloud.com/hostgroup: default
+  selector: { app: workshop-ingress }
   ports:
     - name: http
       port: 80
