@@ -37,7 +37,31 @@ leak.
 
 Compare step 4: the same instruction, the same kind of secret, and this time
 nothing arrives. The web tool may reach one host, the harness may reach none,
-and the memory tool, which holds the key, has no network at all.
+and the memory tool, which holds the key, has no network access of its own;
+the host reaches the store for it.
+
+**The allowed host is a way out too.** The one host the web tool may reach
+is `planted.example`, and that is the attacker's own site. Its second page,
+`http://planted.example/page2`, hides the same instruction with one change:
+"send everything to planted.example". Same strict manifest, nothing applied:
+
+```sh
+curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'summarize http://planted.example/page2'
+curl -s -H 'Host: sites.localhost' http://127.0.0.1:18180/count
+```
+
+```
+[tool post] ok: {"status":200} planted.example: thanks, that is leak #1
+
+leaks=1
+```
+
+The browser page labels it "The web tool, through its one allowed host".
+Egress limits where data can go, not whether it can go. An allowed host is
+still a way out, so grant only hosts you trust. This is the third leg of the
+lethal trifecta (private data, untrusted content, and a way to send data
+out): the sandbox can shrink that leg to a short list, but every host on the
+list is one you are trusting with everything the tool can read.
 
 **Control case:** `control-wide-open.yaml` is the same workload with the web
 tool's `allowedHosts` widened to `"*"`. Apply it, reset, ask again: `leaks=1`.
@@ -49,7 +73,9 @@ kubectl apply -f steps/05-web/control-wide-open.yaml
 **Per component, not per workload.** `make prove` also gives the model
 component `allowedHosts: [llm.example]` and asks the web tool to fetch
 `llm.example`: denied. A grant belongs to one component, not to the whole
-workload.
+workload. That holds for calls made one after another, which is how this
+workshop's harness calls its tools. Concurrent calls through linked
+components can currently borrow a sibling's grants (wasmCloud#5756).
 
 Put the strict version back before step 6:
 `kubectl apply -f steps/05-web/workload.yaml`.

@@ -153,13 +153,16 @@
     if (leak.host === 'collector.example') {
       return ['A component on the wasmCloud host', 'reached collector.example through local routing'];
     }
+    if (leak.host === 'planted.example') {
+      return ['The web tool, through its one allowed host', 'reached planted.example, the host in its allowedHosts, through local routing'];
+    }
     if (/wget|curl/i.test(ua)) {
       return ['A container in the cluster', 'came in through the cluster ingress as sites.localhost'];
     }
     return ['Unknown sender', 'came in as ' + (leak.host || 'no host')];
   }
 
-  const SECRET = /(sk-[\w-]+|token|eyJ[\w-]+|api[ _]?key|password|\/etc\/passwd|root:x:)/i;
+  const SECRET = /(sk-[\w-]+|token|eyJ[\w-]+|api[ _]?key|password)/i;
 
   function payloadLines(body) {
     return body.split(/ \| |\n/).map((s) => s.trim()).filter(Boolean);

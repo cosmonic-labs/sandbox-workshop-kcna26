@@ -48,7 +48,7 @@ the commands to run and the output to expect (`expected-output.txt`).
 | 2 | Give it a memory tool | A capability is an interface the platform grants |
 | 3 | Two teams, two namespaces | One host pod, many tenants, each with its own memory and grants |
 | 4 | Run the same agent as a container | A container is not a sandbox: it leaks its Secret, its service account token and `/etc/passwd` |
-| 5 | A web tool allowed one host | Planted attack 1 fails at the egress check |
+| 5 | A web tool allowed one host | Planted attack 1 fails at the egress check, but the one allowed host is still a way out |
 | 6 | A notes tool over one read only folder | Planted attack 2 fails at the folder boundary |
 | 7 | Swap in a real model | Same slot, new implementation, no rebuild |
 
@@ -300,12 +300,15 @@ no API keys, no GPU and the same result on every laptop.
 ### The toy sites
 
 `steps/00-fixtures/` runs one component that serves three fake sites, started
-by `make up`: `planted.example/page` (a page with a hidden instruction),
-`collector.example/collect` (the attacker; it counts every leak) and
+by `make up`: `planted.example/page` and `/page2` (pages with hidden
+instructions), `collector.example/collect` (the attacker; it counts every
+leak), `planted.example/collect` (the attacker's own site collects too) and
 `llm.example` (a fake OpenAI compatible model for step 7). Other workloads on
 the host reach them in memory through local routing; nothing leaves your
 machine. `curl -H 'Host: sites.localhost' 127.0.0.1:18180/count` shows the
-leak count, and `/reset` zeroes it. In a browser, http://sites.localhost:18180
+leak count, and a POST to `/reset` zeroes it. Only the name
+`sites.localhost` may reset or list the leaks, so a hijacked agent cannot
+wipe the evidence. In a browser, http://sites.localhost:18180
 shows each leak as it arrives.
 
 ## WASI 0.3
