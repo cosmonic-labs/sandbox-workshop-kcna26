@@ -1,0 +1,7 @@
+# wash build runs this command and reports where the component landed.
+# wash 2.x builds nothing on its own: build.command is the language's own
+# build (cargo here), and component_path is relative to this folder.
+version: 2.11.0
+build:
+  command: cargo build --release --target wasm32-wasip2
+  component_path: ../../target/wasm32-wasip2/release/tool_web.wasm
