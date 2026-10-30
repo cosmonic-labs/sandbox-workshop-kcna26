@@ -1,5 +1,5 @@
 # Step 1: deploy the agent with kubectl; it runs on a wasmCloud host pod
-$ kubectl apply -f steps/01-agent/workload.yaml
+$ kubectl apply -f steps/01-agent/workload.yaml && sleep 2 && kubectl wait --for=condition=Ready workloaddeployment/toolbox-agent
 workloaddeployment.runtime.wasmcloud.dev/toolbox-agent created
 
 $ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'hello'
@@ -15,18 +15,13 @@ $ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'read my notes'
 
 $ kubectl get workloads -A -o custom-columns=NAMESPACE:.metadata.namespace,HOST:.status.hostId
 NAMESPACE        HOST
-default          01a18913-77bd-72c0-96d9-0d2edacf7159
-workshop-sites   01a18912-df5c-7142-b829-a264b900915e
+default          01a18930-6cea-7f83-8c25-896b8f22b491
+workshop-sites   01a18930-6b90-7e30-a78f-fce92740e2f5
 $ kubectl get pods -A -l wasmcloud.com/name=hostgroup
-NAMESPACE        NAME                                  READY
-wasmcloud        hostgroup-default-5b55c5b579-k8wcb    Running
-workshop-sites   hostgroup-fixtures-547bdccd9d-sbnrf   Running
+NAMESPACE        NAME                                  READY   STATUS    RESTARTS   AGE
+wasmcloud        hostgroup-default-5b55c5b579-b5djn    1/1     Running   0          19h
+workshop-sites   hostgroup-fixtures-547bdccd9d-qmrr8   1/1     Running   0          19h
 
-# The agent harness and model import no filesystem, no outgoing HTTP, no sockets:
-$ wasm-tools component wit artifacts/agent.wasm | grep -E 'wasi:(http/client|filesystem|sockets)' || echo none
-agent: none
-$ wasm-tools component wit artifacts/model_scripted.wasm | grep -E 'wasi:(http/client|filesystem|sockets)' || echo none
-model_scripted: none
 # The agent harness's imports from this workshop: the model and three typed, labelled tool slots
 $ wasm-tools component wit artifacts/agent.wasm | grep 'import .*workshop:toolbox'
   import workshop:toolbox/types@0.4.0;
@@ -34,3 +29,5 @@ $ wasm-tools component wit artifacts/agent.wasm | grep 'import .*workshop:toolbo
   import memory: workshop:toolbox/memory@0.4.0;
   import notes: workshop:toolbox/notes@0.4.0;
   import web: workshop:toolbox/web@0.4.0;
+# The agent harness imports no outgoing HTTP client, no filesystem and no sockets, so this prints nothing:
+$ wasm-tools component wit artifacts/agent.wasm | grep -E 'wasi:(http/client|filesystem|sockets)'

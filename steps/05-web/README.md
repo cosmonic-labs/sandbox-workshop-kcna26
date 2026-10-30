@@ -17,7 +17,7 @@ step 2) and asks `web` to POST them to the collector.
 **Run:**
 
 ```sh
-kubectl apply -f steps/05-web/workload.yaml
+kubectl apply -f steps/05-web/workload.yaml && sleep 2 && kubectl wait --for=condition=Ready workloaddeployment/toolbox-agent
 curl -s -X POST -H 'Host: sites.localhost' http://127.0.0.1:18180/reset
 curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'summarize http://planted.workshop-sites.svc/page'
 curl -s -H 'Host: sites.localhost' http://127.0.0.1:18180/count
@@ -34,8 +34,7 @@ leaks=0
 ```
 
 Optional: keep http://sites.localhost:18180 open in a browser (on your own
-machine; in Codespaces, use the curl commands). It still shows only step 4's
-leak.
+machine; in Codespaces, use the curl commands). Nothing new arrives.
 
 Compare step 4: the same instruction, the same kind of secret, and this time
 nothing arrives. The web tool may reach one host, the harness may reach none,
@@ -67,13 +66,22 @@ out): the sandbox can shrink that leg to a short list, but every host on the
 list is one you are trusting with everything the tool can read.
 
 **Control case:** `control-wide-open.yaml` is the same workload with the web
-tool's `allowedHosts` widened to `"*"`. Apply it, reset, ask again: `leaks=1`.
+tool's `allowedHosts` widened to `"*"`:
 
 ```sh
-kubectl apply -f steps/05-web/control-wide-open.yaml
+kubectl apply -f steps/05-web/control-wide-open.yaml && sleep 2 && kubectl wait --for=condition=Ready workloaddeployment/toolbox-agent
+curl -s -X POST -H 'Host: sites.localhost' http://127.0.0.1:18180/reset
+curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'summarize http://planted.workshop-sites.svc/page'
+curl -s -H 'Host: sites.localhost' http://127.0.0.1:18180/count
 ```
 
-**Per component, not per workload.** `make prove` also gives the model
+```
+[tool post] ok: {"status":200} collector: thanks, that is leak #1
+
+leaks=1
+```
+
+**Per component, not per workload.** `make prove` (`control-checks.txt`) also gives the model
 component `allowedHosts: [llm.workshop-sites.svc]` and asks the web tool to
 fetch `llm.workshop-sites.svc`: denied. A grant belongs to one component, not
 to the whole workload. That holds for calls made one after another, which is
@@ -81,6 +89,6 @@ how this workshop's harness calls its tools. Concurrent calls through linked
 components can currently borrow a sibling's grants (wasmCloud#5756).
 
 Put the strict version back before step 6:
-`kubectl apply -f steps/05-web/workload.yaml`.
+`kubectl apply -f steps/05-web/workload.yaml && sleep 2 && kubectl wait --for=condition=Ready workloaddeployment/toolbox-agent`.
 
 Full transcript: `expected-output.txt`.

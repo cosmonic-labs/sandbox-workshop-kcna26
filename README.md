@@ -8,9 +8,11 @@ standard WASI 0.3 interfaces, wasmCloud's own keyvalue interface, and one
 small WIT package of our own (`workshop:toolbox`). No vendor products are
 needed.
 
-You `kubectl apply` a ready made agent, put two teams' agents on one host pod,
-watch the same gullible agent leak everything from an ordinary container, and
-then build the wasmCloud agent's tools one step at a time. Every tool runs in
+You `kubectl apply` a ready made agent, build its first tool in Rust with
+`wash`, put two teams' agents on one host pod, watch the same gullible agent
+leak everything from an ordinary container, and then give the wasmCloud
+agent its tools one step at a time. At the end you scale it across host pods
+and troubleshoot it when it breaks. Every tool runs in
 its own sandbox with only the access you grant it. The model is a scripted,
 gullible stand-in that obeys any instruction it reads, including instructions
 planted in a web page or a note. **The hijack always succeeds. The sandbox
@@ -24,6 +26,10 @@ does not stop prompt injection; it decides what a hijacked agent can reach.**
   Create codespace on main), which has everything installed.
 * About 1 GB of downloads, most of it kind's Kubernetes node image. Do them
   before the conference: `make tools && make up`.
+* Optional, to build the memory tool yourself in step 2: Rust 1.98.1 with
+  the `wasm32-wasip2` target (`make doctor` says whether you have it;
+  Codespaces has it). Run `make build` once beforehand to fetch the crates.
+  Without Rust, step 2 uses the prebuilt image.
 
 Every other tool (wash, kind, kubectl, helm, nats, wasm-tools) is downloaded
 into `.tools/` by `make tools`, pinned and checked against a SHA256. Nothing
@@ -45,14 +51,17 @@ the commands to run and the output to expect (`expected-output.txt`).
 | Step | What you do | What it shows |
 | --- | --- | --- |
 | 1 | `kubectl apply` the agent | A Workload is a custom resource; it runs on a wasmCloud host pod |
-| 2 | Give it a memory tool | A capability is an interface the platform grants |
-| 3 | Two teams, two namespaces | One host pod, many tenants, each with its own memory and grants |
+| 2 | Build its memory tool with `wash` | A component imports only what it asks for; a capability is an interface the platform grants |
+| 3 | Two teams, two namespaces | One host pod, many tenants, each with its own hostname, bucket and grants |
 | 4 | Run the same agent as a container | Kubernetes defaults start open: it leaks its Secret and its service account token |
 | 5 | A web tool allowed one host | Planted attack 1 fails at the egress check, but the one allowed host is still a way out |
 | 6 | A notes tool over one read only folder | Planted attack 2 fails at the folder boundary |
 | 7 | Swap in a real model | Same slot, new implementation, no rebuild |
+| 8 | Scale across hosts, then troubleshoot | The operator places replicas and routes to them; where to look when a workload won't start |
 
-Steps 1 to 5 tell the whole story. Steps 6 and 7 go as far as time allows.
+Steps 1 to 5 tell the whole story. Steps 6 to 8 go as far as time allows.
+After every `kubectl apply`, each step waits (`sleep 2 && kubectl wait ...`)
+before sending a request, so the request reaches the new version.
 Every step's manifest is complete, so you can jump to any step with one
 `kubectl apply`.
 
@@ -62,14 +71,15 @@ http://sites.localhost:18180 shows live what has reached the attacker. Your
 browser sends `*.localhost` to your own machine, so they work locally, not in
 Codespaces. curl stays the way every step is written.
 
-`make prove` replays every step and rewrites the expected outputs. `make
+`make prove` replays every step and rewrites the expected outputs, plus a
+few extra checks no step asks you to run (`steps/*/control-checks.txt`). `make
 down` does nothing destructive; `make clean` deletes the cluster.
 
 ## The architecture: one box
 
 ```
                          kind cluster ("your cluster")
-  curl ──▶ 127.0.0.1:18180 ──▶ workshop-ingress (nginx): picks a host group by Host
+  curl ──▶ 127.0.0.1:18180 ──▶ workshop-ingress (nginx): picks a Service by Host
                                   │ agent.localhost, a.agent...     │ sites.localhost
    namespace wasmcloud            ▼                                 │
    ┌──────────────────┐  ┌──────────────────────────┐  namespace    │ workshop-sites
@@ -85,15 +95,18 @@ down` does nothing destructive; `make clean` deletes the cluster.
 ```
 
 * **One way in.** A small nginx behind a NodePort (`k8s/ingress.yaml`)
-  sends `sites.localhost` to the fixtures host group and every other name
-  to the default one, the job an ingress controller or Gateway API does in a
-  real cluster. kind maps the node port to `127.0.0.1:18180`. Inside a host
-  group, the host sends each request to a workload by its `Host` header.
+  sends each agent's hostname to that agent's Service and `sites.localhost`
+  to the fixtures host group, the job an ingress controller or Gateway API
+  does in a real cluster. kind maps the node port to `127.0.0.1:18180`. An
+  agent's Service has no selector: the runtime operator keeps its endpoints
+  pointed at the host pods that run the agent (`spec.kubernetes.service`), so
+  a request never lands on a host pod without it. Inside a host pod, the host
+  sends each request to a workload by its `Host` header.
 * **The control plane.** The runtime operator watches Workload resources and
   places them on hosts, like a Deployment controller; it talks to the hosts
   over NATS (with mutual TLS).
 * **Host pods.** Each host pod runs many workloads from many namespaces. A
-  workload is a group of components with its own memory and its own grants.
+  workload is a group of components with its own grants.
   There are two host groups: `default` for the teams' agents, and
   `fixtures`, in its own namespace, for the toy sites. A workload picks one
   with `hostSelector: {hostgroup: ...}`.
@@ -338,7 +351,13 @@ make push-build   # push target/wasm32-wasip2/release/*.wasm to the cluster's re
 ```
 
 Each component depends only on `wit-bindgen` and `serde_json`, so builds are
-fast and need no network once the crates are fetched.
+fast and need no network once the crates are fetched. Step 2 builds one tool
+with `wash build`, which runs the command in that tool's `.wash/config.yaml`.
+
+`make push-build` pushes under the same tags as the prebuilt images, and a
+host pulls an image only when a workload starts. A workload that's already
+running keeps its old image until it's recreated (`kubectl delete -f` and
+`kubectl apply -f`); `make up` recreates the toy sites for this reason.
 
 ## No Docker? GitHub Codespaces
 

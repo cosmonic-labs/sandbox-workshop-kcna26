@@ -10,7 +10,9 @@ apply a Workload into a team's namespace is ordinary Kubernetes RBAC.
 **Run:**
 
 ```sh
-kubectl apply -f steps/03-tenants/tenants.yaml
+kubectl apply -f steps/03-tenants/tenants.yaml && sleep 2
+kubectl wait --for=condition=Ready workloaddeployment/toolbox-agent -n team-a
+kubectl wait --for=condition=Ready workloaddeployment/toolbox-agent -n team-b
 curl -s -H 'Host: a.agent.localhost' http://127.0.0.1:18180/ -d 'remember that our team is alpha'
 curl -s -H 'Host: b.agent.localhost' http://127.0.0.1:18180/ -d 'remember that our team is bravo'
 curl -s -H 'Host: a.agent.localhost' http://127.0.0.1:18180/ -d 'what do you remember?'
@@ -48,12 +50,21 @@ tenants who are actively hostile to each other, give them separate host
 groups or nodes, and decide with RBAC and admission policy who may apply
 which Workloads.
 
-**Why the toy sites live on their own host group.** A workload can claim any
-hostname on its host, and with the chart's local routing on, the host would
-hand it its neighbors' requests to that name, so team-b could read team-a's
-traffic to the model in step 7. So local routing is off and the toy sites run
-on a host group of their own behind Kubernetes Services; `make prove` checks
-that a team-b workload claiming their names (`squatter.yaml`) catches none of
-team-a's requests.
+**Its own bucket, by convention for now.** Each team's manifest names its
+bucket in `MEMORY_BUCKET`, and on wasmCloud v2.11.0 nothing stops team-b
+from naming `tenant-a-memory`: keyvalue opens any bucket on the backend by
+name. Scoping buckets to the workload that owns them is wasmCloud#5498, not
+yet released. Until it is, keep tenants that must not read each other on
+separate backends or host groups, and use admission policy to check what
+each namespace's manifests may set.
+
+**Why the toy sites live on their own host group.** Any workload can claim
+any hostname on its host. Inside one host group, the chart's local routing
+would deliver a request for a name to whichever workload on that host
+claimed it, so team-b could claim `llm.workshop-sites.svc` and read team-a's
+traffic to the model in step 7. So local routing is off, and the toy sites
+run on a host group of their own behind Kubernetes Services. `make prove`
+checks this: a team-b workload that claims their names (`squatter.yaml`)
+catches none of team-a's requests (`control-checks.txt`).
 
 Full transcript: `expected-output.txt`.

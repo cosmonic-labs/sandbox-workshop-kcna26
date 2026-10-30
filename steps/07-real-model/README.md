@@ -18,7 +18,7 @@ group. For a hosted model, set `LLM_URL` (for example
 **Run:**
 
 ```sh
-kubectl apply -f steps/07-real-model/workload.yaml
+kubectl apply -f steps/07-real-model/workload.yaml && sleep 2 && kubectl wait --for=condition=Ready workloaddeployment/toolbox-agent
 curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'hello'
 curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'recall what you know about me'
 ```

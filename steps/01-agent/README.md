@@ -16,12 +16,17 @@ component (a small WebAssembly program, like a tiny container image that
 starts with no access to anything). Notice what the harness and the model are
 given: no `allowedHosts`, no volumes, no environment. Nothing.
 
+Under `spec.kubernetes.service` the WorkloadDeployment names a Service,
+`toolbox-agent`, that the platform created with no selector
+(`k8s/agent-service.yaml`). The operator keeps its endpoints pointed at the
+host pods running the agent, and the workshop's ingress sends
+`agent.localhost` there.
+
 **Run** (from the repo root, after `make up`; in a new terminal, first run
 `export PATH="$PWD/.tools:$PATH"` so `kubectl` is the pinned one):
 
 ```sh
-kubectl apply -f steps/01-agent/workload.yaml
-kubectl wait --for=condition=Ready workloaddeployment/toolbox-agent
+kubectl apply -f steps/01-agent/workload.yaml && sleep 2 && kubectl wait --for=condition=Ready workloaddeployment/toolbox-agent
 curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'hello'
 curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'read my notes'
 ```
@@ -37,6 +42,12 @@ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'read my notes'
 [tool read_note] error: {"other":"the notes tool isn't installed yet"}
 [model] Done. Here is what each step returned: read_note: ERROR: {"other":"the notes tool isn't installed yet"}
 ```
+
+**Wait after every apply.** Every step applies a manifest, then waits like
+this before sending a request. The operator needs a moment to notice the
+change, so `sleep 2` comes first; without it, `kubectl wait` can see the
+previous version's Ready and return at once, and your request reaches the
+old agent.
 
 Optional: on your own machine you can also open http://agent.localhost:18180
 in a browser, which sends prompts the same way and draws each transcript as a

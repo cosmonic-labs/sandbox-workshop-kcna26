@@ -1,5 +1,5 @@
 # Step 2: the memory tool keeps facts across calls and across a redeploy
-$ kubectl apply -f steps/02-memory/workload.yaml
+$ kubectl apply -f steps/02-memory/workload.yaml && sleep 2 && kubectl wait --for=condition=Ready workloaddeployment/toolbox-agent
 workloaddeployment.runtime.wasmcloud.dev/toolbox-agent configured
 
 $ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'remember that my favorite color is teal'
@@ -15,6 +15,7 @@ $ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'remember that m
 [model] Done. Here is what each step returned: remember: remembered my api key = sk-demo-123
 
 $ kubectl delete -f steps/02-memory/workload.yaml && kubectl apply -f steps/02-memory/workload.yaml
+$ sleep 2 && kubectl wait --for=condition=Ready workloaddeployment/toolbox-agent
 
 $ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'what do you remember?'
 [user] what do you remember?
