@@ -2,12 +2,19 @@
 # to "*". Nothing else changes: same agent, same gullible model, same planted
 # page. This time the leak reaches the collector, which shows the boundary
 # (allowedHosts on the one component with network) is what stopped it.
+
 apiVersion: runtime.wasmcloud.dev/v1alpha1
 kind: WorkloadDeployment
 metadata:
   name: toolbox-agent
 spec:
   replicas: 1
+  # The way in: the Service named toolbox-agent, which the platform created
+  # with no selector (k8s/agent-service.yaml). The operator keeps it pointed
+  # at the host pods that run this workload.
+  kubernetes:
+    service:
+      name: toolbox-agent
   template:
     spec:
       # The team host group; the toy sites have one of their own.

@@ -13,12 +13,19 @@
 # its real tool: memory (step 2), web (step 5, still allowed
 # planted.workshop-sites.svc only) and notes. The harness and the model get
 # nothing else: no allowedHosts, no volumes, no environment.
+
 apiVersion: runtime.wasmcloud.dev/v1alpha1
 kind: WorkloadDeployment
 metadata:
   name: toolbox-agent
 spec:
   replicas: 1
+  # The way in: the Service named toolbox-agent, which the platform created
+  # with no selector (k8s/agent-service.yaml). The operator keeps it pointed
+  # at the host pods that run this workload.
+  kubernetes:
+    service:
+      name: toolbox-agent
   template:
     spec:
       # The team host group; the toy sites have one of their own.

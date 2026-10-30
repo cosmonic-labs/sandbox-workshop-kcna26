@@ -7,6 +7,7 @@
 #                     toy sites), one host pod each
 #   data-nats         the data service behind keyvalue (k8s/data-nats.yaml)
 #   workshop-sites    the toy sites' namespace and Services (k8s/sites.yaml)
+#   agent Service     the way in to the agent (k8s/agent-service.yaml)
 # then push the prebuilt components (or SRC=<dir>). 127.0.0.1:18180 reaches the
 # host pods through a small ingress (k8s/ingress.yaml) that kind maps to your
 # laptop and that picks the host group by Host header, so every step's curl
@@ -45,10 +46,17 @@ YAML
   kind create cluster --name "$CLUSTER" --config "$RUN_DIR/kind-config.yaml"
 fi
 
-# The upstream chart, from the v2.11.0 tag (gitignored, fetched once).
-if [ "$(git -C "$ROOT/.upstream" describe --tags 2>/dev/null)" != "v$WASMCLOUD_VERSION" ]; then
+# The upstream chart, from the v2.11.0 tag (gitignored, fetched once). The
+# check compares commits: the same commit carries more than one tag, so
+# `git describe` can name another one.
+TAG_REF="v$WASMCLOUD_VERSION"
+if [ "$(git -C "$ROOT/.upstream" rev-parse -q --verify HEAD 2>/dev/null)" != \
+     "$(git -C "$ROOT/.upstream" rev-parse -q --verify "$TAG_REF^{commit}" 2>/dev/null || echo none)" ]; then
   rm -rf "$ROOT/.upstream"
-  git clone --quiet --depth 1 --branch "v$WASMCLOUD_VERSION" https://github.com/wasmCloud/wasmCloud "$ROOT/.upstream"
+  git init -q "$ROOT/.upstream"
+  git -C "$ROOT/.upstream" fetch --quiet --depth 1 https://github.com/wasmCloud/wasmCloud \
+    "refs/tags/$TAG_REF:refs/tags/$TAG_REF"
+  git -C "$ROOT/.upstream" -c advice.detachedHead=false checkout --quiet "$TAG_REF^{commit}"
 fi
 
 # The host pod pulls components from this container by its name on the kind
@@ -75,6 +83,7 @@ for img in docker.io/library/nginx:1.27.5-alpine busybox:1.36; do
   docker image inspect "$img" >/dev/null 2>&1 || docker pull -q "$img" >/dev/null
   kind load docker-image "$img" --name "$CLUSTER" >/dev/null 2>&1 || true
 done
+K apply -f "$ROOT/k8s/agent-service.yaml" >/dev/null
 K apply -f "$ROOT/k8s/ingress.yaml" >/dev/null
 K -n wasmcloud rollout status deploy/workshop-ingress --timeout 3m >/dev/null
 
@@ -84,7 +93,10 @@ K -n workshop-data rollout status deploy/data-nats --timeout 3m >/dev/null
 "$ROOT/scripts/stores.sh" create
 
 # The toy sites (planted page, collector, fake model) run from the start, on
-# the fixtures host group.
+# the fixtures host group. A host pulls an image when a workload starts, and
+# the tag above is the same on every run, so recreate the toy sites to pick up
+# what was just pushed. The collector's count lives in its bucket and stays.
+K -n workshop-sites delete workloaddeployment toy-sites --ignore-not-found --wait=true >/dev/null
 K apply -f "$ROOT/steps/00-fixtures/toy-sites.yaml" >/dev/null
 K -n workshop-sites wait --for=condition=Ready workloaddeployment/toy-sites --timeout=180s >/dev/null || true
 for _ in $(seq 1 30); do

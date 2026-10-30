@@ -11,6 +11,21 @@ kind: Namespace
 metadata:
   name: team-a
 ---
+# The way in: a Service with no selector. The runtime operator fills in its
+# endpoints (spec.kubernetes.service below); the workshop's ingress sends
+# this workload's hostname here.
+apiVersion: v1
+kind: Service
+metadata:
+  name: toolbox-agent
+  namespace: team-a
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 80
+      protocol: TCP
+---
 apiVersion: runtime.wasmcloud.dev/v1alpha1
 kind: WorkloadDeployment
 metadata:
@@ -18,6 +33,11 @@ metadata:
   namespace: team-a
 spec:
   replicas: 1
+  # The operator keeps the Service above pointed at the host pods that run
+  # this workload.
+  kubernetes:
+    service:
+      name: toolbox-agent
   template:
     spec:
       # The team host group; the toy sites have one of their own.
@@ -56,6 +76,21 @@ kind: Namespace
 metadata:
   name: team-b
 ---
+# The way in: a Service with no selector. The runtime operator fills in its
+# endpoints (spec.kubernetes.service below); the workshop's ingress sends
+# this workload's hostname here.
+apiVersion: v1
+kind: Service
+metadata:
+  name: toolbox-agent
+  namespace: team-b
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 80
+      protocol: TCP
+---
 apiVersion: runtime.wasmcloud.dev/v1alpha1
 kind: WorkloadDeployment
 metadata:
@@ -63,6 +98,11 @@ metadata:
   namespace: team-b
 spec:
   replicas: 1
+  # The operator keeps the Service above pointed at the host pods that run
+  # this workload.
+  kubernetes:
+    service:
+      name: toolbox-agent
   template:
     spec:
       # The team host group; the toy sites have one of their own.

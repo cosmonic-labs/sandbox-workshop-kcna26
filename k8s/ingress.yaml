@@ -2,13 +2,15 @@
 # (scripts/up.sh), so the steps' curl commands work with no port-forward to
 # keep alive.
 #
-# There are two host groups behind it (k8s/values.yaml), so the way in has to
-# pick one by the request's Host header: sites.localhost goes to the fixtures
-# host group, every other name (agent.localhost, a.agent.localhost, ...) to
-# the default one. A real cluster does this with its ingress controller or
-# Gateway API; here it is a plain nginx with a ten line config. Inside the
-# chosen host group, the host sends the request to the workload that serves
-# that Host header.
+# It picks a Service by the request's Host header. Each agent has its own
+# Service with no selector (in its step manifest); the runtime operator keeps
+# its endpoints pointed at the host pods that run that agent, so a request
+# never lands on a host pod without it (step 8 scales to two). sites.localhost
+# goes to the fixtures host group; any other name falls back to the default
+# host group's own Service. A real cluster does this with its ingress
+# controller or Gateway API; here it is a plain nginx. The agents' Services
+# appear only when their step is applied, so nginx looks names up per request
+# (resolver plus a variable) instead of once at startup.
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -20,9 +22,16 @@ data:
     proxy_set_header Host $http_host;
     proxy_buffering off;
     proxy_read_timeout 120s;
+    resolver kube-dns.kube-system.svc.cluster.local valid=10s ipv6=off;
+    map $host $backend {
+      default            hostgroup-default.wasmcloud.svc.cluster.local;
+      agent.localhost    toolbox-agent.default.svc.cluster.local;
+      a.agent.localhost  toolbox-agent.team-a.svc.cluster.local;
+      b.agent.localhost  toolbox-agent.team-b.svc.cluster.local;
+    }
     server {
       listen 80 default_server;
-      location / { proxy_pass http://hostgroup-default.wasmcloud.svc.cluster.local; }
+      location / { proxy_pass http://$backend; }
     }
     server {
       listen 80;

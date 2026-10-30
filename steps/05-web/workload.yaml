@@ -20,12 +20,19 @@
 # until step 6.
 #
 # Deploy ../00-fixtures/toy-sites.yaml first.
+
 apiVersion: runtime.wasmcloud.dev/v1alpha1
 kind: WorkloadDeployment
 metadata:
   name: toolbox-agent
 spec:
   replicas: 1
+  # The way in: the Service named toolbox-agent, which the platform created
+  # with no selector (k8s/agent-service.yaml). The operator keeps it pointed
+  # at the host pods that run this workload.
+  kubernetes:
+    service:
+      name: toolbox-agent
   template:
     spec:
       # The team host group; the toy sites have one of their own.
