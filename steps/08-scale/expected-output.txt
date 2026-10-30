@@ -1,0 +1,70 @@
+# Step 8: scale across hosts, then troubleshoot (host placement is random; ids vary)
+$ kubectl -n wasmcloud scale deployment hostgroup-default --replicas=2
+deployment.apps/hostgroup-default scaled
+$ kubectl get hosts -n wasmcloud
+NAME                     HOSTID                                 HOSTGROUP   ENVIRONMENT      READY   AGE
+amazing-event-0810       01a18d4d-2af6-7611-9b1e-755ad8082e4c   default     wasmcloud        True    8s
+material-building-3033   01a18930-6b90-7e30-a78f-fce92740e2f5   fixtures    workshop-sites   True    19h
+next-toy-6856            01a18930-6cea-7f83-8c25-896b8f22b491   default     wasmcloud        True    19h
+$ kubectl scale workloaddeployment toolbox-agent --replicas=3
+workloaddeployment.runtime.wasmcloud.dev/toolbox-agent scaled
+$ kubectl get workloads -n default -o custom-columns=NAME:.metadata.name,HOST:.status.hostId
+NAME                                  HOST
+toolbox-agent-7f79785df8-668788bdc8   01a18930-6cea-7f83-8c25-896b8f22b491
+toolbox-agent-7f79785df8-789c7ccf47   01a18930-6cea-7f83-8c25-896b8f22b491
+toolbox-agent-7f79785df8-8664955c6d   01a18d4d-2af6-7611-9b1e-755ad8082e4c
+$ kubectl get endpointslices -l kubernetes.io/service-name=toolbox-agent
+NAME                     ADDRESSTYPE   PORTS   ENDPOINTS                AGE
+toolbox-agent-9dda31f4   IPv4          80      10.244.0.22,10.244.0.4   66s
+$ for i in 1 2 3 4 5 6; do curl -s -o /dev/null -w '%{http_code} ' -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'hello'; done; echo
+200 200 200 200 200 200 
+$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'recall what you know about me'
+[user] recall what you know about me
+[model] call recall_all({})
+[tool recall_all] ok: my favorite color = teal; my api key = sk-demo-123
+[model] (fake-llm) the tool said: my favorite color = teal; my api key = sk-demo-123
+
+$ kubectl -n wasmcloud scale deployment hostgroup-default --replicas=1
+deployment.apps/hostgroup-default scaled
+$ kubectl get workloads -n default -o custom-columns=NAME:.metadata.name,HOST:.status.hostId
+NAME                                  HOST
+toolbox-agent-7f79785df8-54c6ffbf5f   01a18930-6cea-7f83-8c25-896b8f22b491
+toolbox-agent-7f79785df8-668788bdc8   01a18930-6cea-7f83-8c25-896b8f22b491
+toolbox-agent-7f79785df8-789c7ccf47   01a18930-6cea-7f83-8c25-896b8f22b491
+$ kubectl scale workloaddeployment toolbox-agent --replicas=1
+workloaddeployment.runtime.wasmcloud.dev/toolbox-agent scaled
+
+# Troubleshoot 1: a missing host interface
+$ kubectl apply -f steps/08-scale/broken-interface.yaml
+workloaddeployment.runtime.wasmcloud.dev/toolbox-agent configured
+$ kubectl describe workloads -n default | grep -E '^Name:|Message:'
+Name:         toolbox-agent-64785b7bc6-559cf89bd7
+    Message:               workload is not operational: WORKLOAD_STATE_ERROR: failed to pre-instantiate during component linking: component imports instance `wasmcloud:keyvalue/types@0.2.0`, but a matching implementation was not found in the linker: instance export `bucket` has the wrong type: resource implementation is missing
+    Message:               workload is not placed or not synced
+Name:         toolbox-agent-7f79785df8-5c6dffc999
+# The previous version still answers:
+$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'hello'
+[user] hello
+[model] (fake-llm via llm.workshop-sites.svc) I got 2 messages and 7 tools
+
+# Troubleshoot 2: a typo in an image name
+$ kubectl apply -f steps/08-scale/broken-image.yaml
+workloaddeployment.runtime.wasmcloud.dev/toolbox-agent configured
+$ kubectl describe workloads -n default | grep -E '^Name:|Message:'
+Name:         toolbox-agent-58d9468b8d-6cf8fbd6c4
+    Message:               workload is not operational: WORKLOAD_STATE_NOT_FOUND: Workload not found: de642344-9af4-4ad4-b5d4-77ec4c8451bf
+    Message:               workload is not placed or not synced
+Name:         toolbox-agent-7cb84ff8bb-79bb446fff
+$ kubectl logs -n wasmcloud deployment/hostgroup-default --since=5m | grep 'failed to start'
+2026-10-30T14:53:55.011316Z ERROR workload_start{workload_id=de642344-9af4-4ad4-b5d4-77ec4c8451bf workload.name="toolbox-agent-58d9468b8d-6cf8fbd6c4" workload.namespace="default"}: failed to start workload workload_id="de642344-9af4-4ad4-b5d4-77ec4c8451bf" reason="failed to pull image for component 'memory': failed to pull component from workshop-toolbox-registry:5000/workshop/tool-memroy:0.4.0: Registry error: url http://workshop-toolbox-registry:5000/v2/workshop/tool-memroy/manifests/0.4.0, envelope: OCI API errors: [OCI API error: manifest unknown]"
+
+# Troubleshoot 3: a typo in the bucket's name
+$ kubectl apply -f steps/08-scale/broken-bucket.yaml && sleep 2 && kubectl wait --for=condition=Ready workloaddeployment/toolbox-agent
+workloaddeployment.runtime.wasmcloud.dev/toolbox-agent configured
+
+$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'recall what you know about me'
+[user] recall what you know about me
+[model] call recall_all({})
+[tool recall_all] error: {"no-such-store":"bucket agent-memroy"}
+[model] (fake-llm) the tool said: ERROR: {"no-such-store":"bucket agent-memroy"}
+
