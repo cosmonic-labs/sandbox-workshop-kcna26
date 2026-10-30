@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Push every built component (or prebuilt artifacts/*.wasm) to the local
+# Push every built component (or prebuilt artifacts/*.wasm) to the cluster's
 # registry as $REGISTRY/workshop/<name>:$TAG.
 set -euo pipefail
 source "$(dirname "$0")/env.sh"

@@ -1,0 +1,14 @@
+# Step 7: model-real behind the same slot (a fake OpenAI compatible endpoint on llm.workshop-sites.svc)
+$ kubectl apply -f steps/07-real-model/workload.yaml && sleep 2 && kubectl wait --for=condition=Ready workloaddeployment/toolbox-agent
+workloaddeployment.runtime.wasmcloud.dev/toolbox-agent configured
+
+$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'hello'
+[user] hello
+[model] (fake-llm via llm.workshop-sites.svc) I got 2 messages and 7 tools
+
+$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'recall what you know about me'
+[user] recall what you know about me
+[model] call recall_all({})
+[tool recall_all] ok: my favorite color = teal; my api key = sk-demo-123
+[model] (fake-llm) the tool said: my favorite color = teal; my api key = sk-demo-123
+

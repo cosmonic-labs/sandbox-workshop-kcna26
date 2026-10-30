@@ -1,0 +1,11 @@
+# Step 5, make prove only: grants are per component
+# Per component, not per workload: the model may reach llm.workshop-sites.svc, the web tool may not
+$ kubectl apply -f .run/per-component.yaml && sleep 2 && kubectl wait --for=condition=Ready workloaddeployment/toolbox-agent
+workloaddeployment.runtime.wasmcloud.dev/toolbox-agent configured
+
+$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'fetch http://llm.workshop-sites.svc/v1/chat/completions'
+[user] fetch http://llm.workshop-sites.svc/v1/chat/completions
+[model] call fetch({"url":"http://llm.workshop-sites.svc/v1/chat/completions"})
+[tool fetch] error: {"access-denied":"http://llm.workshop-sites.svc/v1/chat/completions: this tool may not reach that host"}
+[model] Done. Here is what each step returned: fetch: ERROR: {"access-denied":"http://llm.workshop-sites.svc/v1/chat/completions: this tool may not reach that host"}
+

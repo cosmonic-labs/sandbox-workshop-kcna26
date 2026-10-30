@@ -1,0 +1,47 @@
+# Step 3: two teams, two namespaces, one host pod
+$ kubectl apply -f steps/03-tenants/tenants.yaml && sleep 2
+$ kubectl wait --for=condition=Ready workloaddeployment/toolbox-agent -n team-a
+$ kubectl wait --for=condition=Ready workloaddeployment/toolbox-agent -n team-b
+namespace/team-a created
+service/toolbox-agent created
+workloaddeployment.runtime.wasmcloud.dev/toolbox-agent created
+namespace/team-b created
+service/toolbox-agent created
+workloaddeployment.runtime.wasmcloud.dev/toolbox-agent created
+
+$ curl -s -H 'Host: a.agent.localhost' http://127.0.0.1:18180/ -d 'remember that our team is alpha'
+[user] remember that our team is alpha
+[model] call remember({"fact":"alpha","key":"our team"})
+[tool remember] ok: remembered our team = alpha
+[model] Done. Here is what each step returned: remember: remembered our team = alpha
+
+$ curl -s -H 'Host: b.agent.localhost' http://127.0.0.1:18180/ -d 'remember that our team is bravo'
+[user] remember that our team is bravo
+[model] call remember({"fact":"bravo","key":"our team"})
+[tool remember] ok: remembered our team = bravo
+[model] Done. Here is what each step returned: remember: remembered our team = bravo
+
+$ curl -s -H 'Host: a.agent.localhost' http://127.0.0.1:18180/ -d 'what do you remember?'
+[user] what do you remember?
+[model] call recall_all({})
+[tool recall_all] ok: our team = alpha
+[model] Done. Here is what each step returned: recall_all: our team = alpha
+
+$ curl -s -H 'Host: b.agent.localhost' http://127.0.0.1:18180/ -d 'what do you remember?'
+[user] what do you remember?
+[model] call recall_all({})
+[tool recall_all] ok: our team = bravo
+[model] Done. Here is what each step returned: recall_all: our team = bravo
+
+# Both teams' workloads, and step 2's, run on the same host; the toy sites run on their own:
+$ kubectl get workloads -A -o custom-columns=NAMESPACE:.metadata.namespace,HOST:.status.hostId
+NAMESPACE        HOST
+default          01a18930-6cea-7f83-8c25-896b8f22b491
+team-a           01a18930-6cea-7f83-8c25-896b8f22b491
+team-b           01a18930-6cea-7f83-8c25-896b8f22b491
+workshop-sites   01a18930-6b90-7e30-a78f-fce92740e2f5
+$ kubectl get pods -A -l wasmcloud.com/name=hostgroup
+NAMESPACE        NAME                                  READY   STATUS    RESTARTS   AGE
+wasmcloud        hostgroup-default-5b55c5b579-b5djn    1/1     Running   0          19h
+workshop-sites   hostgroup-fixtures-547bdccd9d-qmrr8   1/1     Running   0          19h
+

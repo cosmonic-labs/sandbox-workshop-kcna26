@@ -1,0 +1,33 @@
+# Step 1: deploy the agent with kubectl; it runs on a wasmCloud host pod
+$ kubectl apply -f steps/01-agent/workload.yaml && sleep 2 && kubectl wait --for=condition=Ready workloaddeployment/toolbox-agent
+workloaddeployment.runtime.wasmcloud.dev/toolbox-agent created
+
+$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'hello'
+[user] hello
+[model] Hello! I am the workshop agent running a scripted model. Ask me to remember something, read my notes, or fetch a page.
+
+# Every tool slot is filled by not-installed, so a tool call gets a clear error:
+$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'read my notes'
+[user] read my notes
+[model] call read_note({"path":"todo.txt"})
+[tool read_note] error: {"other":"the notes tool isn't installed yet"}
+[model] Done. Here is what each step returned: read_note: ERROR: {"other":"the notes tool isn't installed yet"}
+
+$ kubectl get workloads -A -o custom-columns=NAMESPACE:.metadata.namespace,HOST:.status.hostId
+NAMESPACE        HOST
+default          01a18930-6cea-7f83-8c25-896b8f22b491
+workshop-sites   01a18930-6b90-7e30-a78f-fce92740e2f5
+$ kubectl get pods -A -l wasmcloud.com/name=hostgroup
+NAMESPACE        NAME                                  READY   STATUS    RESTARTS   AGE
+wasmcloud        hostgroup-default-5b55c5b579-b5djn    1/1     Running   0          19h
+workshop-sites   hostgroup-fixtures-547bdccd9d-qmrr8   1/1     Running   0          19h
+
+# The agent harness's imports from this workshop: the model and three typed, labelled tool slots
+$ wasm-tools component wit artifacts/agent.wasm | grep 'import .*workshop:toolbox'
+  import workshop:toolbox/types@0.4.0;
+  import model: workshop:toolbox/model@0.4.0;
+  import memory: workshop:toolbox/memory@0.4.0;
+  import notes: workshop:toolbox/notes@0.4.0;
+  import web: workshop:toolbox/web@0.4.0;
+# The agent harness imports no outgoing HTTP client, no filesystem and no sockets, so this prints nothing:
+$ wasm-tools component wit artifacts/agent.wasm | grep -E 'wasi:(http/client|filesystem|sockets)'

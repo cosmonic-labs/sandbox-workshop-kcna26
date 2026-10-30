@@ -1,0 +1,21 @@
+# The way in to the default namespace's agent (steps 1, 2 and 4 to 8): a
+# Service with no selector. Each step's WorkloadDeployment names it under
+# spec.kubernetes.service, and the runtime operator keeps its endpoints
+# pointed at the host pods that run a ready replica. The ingress
+# (k8s/ingress.yaml) sends agent.localhost here.
+#
+# The platform owns it, so redeploying the agent never replaces it. (The
+# operator fills a Service's endpoints when a Workload changes; it doesn't
+# watch the Service, so a Service recreated under a running workload stays
+# empty until the next rollout.) Step 3's teams get theirs in tenants.yaml.
+apiVersion: v1
+kind: Service
+metadata:
+  name: toolbox-agent
+  namespace: default
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 80
+      protocol: TCP

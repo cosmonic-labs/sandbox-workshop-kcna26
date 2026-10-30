@@ -1,0 +1,449 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:,">
+<title>Agent chat</title>
+<style>
+  /* wasmCloud palette (brand/wasmcloud_visual-guidelines-1.0.pdf): Green Aqua
+     #00c389, Light Gray #768692, Space Blue #002e5d, Gunmetal #253746,
+     Gainsboro #d9e1e2, Yellow #ffb600. Text tones are darkened or lightened
+     from these until they pass WCAG AA at projector sizes.
+     Dark mode follows the workshop deck's title slide: slate #0f1d27, hairline
+     #233b4d, body text #d8dee1, mint #9fddcb for secondary text, gray all-caps
+     labels. Every text tone is checked for WCAG AA on the surface it sits on. */
+  :root {
+    --bg: #ffffff; --surface: #ffffff; --sunken: #eef3f4; --hover: #e3eaeb;
+    --ink: #253746; --strong: #002e5d; --muted: #4c5e6c; --line: #c9d4d6; --line-soft: #d9e1e2;
+    --brand: #00c389; --brand-ink: #007a55; --on-brand: #002e5d;
+    --danger: #b42318; --danger-bg: #fdeceb; --warn: #ffb600; --warn-bg: #fff6dc;
+    --focus: #007a55; --logo-word: #788591;
+    --rule: #d9e1e2; --label: #5b6b79; --mint-ink: #0f6e5c;
+    --pill-bg: #e6f7f1; --pill-line: #9fddcb; --pill-ink: #007a55;
+    --shadow: 0 1px 2px rgba(37, 55, 70, .08), 0 8px 24px -14px rgba(37, 55, 70, .45);
+    color-scheme: light dark;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1d27; --surface: #152836; --sunken: #12222e; --hover: #1b3243;
+      --ink: #d8dee1; --strong: #ffffff; --muted: #9aa9b5; --line: #233b4d; --line-soft: #1c3141;
+      --brand: #00c389; --brand-ink: #00c389; --on-brand: #002e5d;
+      --danger: #ff8a7e; --danger-bg: #3a1a1d; --warn: #ffb600; --warn-bg: #33280a;
+      --focus: #00c389; --logo-word: #ffffff;
+      --rule: #233b4d; --label: #8fa0ad; --mint-ink: #9fddcb;
+      --pill-bg: #0b1720; --pill-line: #233b4d; --pill-ink: #00c389;
+      --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 10px 28px -14px rgba(0, 0, 0, .8);
+    }
+  }
+  * { box-sizing: border-box; }
+  html { font-size: 20px; }
+  body {
+    margin: 0; min-height: 100vh; display: flex; flex-direction: column;
+    background: var(--bg); color: var(--ink);
+    font: 1rem/1.55 "Work Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  code, pre, .mono { font-family: "Roboto Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+  :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+  /* Header: the wasmCloud mark, the page, the event. */
+  .bar {
+    display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+    padding: 0.7rem 1.25rem; border-bottom: 1px solid var(--rule);
+  }
+  .brand { display: flex; align-items: center; gap: 0.8rem; min-width: 0; flex-wrap: wrap; }
+  .logo { height: 1.5rem; width: auto; display: block; flex: none; }
+  .logo .m { fill: #00bc8e; }
+  .logo .w { fill: var(--logo-word); }
+  .brand .rule { width: 1px; align-self: stretch; background: var(--line); }
+  h1 {
+    margin: 0; font-size: 1.1rem; font-weight: 700; color: var(--strong); letter-spacing: -0.01em;
+    font-family: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  /* The event, as the title slide's pill. */
+  .event {
+    font-size: 0.7rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; line-height: 1;
+    color: var(--pill-ink); background: var(--pill-bg); border: 1px solid var(--pill-line);
+    border-radius: 999px; padding: 0.35rem 0.75rem;
+  }
+  /* Small labels, as "PRESENTERS" on the title slide. */
+  .kicker {
+    font-size: 0.7rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--label);
+  }
+  .btn {
+    font: inherit; font-size: 0.85rem; font-weight: 600; padding: 0.35rem 0.9rem; border-radius: 0.5rem;
+    border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer;
+  }
+  .btn:hover { background: var(--hover); }
+
+  /* One centred reading column, as in a chat session. */
+  .col { width: 100%; max-width: 48rem; margin: 0 auto; padding: 0 1.25rem; }
+  main { flex: 1; }
+  .runs { display: flex; flex-direction: column; gap: 2.25rem; padding: 1.75rem 0 1.5rem; }
+  .empty { padding: 3rem 0 1rem; max-width: 36rem; }
+  .empty h2 {
+    margin: 0 0 0.4rem; font-size: 1.5rem; font-weight: 700; color: var(--strong); letter-spacing: -0.01em;
+    font-family: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  .empty p { margin: 0; color: var(--muted); }
+
+  .turn { display: flex; flex-direction: column; gap: 0.6rem; }
+  .user {
+    align-self: flex-end; max-width: 80%; margin-bottom: 0.4rem; padding: 0.55rem 0.95rem;
+    background: var(--sunken); color: var(--strong); border-radius: 1rem 1rem 0.25rem 1rem;
+    font-size: 1.15rem; font-weight: 500; white-space: pre-wrap; overflow-wrap: anywhere;
+  }
+
+  /* A tool call and its result, folded into one row. */
+  .tool { border: 1px solid var(--line); border-radius: 0.65rem; background: var(--surface); font-size: 0.85rem; min-width: 0; }
+  .tool summary {
+    list-style: none; cursor: pointer; display: grid; align-items: center; gap: 0.15rem 0.6rem;
+    grid-template-columns: auto auto minmax(0, 1fr) auto auto; padding: 0.5rem 0.75rem; border-radius: 0.65rem;
+  }
+  .tool summary::-webkit-details-marker { display: none; }
+  .tool summary:hover { background: var(--hover); }
+  .tool[open] summary { border-radius: 0.65rem 0.65rem 0 0; }
+  .ico { width: 1.05rem; height: 1.05rem; display: block; color: var(--muted); }
+  .tname { font-weight: 700; color: var(--strong); font-size: 0.9rem; }
+  .targs { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .tstat { font-weight: 600; white-space: nowrap; display: inline-flex; align-items: center; gap: 0.3rem; }
+  .ok .tstat { color: var(--brand-ink); }
+  .chev { width: 0.9rem; height: 0.9rem; color: var(--muted); }
+  .tool[open] .chev { transform: rotate(180deg); }
+  .tprev {
+    grid-column: 2 / -1; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .tool[open] .tprev { display: none; }
+  .tbody { border-top: 1px solid var(--line-soft); padding: 0.5rem 0.75rem 0.7rem; display: grid; gap: 0.5rem; }
+  .tlabel { display: block; color: var(--muted); font-size: 0.75rem; font-weight: 600; margin-bottom: 0.15rem; }
+  .tbody pre {
+    margin: 0; padding: 0.45rem 0.6rem; background: var(--sunken); border-radius: 0.35rem;
+    white-space: pre-wrap; overflow-wrap: anywhere; max-height: 16rem; overflow-y: auto; font-size: 0.8rem;
+  }
+
+  /* Refused by the host: red, and the reason always in view. */
+  .refused { border-color: var(--danger); box-shadow: inset 0.3rem 0 0 var(--danger); background: var(--danger-bg); }
+  .refused summary:hover { background: transparent; }
+  .refused .ico, .refused .tstat { color: var(--danger); }
+  .refused .tprev, .missing .tprev { white-space: normal; overflow-wrap: anywhere; font-weight: 600; }
+  .refused .tbody { border-top-color: var(--danger); }
+  .refused .tbody pre { background: var(--surface); }
+  /* A slot with nothing installed, or a network failure: not a refusal. */
+  .missing { border-color: var(--warn); box-shadow: inset 0.3rem 0 0 var(--warn); background: var(--warn-bg); }
+  .missing .ico { color: var(--ink); }
+  .missing .tstat { color: var(--ink); }
+  .missing .tbody pre { background: var(--surface); }
+
+  .notice { display: flex; align-items: center; gap: 0.6rem; color: var(--muted); font-size: 0.85rem; }
+  .notice::before, .notice::after { content: ""; flex: 1; min-width: 1.5rem; border-top: 1px solid var(--line-soft); }
+  .notice > span { max-width: 36rem; text-align: center; overflow-wrap: anywhere; }
+
+  .answer { font-size: 1.05rem; line-height: 1.65; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .tool + .answer, .notice + .answer { border-top: 1px solid var(--line-soft); padding-top: 0.8rem; margin-top: 0.3rem; }
+  .meta { margin: 0; color: var(--mint-ink); font-size: 0.75rem; }
+
+  /* The message box stays docked at the bottom. */
+  .dock { position: sticky; bottom: 0; background: var(--bg); padding: 0.5rem 0 1rem; }
+  .dock::before {
+    content: ""; position: absolute; left: 0; right: 0; top: -1.25rem; height: 1.25rem; pointer-events: none;
+    background: linear-gradient(to bottom, transparent, var(--bg));
+  }
+  .examples { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; margin-bottom: 0.6rem; }
+  .examples .kicker { margin-right: 0.2rem; }
+  .chip {
+    font: inherit; font-size: 0.75rem; padding: 0.25rem 0.7rem; border-radius: 999px; cursor: pointer;
+    border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+  }
+  .chip:hover { background: var(--hover); border-color: var(--muted); }
+  .box {
+    display: flex; align-items: center; gap: 0.5rem; padding: 0.4rem 0.4rem 0.4rem 1rem;
+    border: 1px solid var(--line); border-radius: 1.1rem; background: var(--surface); box-shadow: var(--shadow);
+  }
+  .box:focus-within { border-color: var(--focus); box-shadow: 0 0 0 2px var(--focus), var(--shadow); }
+  .box input {
+    flex: 1; min-width: 0; border: 0; background: transparent; color: var(--ink);
+    font: inherit; font-size: 1.1rem; padding: 0.4rem 0;
+  }
+  .box input:focus-visible { outline: none; }
+  .box input::placeholder { color: var(--muted); }
+  .send {
+    font: inherit; font-weight: 700; font-size: 0.95rem; padding: 0.45rem 1.1rem; border-radius: 0.8rem; cursor: pointer;
+    border: 0; background: var(--brand); color: var(--on-brand);
+  }
+  .send:hover { background: #00ad7a; }
+  .send:disabled { opacity: 0.55; cursor: default; }
+  .foot { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.25rem 1rem; margin-top: 0.45rem; font-size: 0.75rem; color: var(--muted); }
+  .foot p { margin: 0; }
+  .foot p:first-child { color: var(--mint-ink); }
+  .status { min-height: 1.2em; font-weight: 600; color: var(--ink); }
+
+  @media (max-width: 40rem) {
+    .tool summary { grid-template-columns: auto auto minmax(0, 1fr) auto; }
+    .tstat { grid-column: 2 / -1; grid-row: 2; }
+    .chev { display: none; }
+    .user { max-width: 92%; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; scroll-behavior: auto !important; } }
+</style>
+</head>
+<body>
+<header class="bar">
+  <div class="brand">
+    <svg class="logo" viewBox="0 0 214.77 42.03" role="img" aria-label="wasmCloud" focusable="false"><path class="w" d="M133.22,29.39h-3.4v-9.6c0-.63-.06-1.25-.19-1.86-.32-1.73-1.99-2.87-3.72-2.55-.63.12-1.21.42-1.67.88-1.06.95-1.64,2.32-1.6,3.74v9.4h-3.36v-9.54c0-.58-.05-1.16-.15-1.73-.13-1.26-1.03-2.3-2.26-2.61-1.36-.35-2.79.15-3.64,1.26-.67.79-1.06,1.78-1.09,2.82-.06,1.46,0,2.93-.06,4.4s0,3.24,0,4.86v.57h-3.4V12.62h2.14c.12,0,.28.2.32.34.18.56.33,1.14.5,1.79,1.3-1.59,3.25-2.51,5.3-2.52,2.09-.05,4.02,1.08,5,2.92l.4-.49c2-2.54,5.6-3.18,8.35-1.47,1.64,1.08,2.62,2.92,2.61,4.89.09,3.71,0,7.43,0,11.15-.02.06-.05.11-.08.16Z"/><path class="w" d="M63.81,24c.36-1.07.69-2,1-3,.89-2.63,1.79-5.25,2.65-7.89.07-.34.4-.57.74-.51h2.89c-.35,1.06-.68,2-1,3-1.46,4.47-2.93,8.93-4.41,13.4-.12.35-.27.49-.65.47h-1.89c-.27.05-.52-.12-.59-.38-1.3-3.09-2.61-6.17-3.94-9.25-.06-.15-.13-.29-.25-.53l-1.18,2.8c-.98,2.27-1.95,4.57-2.91,6.89-.13.3-.26.45-.61.43-.65-.04-1.29-.04-1.94,0-.36,0-.48-.14-.59-.44-1.69-5.09-3.4-10.16-5.13-15.23l-.37-1.14h3.35c.1,0,.25.22.3.37,1.04,3.05,2.07,6.1,3.08,9.15.18.55.37,1.09.59,1.73.12-.25.2-.4.27-.56,1.46-3.33,2.91-6.7,4.36-10.1.16-.4.4-.43.75-.44s.6.06.76.44c1.48,3.4,2.91,6.79,4.42,10.12l.3.67Z"/><path class="w" d="M89.43,29.38h-2.72l-.35-2c-2.07,1.99-4.98,2.83-7.79,2.26-2.03-.32-3.86-1.39-5.14-3-2.64-3.49-2.47-8.34.39-11.64,3.41-3.55,9.05-3.65,12.6-.24,0,0,0,0,0,0,.12-.62.24-1.17.33-1.72,0-.28.16-.39.46-.38h1.88c.27,0,.39.06.39.36,0,5.42,0,16.25,0,16.25l-.05.11ZM75.06,21c0,3.04,2.46,5.5,5.5,5.5s5.5-2.46,5.5-5.5-2.46-5.5-5.5-5.5-5.5,2.46-5.5,5.5Z"/><path class="w" d="M212.7,15.33v-7.58h2.07v21.69h-1.6l-.32-2.74c-1.83,2.21-4.63,3.37-7.48,3.11-2.13-.1-4.13-1.02-5.58-2.58-3-3.4-3.1-8.47-.25-12,1.09-1.25,2.53-2.14,4.13-2.55,1.58-.43,3.23-.43,4.81,0,1.64.44,3.11,1.37,4.22,2.65ZM206.23,27.79c3.61.05,6.57-2.83,6.62-6.44,0-.1,0-.2,0-.3.12-3.66-2.76-6.72-6.42-6.84s-6.72,2.76-6.84,6.42c0,.17,0,.34,0,.51-.09,3.58,2.74,6.56,6.33,6.65.1,0,.2,0,.3,0Z"/><path class="w" d="M160.34,21.09c0-4.87,3.95-8.82,8.82-8.82,4.87,0,8.82,3.95,8.82,8.82,0,4.87-3.95,8.82-8.82,8.82-4.87,0-8.82-3.95-8.82-8.82ZM169.17,27.79c3.59.1,6.59-2.74,6.68-6.33,0-.14,0-.27,0-.41,0-3.69-3-6.69-6.69-6.69s-6.69,3-6.69,6.69c-.14,3.58,2.65,6.6,6.23,6.74.16,0,.31,0,.47,0Z"/><path class="w" d="M153.07,18.12h-1.75c-.16,0-.36-.21-.46-.37-1.76-3.16-5.76-4.3-8.92-2.54-2.33,1.3-3.64,3.88-3.32,6.54.27,3.59,3.39,6.29,6.98,6.02,1.28-.1,2.51-.57,3.53-1.36.64-.56,1.19-1.22,1.63-1.94.17-.35.54-.55.93-.51h1.37c-.16,2.91-4.07,5.79-7.91,5.87-4.58.1-8.42-3.43-8.7-8-.48-4.53,2.65-8.64,7.14-9.38,4.34-.69,8.55,1.78,9.48,5.67Z"/><path class="w" d="M180.42,12.73h2.07v9.2c0,.83.11,1.65.33,2.45.96,2.68,3.91,4.07,6.59,3.11,1.49-.54,2.66-1.73,3.15-3.24.2-.76.3-1.54.3-2.33v-9.17h2.14v.64c0,2.95.05,5.9,0,8.84-.01,1.13-.2,2.25-.55,3.33-1.1,2.85-3.97,4.6-7,4.28-4.33-.22-6.95-2.89-7-7.22-.05-3.14,0-6.29,0-9.44-.02-.15-.03-.3-.03-.45Z"/><path class="w" d="M156,7.76h2v21.67h-2V7.76Z"/><path class="w" d="M102.6,20c-.38-.14-.78-.25-1.18-.33-1-.2-2-.35-3-.57-.61-.12-1.21-.32-1.78-.58-.75-.35-1.08-1.24-.73-1.99.07-.16.17-.3.3-.43.25-.28.57-.5.92-.65,1.14-.45,2.4-.45,3.54,0,.82.27,1.4.99,1.49,1.85v.06c0,.06.06.11.12.11h0l2.62-.79c.22-.06.35-.29.3-.51-.24-1.04-.87-1.95-1.75-2.56-2.15-1.55-4.94-1.9-7.4-.91-2.34.84-3.81,3.18-3.54,5.65.26,1.58,1.44,2.85,3,3.23,1.21.38,2.48.57,3.71.88.76.15,1.5.38,2.21.69.83.4,1.18,1.4.78,2.23-.11.23-.27.43-.48.59-.3.24-.64.43-1,.56-1.01.35-2.1.38-3.13.08-1-.21-1.8-.96-2.07-1.95-.02-.07-.04-.15-.06-.22,0-.06-.06-.11-.12-.11h0l-2.7.81c-.22.06-.35.29-.29.52,0,0,0,0,0,0,.34,1.27,1.18,2.35,2.33,3,2.4,1.38,5.31,1.53,7.84.43,1.59-.57,2.76-1.92,3.11-3.57.53-2.34-.78-4.71-3.04-5.52Z"/><path class="m" d="M35.57,9.59L19.79.38c-.86-.51-1.93-.51-2.79,0L1.22,9.59C.46,10.03,0,10.84,0,11.72v18.57c0,.89.48,1.72,1.25,2.17l15.75,9.2c.84.49,1.89.49,2.73,0l15.78-9.2c.77-.45,1.25-1.28,1.25-2.17V11.72c0-.87-.45-1.68-1.19-2.13ZM32.06,27.85c0,.17-.09.33-.24.42l-13.18,7.73c-.07.05-.16.07-.25.07-.09,0-.17-.02-.24-.07l-13.15-7.73c-.15-.09-.25-.25-.24-.43v-13.67c0-.18.09-.34.24-.43l4.75-2.74c.24-.13.55-.04.68.2.04.07.06.14.06.22v12.77l4.3-2.51v-13.39c0-.17.07-.33.21-.42l3.15-1.87c.15-.08.34-.08.49,0l3.12,1.83c.15.09.24.25.24.42v13.43l4.3,2.5v-12.83c.01-.28.24-.49.52-.48.08,0,.15.02.22.06l4.78,2.82c.15.08.24.25.24.42v13.68Z"/></svg>
+    <span class="rule" aria-hidden="true"></span>
+    <h1>Agent chat</h1>
+    <span class="event">KubeCon workshop</span>
+  </div>
+  <button class="btn" id="clear" type="button">Clear</button>
+</header>
+
+<main>
+  <div class="col">
+    <section class="runs" id="runs" aria-live="polite" aria-label="Runs, oldest first">
+      <div class="empty" id="empty">
+        <h2>Send the agent a prompt</h2>
+        <p>The agent runs its loop on the cluster and returns a transcript: every tool it asked for, what each tool returned, and what the host refused. Pick an example below or type your own.</p>
+      </div>
+    </section>
+  </div>
+</main>
+
+<footer class="dock">
+  <form class="col" id="form">
+    <div class="examples" role="group" aria-label="Example prompts">
+      <span class="kicker" aria-hidden="true">Try</span>
+      <button class="chip" type="button">hello</button>
+      <button class="chip" type="button">remember that my favorite color is teal</button>
+      <button class="chip" type="button">remember that my api key is sk-demo-123</button>
+      <button class="chip" type="button">what do you remember?</button>
+      <button class="chip" type="button">read my notes</button>
+      <button class="chip" type="button">summarize http://planted.workshop-sites.svc/page</button>
+      <button class="chip" type="button">recall what you know about me</button>
+    </div>
+    <div class="box">
+      <label class="sr-only" for="prompt">Prompt</label>
+      <input type="text" id="prompt" autocomplete="off" placeholder="Message the agent" required>
+      <button class="send" id="send" type="submit">Send</button>
+    </div>
+    <div class="foot">
+      <p>Sends to <code id="host">this agent</code>, the same as <code>curl -d '...'</code></p>
+      <p class="status" id="status" role="status"></p>
+    </div>
+  </form>
+</footer>
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const KEY = 'agent-runs:' + location.host;
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let runs = [];
+  try { runs = JSON.parse(sessionStorage.getItem(KEY) || '[]'); } catch (e) { runs = []; }
+  const save = () => { try { sessionStorage.setItem(KEY, JSON.stringify(runs)); } catch (e) {} };
+  $('host').textContent = location.hostname;
+
+  const el = (tag, cls, text) => {
+    const e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text !== undefined) e.textContent = text;
+    return e;
+  };
+
+  const SVGNS = 'http://www.w3.org/2000/svg';
+  const ICONS = {
+    wrench: 'M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z',
+    check: 'M4.5 12.5l4.5 4.5L19.5 6.5',
+    cross: 'M6 6l12 12M18 6L6 18',
+    alert: 'M12 4l9 16H3zM12 10v4M12 17v.5',
+    chev: 'M6 9l6 6 6-6',
+  };
+  function icon(name, cls) {
+    const s = document.createElementNS(SVGNS, 'svg');
+    s.setAttribute('viewBox', '0 0 24 24');
+    s.setAttribute('class', cls);
+    s.setAttribute('aria-hidden', 'true');
+    s.setAttribute('fill', 'none');
+    s.setAttribute('stroke', 'currentColor');
+    s.setAttribute('stroke-width', '2.2');
+    s.setAttribute('stroke-linecap', 'round');
+    s.setAttribute('stroke-linejoin', 'round');
+    const p = document.createElementNS(SVGNS, 'path');
+    p.setAttribute('d', ICONS[name]);
+    s.append(p);
+    return s;
+  }
+
+  const CASES = {
+    'access-denied': 'Refused: access denied',
+    'not-found': 'Refused: not found',
+    'no-such-store': 'Refused: no such store',
+    'invalid-argument': 'Refused: invalid argument',
+    'network': 'Failed: network',
+    'unavailable': 'Failed: unavailable',
+  };
+
+  // Returns [verdict, message, refused?]. Refusals come from the host's policy;
+  // an empty slot or a network failure is shown as a warning instead.
+  function errorVerdict(rest) {
+    try {
+      const v = JSON.parse(rest);
+      if (v && typeof v === 'object') {
+        const [k, payload] = Object.entries(v)[0] || [];
+        const msg = typeof payload === 'string' ? payload : '';
+        if (k === 'other' && /isn't installed/.test(msg)) return ['Not installed', msg, false];
+        if (k === 'network' || k === 'unavailable') return [CASES[k], msg || k, false];
+        return [CASES[k] || 'Error: ' + k, msg || k, true];
+      }
+    } catch (e) {}
+    return ['Error', rest, true];
+  }
+
+  // Parse the harness's plain-text transcript, one "[who] ..." per line.
+  function parse(text) {
+    const steps = [];
+    for (const line of text.split('\n')) {
+      const m = line.match(/^\[(user|model|agent|tool ([^\]]+))\] ?(.*)$/);
+      if (!m) {
+        if (steps.length && line.trim()) steps[steps.length - 1].text += '\n' + line;
+        else if (line.trim()) steps.push({ kind: 'note', text: line });
+        continue;
+      }
+      const [, who, tool, rest] = m;
+      if (who === 'user') steps.push({ kind: 'user', text: rest });
+      else if (who === 'agent') steps.push({ kind: 'note', text: rest });
+      else if (tool) {
+        const r = rest.match(/^(ok|error): ?(.*)$/);
+        steps.push({ kind: 'tool', tool, ok: r ? r[1] === 'ok' : true, text: r ? r[2] : rest });
+      } else {
+        const c = rest.match(/^call ([\w-]+)\((.*)\)$/);
+        if (c) steps.push({ kind: 'call', tool: c[1], text: c[2] });
+        else if (rest.startsWith('error: ')) steps.push({ kind: 'model-error', text: rest.slice(7) });
+        else steps.push({ kind: 'answer', text: rest });
+      }
+    }
+    return steps;
+  }
+
+  const section = (label, text) => {
+    const d = el('div');
+    d.append(el('span', 'tlabel', label), el('pre', '', text));
+    return d;
+  };
+
+  // One row per tool call: the name, its arguments, and how it ended. The
+  // result (or the refusal) shows under it; the row opens to show both in full.
+  function toolRow(name, args, res) {
+    const d = el('details', 'tool');
+    const sum = el('summary');
+    let verdict = 'Returned';
+    let preview = res ? res.text : 'No result';
+    let iconName = 'wrench';
+    if (res && !res.ok) {
+      const [v, msg, refused] = errorVerdict(res.text);
+      verdict = v;
+      preview = msg;
+      d.classList.add(refused ? 'refused' : 'missing');
+      iconName = refused ? 'cross' : 'alert';
+    } else if (res) {
+      d.classList.add('ok');
+    }
+    const stat = el('span', 'tstat');
+    if (res && res.ok) stat.append(icon('check', 'ico'));
+    stat.append(document.createTextNode(verdict));
+    sum.append(icon(iconName, 'ico'), el('span', 'tname mono', name),
+      el('span', 'targs mono', args === null ? '' : args), stat, icon('chev', 'chev'),
+      el('span', 'tprev mono', preview));
+    const body = el('div', 'tbody');
+    if (args !== null) body.append(section('Arguments', args || '(none)'));
+    if (res) body.append(section(res.ok ? 'Result' : 'Host said', res.text));
+    d.append(sum, body);
+    return d;
+  }
+
+  function renderRun(run, i) {
+    const art = el('article', 'turn');
+    art.setAttribute('aria-label', 'Run ' + (i + 1));
+    const steps = parse(run.text);
+    for (let k = 0; k < steps.length; k++) {
+      const s = steps[k];
+      switch (s.kind) {
+        case 'user': {
+          const u = el('div', 'user');
+          u.append(el('span', 'sr-only', 'You: '), document.createTextNode(s.text));
+          art.append(u);
+          break;
+        }
+        case 'call': {
+          const next = steps[k + 1];
+          const res = next && next.kind === 'tool' && next.tool === s.tool ? next : null;
+          if (res) k++;
+          art.append(toolRow(s.tool, s.text, res));
+          break;
+        }
+        case 'tool':
+          art.append(toolRow(s.tool, null, s));
+          break;
+        case 'model-error': {
+          const row = toolRow('model', null, { ok: false, text: s.text });
+          row.querySelector('.tstat').lastChild.textContent = 'Model error';
+          art.append(row);
+          break;
+        }
+        case 'answer':
+          art.append(el('div', 'answer', s.text));
+          break;
+        default: {
+          const n = el('div', 'notice');
+          n.append(el('span', '', s.text));
+          art.append(n);
+        }
+      }
+    }
+    art.append(el('p', 'meta', 'Run ' + (i + 1) + ' at ' + run.time + ' on ' + run.host));
+    return art;
+  }
+
+  function renderAll() {
+    const box = $('runs');
+    box.querySelectorAll('.turn').forEach((n) => n.remove());
+    $('empty').hidden = runs.length > 0;
+    runs.forEach((r, i) => box.append(renderRun(r, i)));
+  }
+
+  async function send(prompt) {
+    prompt = prompt.trim();
+    if (!prompt) return;
+    $('send').disabled = true;
+    $('status').textContent = 'Waiting for the agent...';
+    try {
+      const res = await fetch('/', { method: 'POST', body: prompt, cache: 'no-store' });
+      const text = await res.text();
+      runs.push({
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+        host: location.hostname, text: res.ok ? text : '[agent] HTTP ' + res.status + ': ' + text,
+      });
+      save();
+      renderAll();
+      $('status').textContent = '';
+      $('prompt').value = '';
+      window.scrollTo({ top: document.body.scrollHeight, behavior: reduced ? 'auto' : 'smooth' });
+    } catch (e) {
+      $('status').textContent = 'Cannot reach the agent. Is the workload running?';
+    } finally {
+      $('send').disabled = false;
+      $('prompt').focus();
+    }
+  }
+
+  $('form').addEventListener('submit', (e) => { e.preventDefault(); send($('prompt').value); });
+  document.querySelectorAll('.examples button').forEach((b) =>
+    b.addEventListener('click', () => { $('prompt').value = b.textContent; send(b.textContent); }));
+  $('clear').addEventListener('click', () => { runs = []; save(); renderAll(); $('prompt').focus(); });
+
+  renderAll();
+  window.scrollTo(0, document.body.scrollHeight);
+  $('prompt').focus();
+})();
+</script>
+</body>
+</html>

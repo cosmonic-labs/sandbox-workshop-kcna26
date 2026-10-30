@@ -9,4 +9,3 @@ crate-type = ["cdylib"]
 
 [dependencies]
 wit-bindgen.workspace = true
-wstd.workspace = true

@@ -5,12 +5,16 @@
 //! send a prompt as the request body (or `?q=`) and it asks the model what to
 //! do, runs the tool the model asks for, feeds the result back, and repeats
 //! until the model answers in text. The response is the whole transcript so
-//! you can watch every step.
+//! you can watch every step. A browser that opens the root with no prompt
+//! gets a page (`transcript.html`) that sends prompts the same way and draws
+//! the transcript as a timeline; curl gets the same text as ever.
 //!
 //! The harness itself holds no capabilities. Its world imports the model and
-//! four labelled tool slots and nothing else from the host; whatever a tool
+//! three labelled tool slots and nothing else from the host; whatever a tool
 //! can reach is decided by the manifest entry of the component filling that
-//! slot. `tools.rs` translates the model's JSON into typed tool calls.
+//! slot. `tools.rs` translates the model's JSON into typed tool calls and
+//! builds the tool definitions the model sees: work a host could do from the
+//! WIT, done by hand here because upstream wasmCloud doesn't do it yet.
 
 wit_bindgen::generate!({
     path: "../../wit",
@@ -18,36 +22,60 @@ wit_bindgen::generate!({
     generate_all,
 });
 
+#[path = "../../common/http.rs"]
+mod http;
 mod tools;
 
+use exports::wasi::http::handler::Guest;
 use tools::{Args, TOOLS};
+use wasi::http::types::{ErrorCode, Method, Request, Response};
 use workshop::toolbox::types::{Completion, Message, ToolDef};
-use wstd::http::{Body, Request, Response};
 
 /// Hard stop so a hijacked model cannot loop forever.
 const MAX_STEPS: usize = 8;
 
-#[wstd::http_server]
-async fn main(mut req: Request<Body>) -> Result<Response<Body>, wstd::http::Error> {
-    let query = req.uri().query().unwrap_or_default().to_string();
-    let body = req.body_mut().contents().await?.to_vec();
-    let mut prompt = String::from_utf8_lossy(&body).trim().to_string();
-    if prompt.is_empty() {
-        prompt = query
-            .split('&')
-            .find_map(|kv| kv.strip_prefix("q="))
-            .map(url_decode)
+/// The transcript page, for a browser at http://agent.localhost:18180/.
+const PAGE: &str = include_str!("transcript.html");
+
+struct Agent;
+
+impl Guest for Agent {
+    async fn handle(req: Request) -> Result<Response, ErrorCode> {
+        let query = req
+            .get_path_with_query()
+            .and_then(|p| p.split_once('?').map(|(_, q)| q.to_string()))
             .unwrap_or_default();
+        // A browser asks for HTML; curl sends */*. Only a browser gets the page.
+        let wants_page = matches!(req.get_method(), Method::Get)
+            && req
+                .get_headers()
+                .get("accept")
+                .iter()
+                .any(|v| String::from_utf8_lossy(v).contains("text/html"));
+        let body = http::request_body(req).await;
+        let mut prompt = String::from_utf8_lossy(&body).trim().to_string();
+        if prompt.is_empty() {
+            prompt = query
+                .split('&')
+                .find_map(|kv| kv.strip_prefix("q="))
+                .map(url_decode)
+                .unwrap_or_default();
+        }
+        if prompt.is_empty() && wants_page {
+            return http::html_response(200, PAGE);
+        }
+        let transcript = if prompt.is_empty() {
+            "send a prompt as the request body, e.g. curl -d 'hello' ...\n".to_string()
+        } else {
+            run(&prompt).await
+        };
+        http::text_response(200, transcript)
     }
-    let transcript = if prompt.is_empty() {
-        "send a prompt as the request body, e.g. curl -d 'hello' ...\n".to_string()
-    } else {
-        run(&prompt)
-    };
-    Ok(Response::new(Body::from(transcript)))
 }
 
-fn run(prompt: &str) -> String {
+export!(Agent);
+
+async fn run(prompt: &str) -> String {
     let mut out = String::new();
     // Every function in the table is offered to the model. A slot that has
     // no real tool yet answers with a "not installed" error when called.
@@ -68,20 +96,20 @@ fn run(prompt: &str) -> String {
     out.push_str(&format!("[user] {prompt}\n"));
 
     for _ in 0..MAX_STEPS {
-        match model::complete(&messages, &defs) {
+        match model::complete(messages.clone(), defs.clone()).await {
             Ok(Completion::Text(text)) => {
                 out.push_str(&format!("[model] {text}\n"));
                 return out;
             }
             Ok(Completion::Call(call)) => {
                 out.push_str(&format!("[model] call {}({})\n", call.name, call.arguments));
-                let Some(tool) = TOOLS.iter().find(|t| t.name == call.name) else {
+                if !TOOLS.iter().any(|t| t.name == call.name) {
                     out.push_str(&format!("[agent] no tool named '{}'\n", call.name));
                     return out;
-                };
+                }
                 let args: serde_json::Value =
                     serde_json::from_str(&call.arguments).unwrap_or_default();
-                let result = match (tool.call)(&Args(args.clone())) {
+                let result = match tools::call(&call.name, &Args(args.clone())).await {
                     Ok(ok) => {
                         out.push_str(&format!("[tool {}] ok: {}\n", call.name, one_line(&ok)));
                         ok

@@ -1,129 +1,227 @@
-//! The translation table: from the model's JSON tool calls to typed calls.
+//! The translation table: what a host does for you, written out by hand.
 //!
 //! A model only understands JSON. It is shown a list of tools, each with a
 //! name, a description and a JSON Schema for its arguments, and it answers
 //! with JSON such as {"name": "remember", "arguments": {"key": "...",
 //! "fact": "..."}}. The tools only understand typed functions such as
-//! `memory::remember(key, fact)`.
+//! `memory::remember(RememberArgs { key, fact })`.
 //!
-//! Something has to translate between the two. In an agent platform the host
-//! does this for you. Upstream wasmCloud has no host plugin for it, so the
-//! agent harness does it here, in plain sight: one row per function the
-//! model may call.
+//! Something has to translate between the two. A host could do it: read each
+//! tool's WIT, build the definitions the model sees from the WIT's names,
+//! types and doc comments, turn the model's JSON into a typed call, and turn
+//! the typed result or error back into text. Upstream wasmCloud doesn't do
+//! that yet, so the agent harness does it here, in plain sight: one row per
+//! function, written to match `wit/toolbox.wit`.
+//!
+//! The rows follow the same rules a host follows:
+//!
+//! - Each function takes one `<name>-args` record. The record's fields are
+//!   the tool's arguments: the field names are the JSON properties and the
+//!   field doc comments are their descriptions.
+//! - The function's doc comment is the tool's description.
+//! - The tool's name is the WIT function name in snake_case, or a name that
+//!   reads better to a model (`read_note` for `notes.read`). A host keeps a
+//!   rename table like that too.
+//! - A typed error reaches the model as `{"case": "payload"}`, the JSON form
+//!   of a WIT variant, so the model can tell a missing file from a denied
+//!   one.
+//! - A result with a `text` field (the web tool's `response`) shows its other
+//!   fields as one compact JSON line, then the text.
+//!
+//! One shortcut: a host shows any other result as compact JSON. The rows
+//! here write a short sentence instead, so the transcript reads well on a
+//! slide.
 
-use crate::{memory, notes, reports, web};
+use crate::{memory, notes, web};
 use serde_json::{Value, json};
 
 /// One function the model may call.
 pub struct Tool {
     /// The name the model uses in its JSON tool call.
     pub name: &'static str,
-    /// What the model is told the function does.
+    /// The function's doc comment from the WIT: what the model is told the
+    /// tool does.
     pub description: &'static str,
-    /// The argument names, in order, with a hint for the model. Every
-    /// argument in this workshop is a string.
+    /// The fields of the function's `<name>-args` record, in order, each
+    /// with its doc comment from the WIT. Every field in this workshop is a
+    /// required string.
     pub params: &'static [(&'static str, &'static str)],
-    /// Pull the arguments out of the JSON, make the typed call, and turn the
-    /// typed result back into text for the model.
-    pub call: fn(&Args) -> Result<String, String>,
 }
 
-/// The whole table. Each `call` is one typed function on one tool slot.
+/// The whole table. `call` below makes the typed call behind each row.
 pub const TOOLS: &[Tool] = &[
+    // workshop:toolbox/memory.remember
     Tool {
         name: "remember",
-        description: "Remember a fact under a short key, for later conversations.",
-        params: &[("key", "a short name for the fact"), ("fact", "the fact itself")],
-        call: |a| {
-            let (key, fact) = (a.get("key")?, a.get("fact")?);
-            memory::remember(&key, &fact)?;
-            Ok(format!("remembered {key} = {fact}"))
-        },
+        description: "Remember a fact under a short key, for later conversations. A fact \
+                      already stored under the key is replaced.",
+        params: &[
+            ("key", "A short name for the fact, such as \"favorite color\"."),
+            ("fact", "The fact itself."),
+        ],
     },
+    // workshop:toolbox/memory.recall
     Tool {
         name: "recall",
-        description: "Look up the fact remembered under one key.",
-        params: &[("key", "the key the fact was stored under")],
-        call: |a| {
-            let key = a.get("key")?;
-            Ok(memory::recall(&key)?.unwrap_or(format!("nothing remembered under {key}")))
-        },
+        description: "Look up the fact remembered under one key. Returns none when nothing \
+                      is stored under it.",
+        params: &[("key", "The key the fact was stored under.")],
     },
+    // workshop:toolbox/memory.recall-all
     Tool {
         name: "recall_all",
-        description: "List every fact remembered so far.",
+        description: "List every fact remembered so far, in no particular order.",
         params: &[],
-        call: |_| {
-            let entries = memory::recall_all()?;
+    },
+    // workshop:toolbox/notes.read
+    Tool {
+        name: "read_note",
+        description: "Read a file from the user's notes folder and return its text.",
+        params: &[("path", "The file's path inside the notes folder, such as todo.txt.")],
+    },
+    // workshop:toolbox/notes.append
+    Tool {
+        name: "append_note",
+        description: "Add one line to the end of a file in the user's notes folder.",
+        params: &[
+            ("path", "The file's path inside the notes folder, such as todo.txt."),
+            ("line", "The text to add. A line break is added after it."),
+        ],
+    },
+    // workshop:toolbox/web.fetch
+    Tool {
+        name: "fetch",
+        description: "Fetch a web page with HTTP GET and return the server's answer.",
+        params: &[("url", "The full URL, such as http://example.com/page.")],
+    },
+    // workshop:toolbox/web.post
+    Tool {
+        name: "post",
+        description: "Send text to a URL with HTTP POST and return the server's answer.",
+        params: &[
+            ("url", "The full URL, such as http://example.com/form."),
+            ("body", "The text to send."),
+        ],
+    },
+];
+
+/// Build the typed arguments from the model's JSON, make the typed call on
+/// one tool slot, and turn the typed result back into text for the model.
+/// An error comes back already rendered as `{"case": "payload"}`. Every tool
+/// function is async (WASI 0.3), so each arm awaits the linked component.
+pub async fn call(name: &str, a: &Args) -> Result<String, String> {
+    match name {
+        "remember" => {
+            let args = memory::RememberArgs { key: a.get("key")?, fact: a.get("fact")? };
+            let line = format!("remembered {} = {}", args.key, args.fact);
+            memory::remember(args).await.map_err(memory_error)?;
+            Ok(line)
+        }
+        "recall" => {
+            let args = memory::RecallArgs { key: a.get("key")? };
+            let key = args.key.clone();
+            let fact = memory::recall(args).await.map_err(memory_error)?;
+            Ok(fact.unwrap_or(format!("nothing remembered under {key}")))
+        }
+        "recall_all" => {
+            let entries = memory::recall_all().await.map_err(memory_error)?;
             if entries.is_empty() {
                 return Ok("nothing remembered yet".into());
             }
             let lines: Vec<String> =
                 entries.iter().map(|e| format!("{} = {}", e.key, e.fact)).collect();
             Ok(lines.join("; "))
-        },
-    },
-    Tool {
-        name: "read_note",
-        description: "Read a file from the user's notes folder.",
-        params: &[("path", "file name inside the notes folder, e.g. todo.txt")],
-        call: |a| notes::read(&a.get("path")?),
-    },
-    Tool {
-        name: "append_note",
-        description: "Add one line to the end of a file in the user's notes folder.",
-        params: &[("path", "file name inside the notes folder"), ("line", "text to add")],
-        call: |a| {
-            let (path, line) = (a.get("path")?, a.get("line")?);
-            notes::append(&path, &line)?;
+        }
+        "read_note" => {
+            let args = notes::ReadArgs { path: a.get("path")? };
+            notes::read(args).await.map_err(notes_error)
+        }
+        "append_note" => {
+            let args = notes::AppendArgs { path: a.get("path")?, line: a.get("line")? };
+            let path = args.path.clone();
+            notes::append(args).await.map_err(notes_error)?;
             Ok(format!("appended to {path}"))
-        },
-    },
-    Tool {
-        name: "save_report",
-        description: "Save a text report to object storage.",
-        params: &[("name", "report file name, e.g. report.txt"), ("body", "report text")],
-        call: |a| {
-            let (name, body) = (a.get("name")?, a.get("body")?);
-            reports::save(&name, &body)?;
-            Ok(format!("saved {} bytes as {name}", body.len()))
-        },
-    },
-    Tool {
-        name: "fetch",
-        description: "Fetch a web page with HTTP GET and return its body.",
-        params: &[("url", "the full URL, e.g. http://example.com/page")],
-        call: |a| web::fetch(&a.get("url")?),
-    },
-    Tool {
-        name: "post",
-        description: "Send text to a URL with HTTP POST and return the response body.",
-        params: &[("url", "the full URL"), ("body", "the text to send")],
-        call: |a| web::post(&a.get("url")?, &a.get("body")?),
-    },
-];
+        }
+        "fetch" => {
+            let args = web::FetchArgs { url: a.get("url")? };
+            web::fetch(args).await.map(response).map_err(web_error)
+        }
+        "post" => {
+            let args = web::PostArgs { url: a.get("url")?, body: a.get("body")? };
+            web::post(args).await.map(response).map_err(web_error)
+        }
+        other => Err(variant("invalid-argument", Some(format!("no tool named '{other}'")))),
+    }
+}
+
+/// A result with a `text` field: the other fields as one JSON line, then the
+/// text.
+fn response(r: web::Response) -> String {
+    format!("{}\n{}", json!({ "status": r.status }), r.text)
+}
+
+/// A WIT variant case as JSON: `{"case": payload}`.
+fn variant(case: &str, payload: Option<String>) -> String {
+    let mut map = serde_json::Map::new();
+    map.insert(case.to_string(), payload.map_or(Value::Null, Value::String));
+    Value::Object(map).to_string()
+}
+
+fn memory_error(e: memory::Error) -> String {
+    use memory::Error::*;
+    match e {
+        InvalidArgument(m) => variant("invalid-argument", Some(m)),
+        NoSuchStore(m) => variant("no-such-store", Some(m)),
+        AccessDenied(m) => variant("access-denied", Some(m)),
+        Unavailable(m) => variant("unavailable", Some(m)),
+        Other(m) => variant("other", m),
+    }
+}
+
+fn notes_error(e: notes::Error) -> String {
+    use notes::Error::*;
+    match e {
+        InvalidArgument(m) => variant("invalid-argument", Some(m)),
+        NotFound(m) => variant("not-found", Some(m)),
+        AccessDenied(m) => variant("access-denied", Some(m)),
+        Other(m) => variant("other", m),
+    }
+}
+
+fn web_error(e: web::Error) -> String {
+    use web::Error::*;
+    match e {
+        InvalidArgument(m) => variant("invalid-argument", Some(m)),
+        AccessDenied(m) => variant("access-denied", Some(m)),
+        Network(m) => variant("network", Some(m)),
+        Other(m) => variant("other", m),
+    }
+}
 
 impl Tool {
-    /// The JSON Schema the model sees for this function's arguments.
+    /// The JSON Schema the model sees for this function's arguments: one
+    /// property per record field, described by the field's doc comment.
     pub fn schema(&self) -> String {
         let properties: serde_json::Map<String, Value> = self
             .params
             .iter()
-            .map(|(name, hint)| (name.to_string(), json!({ "type": "string", "description": hint })))
+            .map(|(name, doc)| (name.to_string(), json!({ "type": "string", "description": doc })))
             .collect();
         let required: Vec<&str> = self.params.iter().map(|(name, _)| *name).collect();
         json!({ "type": "object", "properties": properties, "required": required }).to_string()
     }
 }
 
-/// The model's JSON arguments, with one helper to read a string argument.
+/// The model's JSON arguments, with one helper to read a string field.
 pub struct Args(pub Value);
 
 impl Args {
+    /// A required string field, or the invalid-argument error a host would
+    /// give for a missing one.
     pub fn get(&self, name: &str) -> Result<String, String> {
         match self.0.get(name).and_then(Value::as_str) {
             Some(value) => Ok(value.to_string()),
-            None => Err(format!("missing argument {name:?}")),
+            None => Err(variant("invalid-argument", Some(format!("missing argument {name:?}")))),
         }
     }
 }

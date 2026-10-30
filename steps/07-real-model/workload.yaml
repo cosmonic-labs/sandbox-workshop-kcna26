@@ -1,0 +1,73 @@
+# Step 7: swap in a real model. Same workload as step 6; only the model slot
+# changes, from model-scripted to model-real. Nothing is rebuilt.
+
+apiVersion: runtime.wasmcloud.dev/v1alpha1
+kind: WorkloadDeployment
+metadata:
+  name: toolbox-agent
+spec:
+  replicas: 1
+  # The way in: the Service named toolbox-agent, which the platform created
+  # with no selector (k8s/agent-service.yaml). The operator keeps it pointed
+  # at the host pods that run this workload.
+  kubernetes:
+    service:
+      name: toolbox-agent
+  template:
+    spec:
+      # The team host group; the toy sites have one of their own.
+      hostSelector:
+        hostgroup: default
+      hostInterfaces:
+        - namespace: wasi
+          package: http
+          interfaces: [handler]
+          config:
+            host: agent.localhost
+        - namespace: wasmcloud
+          package: keyvalue
+          version: 0.2.0
+          interfaces: [store]
+      components:
+        - name: agent
+          image: workshop-toolbox-registry:5000/workshop/agent:0.4.0
+        # The same model slot, now filled by model-real: an OpenAI compatible
+        # client. It is the only component allowed to reach the model's host.
+        # LLM_URL points at the fake endpoint in the toy sites, so this runs
+        # offline; for a hosted model, change LLM_URL and allowedHosts and pass
+        # LLM_API_KEY from a Secret (environment.secretFrom).
+        - name: model
+          image: workshop-toolbox-registry:5000/workshop/model-real:0.4.0
+          localResources:
+            allowedHosts:
+              - llm.workshop-sites.svc
+            environment:
+              config:
+                LLM_URL: http://llm.workshop-sites.svc/v1/chat/completions
+                LLM_MODEL: fake-model
+        # memory is the only component that imports keyvalue. The platform
+        # declares the backend (k8s/values.yaml) and creates the bucket.
+        - name: memory
+          image: workshop-toolbox-registry:5000/workshop/tool-memory:0.4.0
+          localResources:
+            environment:
+              config:
+                MEMORY_BUCKET: agent-memory
+        - name: notes
+          image: workshop-toolbox-registry:5000/workshop/tool-notes:0.4.0
+          localResources:
+            volumeMounts:
+              - name: notes
+                mountPath: /notes
+                readOnly: true
+        - name: web
+          image: workshop-toolbox-registry:5000/workshop/tool-web:0.4.0
+          localResources:
+            allowedHosts:
+              - planted.workshop-sites.svc
+      volumes:
+        - name: notes
+          hostPath:
+            # A path on the node, mounted into the host pod and allowed by
+            # k8s/values.yaml (hostPaths.allowed).
+            path: /workshop/notes

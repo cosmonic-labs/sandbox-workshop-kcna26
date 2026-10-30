@@ -1,8 +1,28 @@
-# Helm values for charts/runtime-operator v2.10.3 on kind, one host.
+# Helm values for charts/runtime-operator v2.11.0 on kind: two host groups,
+# one host pod each.
+#
+#   default   the teams' agents (namespace wasmcloud)
+#   fixtures  the toy sites only (namespace workshop-sites, k8s/sites.yaml)
+#
+# Local routing (localBypassRouting) is off on both. With it on, any workload
+# on a host may claim any hostname with localRoute and receive a share of the
+# other workloads' requests to it (upstream's threat model: give mutually
+# hostile tenants their own host group). So agents reach the toy sites the
+# ordinary way: cluster DNS and a Kubernetes Service.
 gateway:
+  # Deprecated upstream; HTTP reaches the host pods through k8s/ingress.yaml.
+  enabled: false
+# The chart's baseline NetworkPolicies (ingress only) are on by default since
+# v2.11.0. On kind v0.33.0, kindnet's policy enforcement then drops the DNS
+# replies to the operator and host pods, which crash-loop with "failed to
+# lookup address information" (seen 2026-10-27; not yet reported). Off for the
+# workshop cluster only; keep them on in a real cluster.
+networkPolicy:
   enabled: false
 runtime:
-  # The workshop registry is plain HTTP on the kind docker network.
+  # The workshop registry is plain HTTP on the kind network. The chart's
+  # ociCaPaths is the safer choice for a real registry: this flag turns off
+  # TLS for every registry the host pulls from.
   extraArgs:
     - --allow-insecure-registries
   hostGroups:
@@ -11,16 +31,60 @@ runtime:
       http:
         enabled: true
         port: 80
-        # Same-host local routing (planted.example, collector.example,
-        # llm.example), the chart's spelling of --http-local-routing.
-        localBypassRouting: true
-      # The node path (kind extraMount) mounted into the host container, so
-      # a Workload hostPath volume of /workshop/notes resolves.
+        localBypassRouting: false
+      # A ClusterIP Service, hostgroup-default, for the ingress to send to.
+      service:
+        type: ClusterIP
+      # The backend behind the WASI 0.3 keyvalue interface, declared by the
+      # platform, not by workloads: since v2.11.0 a workload may not set a
+      # backend's url itself (workloadConfig defaults to deny). It points at
+      # the workshop's data service (k8s/data-nats.yaml).
+      plugins:
+        - id: wasmcloud-keyvalue-multiplexed
+          allowedHosts: [data-nats.workshop-data.svc:4222]
+          allowedIpNameLookups: [data-nats.workshop-data.svc]
+          config:
+            backend: nats
+            url: nats://data-nats.workshop-data.svc:4222
+      # Since v2.11.0 a hostPath volume must lie inside an allowed directory;
+      # the default list is empty.
+      hostPaths:
+        allowed:
+          - /workshop/notes
+          - /workshop/notes-rw
+      # Node paths (kind extraMounts, see scripts/up.sh) mounted into the host
+      # container, so a Workload hostPath volume of /workshop/notes resolves.
       volumes:
         - name: notes
           hostPath:
             path: /workshop/notes
             type: Directory
+        - name: notes-rw
+          hostPath:
+            path: /workshop/notes-rw
+            type: Directory
       volumeMounts:
         - name: notes
           mountPath: /workshop/notes
+        - name: notes-rw
+          mountPath: /workshop/notes-rw
+    # The toy sites (steps/00-fixtures) get a host group of their own, in
+    # their own namespace, so the Services in k8s/sites.yaml can select its
+    # pods. Workloads land here only by asking: hostSelector hostgroup: fixtures.
+    - name: fixtures
+      namespace: workshop-sites
+      replicas: 1
+      http:
+        enabled: true
+        port: 80
+        localBypassRouting: false
+      service:
+        type: ClusterIP
+      # The collector keeps its count in keyvalue too.
+      plugins:
+        - id: wasmcloud-keyvalue-multiplexed
+          allowedHosts: [data-nats.workshop-data.svc:4222]
+          allowedIpNameLookups: [data-nats.workshop-data.svc]
+          config:
+            backend: nats
+            url: nats://data-nats.workshop-data.svc:4222

@@ -1,47 +1,55 @@
-# Step 2: a memory tool backed by wasi:keyvalue.
+# Step 2: a memory tool backed by keyvalue (wasmcloud:keyvalue, WASI 0.3).
 #
 # The agent harness (the component that runs the loop: ask the model, call a
-# tool, repeat) imports a model and four labelled tool slots: memory, notes,
-# reports and web. The host links each label to the component of the same
+# tool, repeat) imports a model and three labelled tool slots: memory, notes
+# and web. The host links each label to the component of the same
 # name in this workload, so every slot must be filled. Until a step installs
 # the real tool, a slot is filled by not-installed: one image under several
 # names, whose every function answers "the <tool> tool isn't installed yet".
 # The harness and the model get nothing else: no allowedHosts, no volumes, no
 # environment.
+
 apiVersion: runtime.wasmcloud.dev/v1alpha1
 kind: WorkloadDeployment
 metadata:
   name: toolbox-agent
 spec:
   replicas: 1
+  # The way in: the Service named toolbox-agent, which the platform created
+  # with no selector (k8s/agent-service.yaml). The operator keeps it pointed
+  # at the host pods that run this workload.
+  kubernetes:
+    service:
+      name: toolbox-agent
   template:
     spec:
+      # The team host group; the toy sites have one of their own.
+      hostSelector:
+        hostgroup: default
       hostInterfaces:
         - namespace: wasi
           package: http
-          interfaces: [incoming-handler]
+          interfaces: [handler]
           config:
             host: agent.localhost
-        - namespace: wasi
+        - namespace: wasmcloud
           package: keyvalue
-          version: 0.2.0-draft
+          version: 0.2.0
           interfaces: [store]
       components:
         - name: agent
-          image: localhost:15051/workshop/agent:0.1.0
+          image: workshop-toolbox-registry:5000/workshop/agent:0.4.0
         - name: model
-          image: localhost:15051/workshop/model-scripted:0.1.0
-        # memory is the only component that imports wasi:keyvalue. Under
-        # `wash host` the backend is NATS JetStream KV (--data-nats-url).
+          image: workshop-toolbox-registry:5000/workshop/model-scripted:0.4.0
+        # memory is the only component that imports keyvalue. The platform
+        # declares the backend (k8s/values.yaml) and creates the bucket.
         - name: memory
-          image: localhost:15051/workshop/tool-memory:0.1.0
+          image: workshop-toolbox-registry:5000/workshop/tool-memory:0.4.0
           localResources:
             environment:
               config:
                 MEMORY_BUCKET: agent-memory
         - name: notes
-          image: localhost:15051/workshop/not-installed:0.1.0
-        - name: reports
-          image: localhost:15051/workshop/not-installed:0.1.0
+          image: workshop-toolbox-registry:5000/workshop/not-installed:0.4.0
         - name: web
-          image: localhost:15051/workshop/not-installed:0.1.0
+          image: workshop-toolbox-registry:5000/workshop/not-installed:0.4.0

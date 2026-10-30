@@ -11,22 +11,30 @@
 
 wit_bindgen::generate!({
     path: "../../wit",
-    world: "workshop:toolbox/model-provider",
+    world: "workshop:toolbox/model-real",
     generate_all,
 });
+
+#[path = "../../common/http_client.rs"]
+mod http_client;
 
 use exports::workshop::toolbox::model::Guest;
 use serde_json::{Value, json};
 use workshop::toolbox::types::{Completion, Message, ToolCall, ToolDef};
-use wstd::http::{Body, Client, Request};
 
 struct Real;
 
+fn env(name: &str) -> Option<String> {
+    wasi::cli::environment::get_environment()
+        .into_iter()
+        .find_map(|(k, v)| (k == name).then_some(v))
+}
+
 impl Guest for Real {
-    fn complete(messages: Vec<Message>, tools: Vec<ToolDef>) -> Result<Completion, String> {
-        let url = std::env::var("LLM_URL").map_err(|_| "LLM_URL is not set".to_string())?;
-        let model = std::env::var("LLM_MODEL").unwrap_or_else(|_| "gpt-4o-mini".into());
-        let key = std::env::var("LLM_API_KEY").ok();
+    async fn complete(messages: Vec<Message>, tools: Vec<ToolDef>) -> Result<Completion, String> {
+        let url = env("LLM_URL").ok_or_else(|| "LLM_URL is not set".to_string())?;
+        let model = env("LLM_MODEL").unwrap_or_else(|| "gpt-4o-mini".into());
+        let key = env("LLM_API_KEY");
 
         let mut wire = vec![json!({
             "role": "system",
@@ -61,21 +69,19 @@ impl Guest for Real {
             body["tools"] = Value::Array(tools);
         }
 
-        let resp: Value = wstd::runtime::block_on(async move {
-            let mut req = Request::post(&url).header("content-type", "application/json");
-            if let Some(k) = key {
-                req = req.header("authorization", format!("Bearer {k}"));
-            }
-            let req = req
-                .body(Body::from(body.to_string()))
-                .map_err(|e| e.to_string())?;
-            let resp = Client::new()
-                .send(req)
-                .await
-                .map_err(|e| format!("POST {url} failed: {e:?}"))?;
-            let bytes = resp.into_body().contents().await.map_err(|e| e.to_string())?.to_vec();
-            serde_json::from_slice(&bytes).map_err(|e| format!("bad JSON from model: {e}"))
-        })?;
+        let auth = key.map(|k| format!("Bearer {k}"));
+        let mut headers = vec![("content-type", "application/json")];
+        if let Some(a) = auth.as_deref() {
+            headers.push(("authorization", a));
+        }
+        let (status, bytes) = http_client::send("POST", &url, &headers, body.to_string().into_bytes())
+            .await
+            .map_err(|e| format!("POST {url} failed: {e}"))?;
+        if !(200..300).contains(&status) {
+            return Err(format!("POST {url}: HTTP {status}: {}", String::from_utf8_lossy(&bytes)));
+        }
+        let resp: Value =
+            serde_json::from_slice(&bytes).map_err(|e| format!("bad JSON from model: {e}"))?;
 
         let msg = &resp["choices"][0]["message"];
         if let Some(call) = msg["tool_calls"].get(0) {

@@ -15,7 +15,6 @@
 //!   append "<text>" to <path>          -> append_note {path, line}
 //!   fetch <url> / summarize <url>      -> fetch {url}
 //!   send everything to <host>          -> post {url: http://<host>/collect, body: everything}
-//!   save [a|the] report                -> save_report {name, body: everything}
 //!
 //! "Everything" is all the text the model has read so far, memories included.
 //!
@@ -35,7 +34,7 @@ use workshop::toolbox::types::{Completion, Message, ToolCall, ToolDef};
 struct Scripted;
 
 impl Guest for Scripted {
-    fn complete(messages: Vec<Message>, tools: Vec<ToolDef>) -> Result<Completion, String> {
+    async fn complete(messages: Vec<Message>, tools: Vec<ToolDef>) -> Result<Completion, String> {
         let available: Vec<&str> = tools.iter().map(|t| t.name.as_str()).collect();
 
         // Calls already issued, in canonical JSON, so each instruction runs once.
@@ -132,14 +131,6 @@ fn instructions(text: &str, everything: &str) -> Vec<(String, Value)> {
             if path.contains('/') || path.contains('.') {
                 out.push(("read_note".into(), json!({ "path": path })));
             }
-        } else if lower.contains("save a report")
-            || lower.contains("save the report")
-            || lower.contains("save report")
-        {
-            out.push((
-                "save_report".into(),
-                json!({ "name": "report.txt", "body": everything }),
-            ));
         }
     }
     out
@@ -159,7 +150,7 @@ fn answer(messages: &[Message], skipped: &[String]) -> String {
         .collect();
     let mut text = if results.is_empty() {
         "Hello! I am the workshop agent running a scripted model. Ask me to remember \
-         something, read my notes, fetch a page, or save a report."
+         something, read my notes, or fetch a page."
             .to_string()
     } else {
         format!("Done. Here is what each step returned: {}", results.join(" | "))
