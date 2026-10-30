@@ -31,6 +31,12 @@ team-b           01a1890d-29d0-...
 workshop-sites   01a1890d-6df6-...
 ```
 
+**In a browser:** open http://a.agent.localhost:18180 and
+http://b.agent.localhost:18180 in two tabs. Each team's agent serves its own
+Agent chat page, which sends prompts only to that team's agent, so you can
+run the same four prompts side by side. That works on your own machine; in
+Codespaces, use the curl commands.
+
 Every agent in the cluster runs on the same host id: one host pod, many
 tenants. That is the point of a wasmCloud host: a pod that runs many small,
 separate workloads, each with its own memory and only its own grants, instead
