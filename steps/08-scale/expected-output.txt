@@ -2,20 +2,20 @@
 $ kubectl -n wasmcloud scale deployment hostgroup-default --replicas=2
 deployment.apps/hostgroup-default scaled
 $ kubectl get hosts -n wasmcloud
-NAME                  HOSTID                                 HOSTGROUP   ENVIRONMENT      READY   AGE
-minor-man-6313        01a1928e-c7bc-7982-ba90-c3150f9eb3be   fixtures    workshop-sites   True    67s
-resonant-jar-2726     01a1928f-af8a-7d92-801f-3eee88de8800   default     wasmcloud        True    8s
-uptight-butter-1635   01a1928e-c682-7e30-bd10-56b31b9f57a9   default     wasmcloud        True    68s
+NAME                 HOSTID                                 HOSTGROUP   ENVIRONMENT      READY   AGE
+complex-box-6290     01a1929d-8284-7d11-ba1f-652c118396e8   fixtures    workshop-sites   True    68s
+eager-hen-0128       01a1929e-69e2-7363-a494-f2dfd44a8964   default     wasmcloud        True    9s
+guttural-boot-3503   01a1929d-8141-7c42-863a-e8ebed4b9b4d   default     wasmcloud        True    68s
 $ kubectl scale workloaddeployment toolbox-agent --replicas=3
 workloaddeployment.runtime.wasmcloud.dev/toolbox-agent scaled
 $ kubectl get workloads -n default -o custom-columns=NAME:.metadata.name,HOST:.status.hostId
 NAME                                  HOST
-toolbox-agent-78cf459998-555c4f59f7   01a1928e-c682-7e30-bd10-56b31b9f57a9
-toolbox-agent-78cf459998-7b689cb7d5   01a1928e-c682-7e30-bd10-56b31b9f57a9
-toolbox-agent-78cf459998-7f75b5b574   01a1928f-af8a-7d92-801f-3eee88de8800
+toolbox-agent-7d7d7f94cc-656f6bcd5f   01a1929d-8141-7c42-863a-e8ebed4b9b4d
+toolbox-agent-7d7d7f94cc-6694f74445   01a1929e-69e2-7363-a494-f2dfd44a8964
+toolbox-agent-7d7d7f94cc-67db8fb595   01a1929e-69e2-7363-a494-f2dfd44a8964
 $ kubectl get endpointslices -l kubernetes.io/service-name=toolbox-agent
 NAME                     ADDRESSTYPE   PORTS   ENDPOINTS                 AGE
-toolbox-agent-9dda31f4   IPv4          80      10.244.0.14,10.244.0.17   64s
+toolbox-agent-9dda31f4   IPv4          80      10.244.0.13,10.244.0.16   64s
 $ for i in 1 2 3 4 5 6; do curl -s -o /dev/null -w '%{http_code} ' -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'hello'; done; echo
 200 200 200 200 200 200 
 $ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'recall what you know about me'
@@ -28,9 +28,9 @@ $ kubectl -n wasmcloud scale deployment hostgroup-default --replicas=1
 deployment.apps/hostgroup-default scaled
 $ kubectl get workloads -n default -o custom-columns=NAME:.metadata.name,HOST:.status.hostId
 NAME                                  HOST
-toolbox-agent-78cf459998-555c4f59f7   01a1928e-c682-7e30-bd10-56b31b9f57a9
-toolbox-agent-78cf459998-6c5b785f75   01a1928e-c682-7e30-bd10-56b31b9f57a9
-toolbox-agent-78cf459998-7b689cb7d5   01a1928e-c682-7e30-bd10-56b31b9f57a9
+toolbox-agent-7d7d7f94cc-656f6bcd5f   01a1929d-8141-7c42-863a-e8ebed4b9b4d
+toolbox-agent-7d7d7f94cc-66747fc5c6   01a1929d-8141-7c42-863a-e8ebed4b9b4d
+toolbox-agent-7d7d7f94cc-87684689b    01a1929d-8141-7c42-863a-e8ebed4b9b4d
 $ kubectl scale workloaddeployment toolbox-agent --replicas=1
 workloaddeployment.runtime.wasmcloud.dev/toolbox-agent scaled
 
@@ -38,10 +38,10 @@ workloaddeployment.runtime.wasmcloud.dev/toolbox-agent scaled
 $ kubectl apply -f steps/08-scale/broken-interface.yaml
 workloaddeployment.runtime.wasmcloud.dev/toolbox-agent configured
 $ kubectl describe workloads -n default | grep -E '^Name:|Message:'
-Name:         toolbox-agent-77cd9d6796-7bcf58ccbf
+Name:         toolbox-agent-6cc9978cb7-6bdccc467d
     Message:               workload is not operational: WORKLOAD_STATE_ERROR: failed to pre-instantiate during component linking: component imports instance `wasmcloud:keyvalue/types@0.2.0`, but a matching implementation was not found in the linker: instance export `bucket` has the wrong type: resource implementation is missing
     Message:               workload is not placed or not synced
-Name:         toolbox-agent-78cf459998-6c5b785f75
+Name:         toolbox-agent-7d7d7f94cc-7db65c48b4
 # The previous version still answers:
 $ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'hello'
 [user] hello
@@ -51,18 +51,18 @@ $ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'hello'
 $ kubectl apply -f steps/08-scale/broken-image.yaml
 workloaddeployment.runtime.wasmcloud.dev/toolbox-agent configured
 $ kubectl describe workloads -n default | grep -E '^Name:|Message:'
-Name:         toolbox-agent-6d4dc68b86-759c8fbf9c
-    Message:               workload is not operational: WORKLOAD_STATE_NOT_FOUND: Workload not found: 6d2b9516-6668-4423-9fa1-14818331dbb7
+Name:         toolbox-agent-67f596c57b-6dd674c66
+    Message:               workload is not operational: WORKLOAD_STATE_NOT_FOUND: Workload not found: 37d059e9-3f84-4d1a-a815-4cb43a9b8ad5
     Message:               workload is not placed or not synced
-Name:         toolbox-agent-7b7bdd64bc-7555b76c59
+Name:         toolbox-agent-6bcd77b87b-f57bd54f5
 $ kubectl logs -n wasmcloud deployment/hostgroup-default --since=5m | grep 'failed to start'
-2026-10-31T15:24:39.713409Z ERROR workload_start{workload_id=6d2b9516-6668-4423-9fa1-14818331dbb7 workload.name="toolbox-agent-6d4dc68b86-759c8fbf9c" workload.namespace="default"}: failed to start workload workload_id="6d2b9516-6668-4423-9fa1-14818331dbb7" reason="failed to pull image for component 'memory': failed to pull component from workshop-toolbox-registry:5000/workshop/tool-memroy:0.4.0: Registry error: url http://workshop-toolbox-registry:5000/v2/workshop/tool-memroy/manifests/0.4.0, envelope: OCI API errors: [OCI API error: manifest unknown]"
+2026-10-31T15:40:45.805686Z ERROR workload_start{workload_id=37d059e9-3f84-4d1a-a815-4cb43a9b8ad5 workload.name="toolbox-agent-67f596c57b-6dd674c66" workload.namespace="default"}: failed to start workload workload_id="37d059e9-3f84-4d1a-a815-4cb43a9b8ad5" reason="failed to pull image for component 'memory': failed to pull component from workshop-toolbox-registry:5000/workshop/tool-memroy:0.4.0: Registry error: url http://workshop-toolbox-registry:5000/v2/workshop/tool-memroy/manifests/0.4.0, envelope: OCI API errors: [OCI API error: manifest unknown]"
 
 # Troubleshoot 3: a store the platform never declared
 $ kubectl apply -f steps/08-scale/broken-store.yaml
 workloaddeployment.runtime.wasmcloud.dev/toolbox-agent configured
 $ kubectl describe workloads -n default | grep -E '^Name:|Message:'
-Name:         toolbox-agent-5bbd59989b-5ccb7f7f56
-    Message:               workload is not operational: WORKLOAD_STATE_ERROR: workload e552f31c-0673-4ac9-9b7f-e09fee53de47 cannot bind plugin 'wasmcloud-keyvalue-multiplexed': this plugin declares bindings; it serves `team-a`, `team-b` and `agent-memory` is not among them; add it under `host.plugins` entry `wasmcloud-keyvalue-multiplexed`'s `bindings`
+Name:         toolbox-agent-5dfb5978dd-664d677fd
+Name:         toolbox-agent-7946f7787c-cdcddd674
+    Message:               workload is not operational: WORKLOAD_STATE_ERROR: workload fe1ea5a3-5bec-4ad2-a65d-d5d24ea8fb9c cannot bind plugin 'wasmcloud-keyvalue-multiplexed': this plugin declares bindings; it serves `team-a`, `team-b` and `agent-memory` is not among them; add it under `host.plugins` entry `wasmcloud-keyvalue-multiplexed`'s `bindings`
     Message:               workload is not placed or not synced
-Name:         toolbox-agent-6489666d55-84844bd497

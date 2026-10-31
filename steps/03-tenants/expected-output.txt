@@ -36,12 +36,12 @@ $ curl -s -H 'Host: b.agent.localhost' http://127.0.0.1:18180/ -d 'what do you r
 # Both teams' workloads, and step 2's, run on the same host; the toy sites run on their own:
 $ kubectl get workloads -A -o custom-columns=NAMESPACE:.metadata.namespace,HOST:.status.hostId
 NAMESPACE        HOST
-default          01a1928c-98b1-7b01-921f-5027fec29990
-team-a           01a1928c-98b1-7b01-921f-5027fec29990
-team-b           01a1928c-98b1-7b01-921f-5027fec29990
-workshop-sites   01a1928c-99ea-7ad0-b303-7a8a99b3a477
+default          01a1929a-9ff8-7c80-94e4-c4b789321ec8
+team-a           01a1929a-9ff8-7c80-94e4-c4b789321ec8
+team-b           01a1929a-9ff8-7c80-94e4-c4b789321ec8
+workshop-sites   01a1929a-a119-7c21-a0aa-dbb101265bcf
 $ kubectl get pods -A -l wasmcloud.com/name=hostgroup
 NAMESPACE        NAME                                  READY   STATUS    RESTARTS   AGE
-wasmcloud        hostgroup-default-5f76856cf6-n7vlj    1/1     Running   0          2m43s
-workshop-sites   hostgroup-fixtures-696fcfcd7b-lsdrv   1/1     Running   0          2m43s
+wasmcloud        hostgroup-default-5f76856cf6-ftmkv    1/1     Running   0          3m27s
+workshop-sites   hostgroup-fixtures-696fcfcd7b-rcnzs   1/1     Running   0          3m27s
 

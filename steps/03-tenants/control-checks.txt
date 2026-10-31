@@ -8,12 +8,16 @@ team-b:our_team
 $ kubectl apply -f steps/03-tenants/other-store.yaml
 The workloaddeployments "other-store" is invalid: : ValidatingAdmissionPolicy 'workshop-toolbox-tenant-stores' with binding 'workshop-toolbox-tenant-stores' denied request: a keyvalue host interface in namespace team-b must be named team-b (its own store)
 
+# team-b pins its workload to the fixtures host: Kubernetes refuses it too
+$ kubectl apply -f .run/pinned.yaml   # team-b's own store, hostId: <the fixtures host>
+The workloaddeployments "pinned" is invalid: : ValidatingAdmissionPolicy 'workshop-toolbox-tenant-stores' with binding 'workshop-toolbox-tenant-stores' denied request: a team's workloads may not pin a host (hostId); the operator places them
+
 # team-b sets team-a's prefix in its own manifest: the host refuses it (workloadConfig: deny)
 $ kubectl apply -f steps/03-tenants/own-prefix.yaml
 workloaddeployment.runtime.wasmcloud.dev/own-prefix created
 $ kubectl describe workloads -n team-b | grep -E '^Name:|Message:'
-Name:         own-prefix-5b686568f5-d69489d9f
-    Message:               workload is not operational: WORKLOAD_STATE_ERROR: workload a6b39afa-bfac-474a-8c91-01fa23239505 cannot bind plugin 'wasmcloud-keyvalue-multiplexed': it sets `prefix`, which belong to the operator; a manifest that set them could point itself at another backend or widen its own grant. Ask the operator to declare them under `host.plugins`
+Name:         own-prefix-7f57c64695-6bc75db5c9
+    Message:               workload is not operational: WORKLOAD_STATE_ERROR: workload 696b0757-bfb9-4d99-9fab-7f192a8f6ff4 cannot bind plugin 'wasmcloud-keyvalue-multiplexed': it sets `prefix`, which belong to the operator; a manifest that set them could point itself at another backend or widen its own grant. Ask the operator to declare them under `host.plugins`
 
 # Each team's facts survive a restart of the data service and of the host pods.
 # (v2.11.0's redis backend doesn't reconnect, so the host pods restart after Valkey.)
