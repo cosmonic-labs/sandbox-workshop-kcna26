@@ -23,6 +23,6 @@ $ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'what do you rem
 [tool recall_all] ok: my favorite color = teal; my api key = sk-demo-123
 [model] Done. Here is what each step returned: recall_all: my favorite color = teal; my api key = sk-demo-123
 
-$ nats --server nats://127.0.0.1:14322 kv ls agent-memory
-my_favorite_color
-my_api_key
+$ kubectl exec -n workshop-data deploy/valkey -- valkey-cli --scan --pattern 'agent:*'
+agent:my_favorite_color
+agent:my_api_key

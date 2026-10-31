@@ -1,4 +1,37 @@
-# Step 3, make prove only: the squatter check
+# Step 3, make prove only: each team's store, then the squatter check
+# The data service holds each team's facts under its own store's prefix:
+$ kubectl exec -n workshop-data deploy/valkey -- valkey-cli --scan --pattern 'team-*'
+team-a:our_team
+team-b:our_team
+
+# team-b asks for team-a's store: Kubernetes refuses it (k8s/tenant-policy.yaml)
+$ kubectl apply -f steps/03-tenants/other-store.yaml
+The workloaddeployments "other-store" is invalid: : ValidatingAdmissionPolicy 'workshop-toolbox-tenant-stores' with binding 'workshop-toolbox-tenant-stores' denied request: a keyvalue host interface in namespace team-b must be named team-b (its own store)
+
+# team-b sets team-a's prefix in its own manifest: the host refuses it (workloadConfig: deny)
+$ kubectl apply -f steps/03-tenants/own-prefix.yaml
+workloaddeployment.runtime.wasmcloud.dev/own-prefix created
+$ kubectl describe workloads -n team-b | grep -E '^Name:|Message:'
+Name:         own-prefix-5b686568f5-d69489d9f
+    Message:               workload is not operational: WORKLOAD_STATE_ERROR: workload a6b39afa-bfac-474a-8c91-01fa23239505 cannot bind plugin 'wasmcloud-keyvalue-multiplexed': it sets `prefix`, which belong to the operator; a manifest that set them could point itself at another backend or widen its own grant. Ask the operator to declare them under `host.plugins`
+
+# Each team's facts survive a restart of the data service and of the host pods.
+# (v2.11.0's redis backend doesn't reconnect, so the host pods restart after Valkey.)
+$ kubectl -n workshop-data rollout restart deployment/valkey
+$ kubectl -n wasmcloud rollout restart deployment/hostgroup-default
+$ kubectl -n workshop-sites rollout restart deployment/hostgroup-fixtures
+$ curl -s -H 'Host: a.agent.localhost' http://127.0.0.1:18180/ -d 'what do you remember?'
+[user] what do you remember?
+[model] call recall_all({})
+[tool recall_all] ok: our team = alpha
+[model] Done. Here is what each step returned: recall_all: our team = alpha
+
+$ curl -s -H 'Host: b.agent.localhost' http://127.0.0.1:18180/ -d 'what do you remember?'
+[user] what do you remember?
+[model] call recall_all({})
+[tool recall_all] ok: our team = bravo
+[model] Done. Here is what each step returned: recall_all: our team = bravo
+
 # Squatter check: team-b claims the toy sites' names on the host it shares with team-a.
 # team-a's agent gets step 5's web tool (allowed planted.workshop-sites.svc only).
 $ kubectl apply -f steps/03-tenants/squatter.yaml && sleep 2 && kubectl wait --for=condition=Ready workloaddeployment/toolbox-agent
