@@ -1,0 +1,71 @@
+# The workshop's data service: one Valkey server (the Linux Foundation's
+# open source fork of Redis), in its own namespace. The platform declares it
+# as the backend for the keyvalue plugin (k8s/values.yaml, `plugins:`), with
+# a key prefix per store; workloads only ask for "keyvalue" and never see
+# this address or a prefix.
+#
+# Data is kept on a PersistentVolumeClaim (kind's default local-path storage)
+# with an append-only file, so it survives a restart of the Valkey pod and of
+# the host pods.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: workshop-data
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: valkey-data
+  namespace: workshop-data
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 256Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: valkey
+  namespace: workshop-data
+spec:
+  replicas: 1
+  # One pod owns the volume at a time.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels: { app: valkey }
+  template:
+    metadata:
+      labels: { app: valkey }
+    spec:
+      automountServiceAccountToken: false
+      containers:
+        - name: valkey
+          image: docker.io/valkey/valkey:9.1.2-alpine
+          imagePullPolicy: IfNotPresent
+          args: ["valkey-server", "--appendonly", "yes", "--dir", "/data"]
+          ports:
+            - { containerPort: 6379, name: valkey }
+          readinessProbe:
+            exec:
+              command: ["valkey-cli", "ping"]
+            periodSeconds: 2
+          volumeMounts:
+            - { name: data, mountPath: /data }
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: valkey-data
+---
+# Inside the cluster only. From your laptop, use valkey-cli in the pod:
+#   kubectl exec -n workshop-data deploy/valkey -- valkey-cli --scan
+apiVersion: v1
+kind: Service
+metadata:
+  name: valkey
+  namespace: workshop-data
+spec:
+  selector: { app: valkey }
+  ports:
+    - { port: 6379, targetPort: valkey, name: valkey }

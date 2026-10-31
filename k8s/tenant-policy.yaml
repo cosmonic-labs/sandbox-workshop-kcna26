@@ -1,0 +1,56 @@
+# Admission policy for the teams' namespaces (any namespace labelled
+# workshop-toolbox/tenant: "true"; step 3 creates team-a and team-b).
+#
+# The keyvalue plugin gives each store its own key prefix (k8s/values.yaml),
+# but a store's name is not tied to a namespace: any workload that asks for
+# `team-a` gets team-a's store. So Kubernetes decides who may ask, with a
+# built in ValidatingAdmissionPolicy (no extra controller):
+#
+#   * a team's keyvalue host interface must be named after its namespace, so
+#     team-b can't ask for team-a's store, or for the unnamed default store;
+#   * a team's workloads run on the default host group, so team-b can't land
+#     on the fixtures host group and use the toy sites' store.
+#
+# It checks WorkloadDeployments, WorkloadReplicaSets and Workloads, since a
+# team could create any of the three.
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: workshop-toolbox-tenant-stores
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+      - apiGroups: [runtime.wasmcloud.dev]
+        apiVersions: ["*"]
+        operations: [CREATE, UPDATE]
+        resources: [workloaddeployments, workloadreplicasets, workloads]
+  variables:
+    # A Workload carries its spec directly; the other two carry it in a template.
+    - name: spec
+      expression: "has(object.spec.template) ? object.spec.template.spec : object.spec"
+    - name: stores
+      expression: >-
+        (has(variables.spec.hostInterfaces) ? variables.spec.hostInterfaces : [])
+        .filter(h, h.namespace == 'wasmcloud' && h.package == 'keyvalue')
+  validations:
+    - expression: "variables.stores.all(h, has(h.name) && h.name == request.namespace)"
+      messageExpression: >-
+        "a keyvalue host interface in namespace " + request.namespace +
+        " must be named " + request.namespace + " (its own store)"
+    - expression: >-
+        has(variables.spec.hostSelector) &&
+        variables.spec.hostSelector.?hostgroup.orValue('') == 'default'
+      message: "a team's workloads run on the default host group (hostSelector hostgroup: default)"
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: workshop-toolbox-tenant-stores
+spec:
+  policyName: workshop-toolbox-tenant-stores
+  validationActions: [Deny]
+  matchResources:
+    namespaceSelector:
+      matchLabels:
+        workshop-toolbox/tenant: "true"

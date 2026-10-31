@@ -22,10 +22,6 @@
       "label": "workshop ingress (agents and toy sites; use curl with a Host header)",
       "onAutoForward": "silent"
     },
-    "14322": {
-      "label": "data service (NATS)",
-      "onAutoForward": "ignore"
-    },
     "15052": {
       "label": "cluster registry",
       "onAutoForward": "ignore"

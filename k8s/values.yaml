@@ -36,16 +36,39 @@ runtime:
       service:
         type: ClusterIP
       # The backend behind the WASI 0.3 keyvalue interface, declared by the
-      # platform, not by workloads: since v2.11.0 a workload may not set a
-      # backend's url itself (workloadConfig defaults to deny). It points at
-      # the workshop's data service (k8s/data-nats.yaml).
+      # platform, not by workloads: the data service (k8s/data-valkey.yaml).
+      #
+      # Valkey has no buckets. Every key a workload writes gets the prefix of
+      # the store it was bound to, so each store below is its own part of
+      # the keyspace. A workload picks a store by its import's label, which
+      # its manifest names under hostInterfaces (`name: team-a`); an import
+      # with no label gets the entry's own config, the default store.
+      #
+      # workloadConfig: deny (the v2.11.0 default, written out) means url
+      # and prefix come only from here: a workload that sets either, or names
+      # a store not declared under bindings, fails to deploy. hostOwnedKeys
+      # adds backend, so a workload can't switch to another kind of backend
+      # either. Store names are not tied to namespaces; the admission policy
+      # in k8s/tenant-policy.yaml lets each team ask only for its own.
       plugins:
         - id: wasmcloud-keyvalue-multiplexed
-          allowedHosts: [data-nats.workshop-data.svc:4222]
-          allowedIpNameLookups: [data-nats.workshop-data.svc]
+          allowedHosts: [valkey.workshop-data.svc:6379]
+          allowedIpNameLookups: [valkey.workshop-data.svc]
+          workloadConfig: deny
+          hostOwnedKeys: [backend]
+          # The default store: the default namespace's agent (steps 1, 2, 5 to 8).
           config:
-            backend: nats
-            url: nats://data-nats.workshop-data.svc:4222
+            backend: redis
+            url: redis://valkey.workshop-data.svc:6379
+            prefix: "agent:"
+          # One store per team (step 3), layered over the config above.
+          bindings:
+            team-a:
+              config:
+                prefix: "team-a:"
+            team-b:
+              config:
+                prefix: "team-b:"
       # Since v2.11.0 a hostPath volume must lie inside an allowed directory;
       # the default list is empty.
       hostPaths:
@@ -80,11 +103,14 @@ runtime:
         localBypassRouting: false
       service:
         type: ClusterIP
-      # The collector keeps its count in keyvalue too.
+      # The collector keeps its count in keyvalue too, in a store of its own.
       plugins:
         - id: wasmcloud-keyvalue-multiplexed
-          allowedHosts: [data-nats.workshop-data.svc:4222]
-          allowedIpNameLookups: [data-nats.workshop-data.svc]
+          allowedHosts: [valkey.workshop-data.svc:6379]
+          allowedIpNameLookups: [valkey.workshop-data.svc]
+          workloadConfig: deny
+          hostOwnedKeys: [backend]
           config:
-            backend: nats
-            url: nats://data-nats.workshop-data.svc:4222
+            backend: redis
+            url: redis://valkey.workshop-data.svc:6379
+            prefix: "toy-sites:"

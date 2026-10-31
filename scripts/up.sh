@@ -5,7 +5,8 @@
 #   runtime-operator  the upstream wasmCloud chart, v2.11.0: operator, NATS and
 #                     two host groups (default for the agents, fixtures for the
 #                     toy sites), one host pod each
-#   data-nats         the data service behind keyvalue (k8s/data-nats.yaml)
+#   valkey            the data service behind keyvalue (k8s/data-valkey.yaml)
+#   tenant policy     admission policy for the teams' stores (k8s/tenant-policy.yaml)
 #   workshop-sites    the toy sites' namespace and Services (k8s/sites.yaml)
 #   agent Service     the way in to the agent (k8s/agent-service.yaml)
 # then push the prebuilt components (or SRC=<dir>). 127.0.0.1:18180 reaches the
@@ -34,9 +35,6 @@ nodes:
       - containerPort: 30180
         hostPort: ${HOST_HTTP##*:}
         listenAddress: "${HOST_HTTP%:*}"
-      - containerPort: 30422
-        hostPort: ${DATA_NATS_URL##*:}
-        listenAddress: "127.0.0.1"
     extraMounts:
       - hostPath: $ROOT/steps/06-notes/notes
         containerPath: /workshop/notes
@@ -69,7 +67,13 @@ fi
 docker network connect kind "$REGISTRY_CONTAINER" 2>/dev/null || true
 REGISTRY="localhost:$KIND_REGISTRY_PORT" "$ROOT/scripts/push.sh" "${SRC:-$ROOT/artifacts}"
 
-K apply -f "$ROOT/k8s/data-nats.yaml" >/dev/null
+# The ingress and data service images, and step 4's container image, are
+# loaded into the node so nothing pulls at the workshop.
+for img in docker.io/library/nginx:1.27.5-alpine docker.io/valkey/valkey:9.1.2-alpine busybox:1.36; do
+  docker image inspect "$img" >/dev/null 2>&1 || docker pull -q "$img" >/dev/null
+  kind load docker-image "$img" --name "$CLUSTER" >/dev/null 2>&1 || true
+done
+K apply -f "$ROOT/k8s/data-valkey.yaml" >/dev/null
 # The fixtures host group runs in workshop-sites, which must exist first.
 K apply -f "$ROOT/k8s/sites.yaml" >/dev/null
 helm --kube-context "$CTX" upgrade --install wasmcloud "$ROOT/.upstream/charts/runtime-operator" \
@@ -77,25 +81,20 @@ helm --kube-context "$CTX" upgrade --install wasmcloud "$ROOT/.upstream/charts/r
 K -n wasmcloud rollout status deploy/hostgroup-default --timeout 5m >/dev/null
 K -n workshop-sites rollout status deploy/hostgroup-fixtures --timeout 5m >/dev/null
 
-# The ingress image, and step 4's container image, are loaded into the node
-# so nothing pulls at the workshop.
-for img in docker.io/library/nginx:1.27.5-alpine busybox:1.36; do
-  docker image inspect "$img" >/dev/null 2>&1 || docker pull -q "$img" >/dev/null
-  kind load docker-image "$img" --name "$CLUSTER" >/dev/null 2>&1 || true
-done
 K apply -f "$ROOT/k8s/agent-service.yaml" >/dev/null
+K apply -f "$ROOT/k8s/tenant-policy.yaml" >/dev/null
 K apply -f "$ROOT/k8s/ingress.yaml" >/dev/null
 K -n wasmcloud rollout status deploy/workshop-ingress --timeout 3m >/dev/null
 
-# The platform provisions the stores; a workload can open a store but not
-# create one. scripts/stores.sh lists them.
-K -n workshop-data rollout status deploy/data-nats --timeout 3m >/dev/null
-"$ROOT/scripts/stores.sh" create
+# The platform declares the stores (k8s/values.yaml); a workload can ask for
+# one by name but can't make one up. scripts/stores.sh lists their keys.
+K -n workshop-data rollout status deploy/valkey --timeout 3m >/dev/null
+"$ROOT/scripts/stores.sh" wait
 
 # The toy sites (planted page, collector, fake model) run from the start, on
 # the fixtures host group. A host pulls an image when a workload starts, and
 # the tag above is the same on every run, so recreate the toy sites to pick up
-# what was just pushed. The collector's count lives in its bucket and stays.
+# what was just pushed. The collector's count lives in its store and stays.
 K -n workshop-sites delete workloaddeployment toy-sites --ignore-not-found --wait=true >/dev/null
 K apply -f "$ROOT/steps/00-fixtures/toy-sites.yaml" >/dev/null
 K -n workshop-sites wait --for=condition=Ready workloaddeployment/toy-sites --timeout=180s >/dev/null || true

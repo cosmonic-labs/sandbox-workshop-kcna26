@@ -90,7 +90,7 @@ else
     ok "Docker is running ($((mem / 1000000000)) GB for containers)"
   fi
 fi
-for t in kind kubectl helm nats; do
+for t in kind kubectl helm; do
   p=$(find_tool "$t")
   if [ -n "$p" ]; then ok "$t ($p)"; else fail "$t is missing" "fix: make tools"; fi
 done
