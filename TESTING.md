@@ -29,8 +29,9 @@ make doctor
 - [ ] `make prove`: ends with `proofs written:` and the transcripts. `git
       diff steps` shows only host ids, the service account token prefix, pod
       names and the order Valkey lists keys in.
-- [ ] Step 3's `control-checks.txt`: team-b's `other-store.yaml` is denied
-      by `workshop-toolbox-tenant-stores`, `own-prefix.yaml` never becomes
+- [ ] Step 3's `control-checks.txt`: team-b's `other-store.yaml` and the
+      pinned host manifest are denied by `workshop-toolbox-tenant-stores`,
+      `own-prefix.yaml` never becomes
       Ready and its `Message:` names `prefix`, and after the host pod and
       Valkey restart each team still recalls only its own fact.
 - [ ] `make clean`: the cluster and the registry container are gone; your
