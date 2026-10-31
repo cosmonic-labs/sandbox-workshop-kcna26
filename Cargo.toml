@@ -6,6 +6,8 @@ members = [
   "components/model-real",
   "components/not-installed",
   "components/tool-memory",
+  "components/tool-memory-team-a",
+  "components/tool-memory-team-b",
   "components/tool-notes",
   "components/tool-web",
   "components/toy-sites",

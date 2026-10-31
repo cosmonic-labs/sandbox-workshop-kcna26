@@ -1,24 +1,54 @@
 //! memory: facts stored under keys, backed by wasmCloud's keyvalue interface.
 //!
 //! The only capability this component imports is wasmcloud:keyvalue/store
-//! (async, WASI 0.3). The bucket name comes from the MEMORY_BUCKET environment
-//! variable (default "agent-memory"); the host decides what backs it (the
-//! cluster's NATS JetStream key value store in this workshop).
+//! (async, WASI 0.3). The host decides what backs it: in this workshop, the
+//! cluster's Valkey data service, under a key prefix the platform picks.
+//!
+//! One source file, three builds. This crate imports the store with no
+//! label and gets the platform's default store. Step 3's tool-memory-team-a
+//! and tool-memory-team-b build this same file with a feature that labels the
+//! import with the team's name, so the platform can give each team a store of
+//! its own (k8s/values.yaml, `bindings:`).
 
+#[cfg(not(any(feature = "team-a", feature = "team-b")))]
 wit_bindgen::generate!({
     path: "../../wit",
     world: "workshop:toolbox/memory-tool",
     generate_all,
 });
+#[cfg(not(any(feature = "team-a", feature = "team-b")))]
+use wasmcloud::keyvalue::store;
+
+#[cfg(feature = "team-a")]
+wit_bindgen::generate!({
+    path: "../../wit",
+    world: "workshop:toolbox/memory-tool-team-a",
+    generate_all,
+});
+#[cfg(feature = "team-a")]
+use team_a as store;
+
+#[cfg(feature = "team-b")]
+wit_bindgen::generate!({
+    path: "../../wit",
+    world: "workshop:toolbox/memory-tool-team-b",
+    generate_all,
+});
+#[cfg(feature = "team-b")]
+use team_b as store;
 
 use exports::workshop::toolbox::memory::{Entry, Error, Guest, RecallArgs, RememberArgs};
-use wasmcloud::keyvalue::store;
+
+/// The bucket the tool opens. On this workshop's Valkey backend the name
+/// selects nothing: the platform's binding decides which keys a tool sees.
+/// Other backends (NATS, for one) map it to a bucket of that name.
+const BUCKET: &str = "memory";
 
 struct Memory;
 
-/// NATS KV keys allow only [A-Za-z0-9_=/.-], so "my favorite color" is stored
-/// as "my_favorite_color". (In memory and filesystem backends accept spaces;
-/// portable keys avoid surprises when the backend changes.)
+/// Some backends limit key characters (NATS KV allows only [A-Za-z0-9_=/.-]),
+/// so "my favorite color" is stored as "my_favorite_color". Valkey accepts any
+/// key; portable keys avoid surprises when the backend changes.
 fn to_key(k: &str) -> Result<String, Error> {
     let k = k.trim();
     if k.is_empty() {
@@ -33,22 +63,11 @@ fn from_key(k: &str) -> String {
     k.replace('_', " ")
 }
 
-fn env(name: &str) -> Option<String> {
-    wasi::cli::environment::get_environment()
-        .into_iter()
-        .find_map(|(k, v)| (k == name).then_some(v))
-}
-
-fn bucket_name() -> String {
-    env("MEMORY_BUCKET").unwrap_or_else(|| "agent-memory".into())
-}
-
 /// The store's typed error, as this tool's typed error.
 fn store_error(e: store::Error) -> Error {
-    let bucket = bucket_name();
     match e {
-        store::Error::NoSuchStore => Error::NoSuchStore(format!("bucket {bucket}")),
-        store::Error::AccessDenied => Error::AccessDenied(format!("bucket {bucket}")),
+        store::Error::NoSuchStore => Error::NoSuchStore(format!("bucket {BUCKET}")),
+        store::Error::AccessDenied => Error::AccessDenied(format!("bucket {BUCKET}")),
         store::Error::InvalidArgument => Error::InvalidArgument("the store refused the key".into()),
         store::Error::Timeout => Error::Unavailable("the store timed out".into()),
         store::Error::StoreUnavailable => Error::Unavailable("the store is unreachable".into()),
@@ -59,7 +78,7 @@ fn store_error(e: store::Error) -> Error {
 }
 
 async fn bucket() -> Result<store::Bucket, Error> {
-    store::open(bucket_name()).await.map_err(store_error)
+    store::open(BUCKET.into()).await.map_err(store_error)
 }
 
 fn text(bytes: Vec<u8>) -> String {

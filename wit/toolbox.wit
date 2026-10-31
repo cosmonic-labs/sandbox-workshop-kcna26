@@ -276,12 +276,28 @@ world model-real {
   export model;
 }
 
-/// The memory tool: a key value store, and the bucket name from its
-/// environment.
+/// The memory tool: a key value store and nothing else. The import has no
+/// label, so the host gives it the platform's default store.
 @since(version = 0.3.0)
 world memory-tool {
-  import wasi:cli/environment@0.3.0;
   import wasmcloud:keyvalue/store@0.2.0;
+  export memory;
+}
+
+/// Step 3's memory tool for team-a: the same tool, with the store import
+/// labelled `team-a`. The platform binds that label to team-a's own part of
+/// the data service (k8s/values.yaml), and admission policy lets only the
+/// team-a namespace ask for it (k8s/tenant-policy.yaml).
+@since(version = 0.4.0)
+world memory-tool-team-a {
+  import team-a: wasmcloud:keyvalue/store@0.2.0;
+  export memory;
+}
+
+/// Step 3's memory tool for team-b: the store import labelled `team-b`.
+@since(version = 0.4.0)
+world memory-tool-team-b {
+  import team-b: wasmcloud:keyvalue/store@0.2.0;
   export memory;
 }
 

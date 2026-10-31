@@ -297,6 +297,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "tool-memory-team-a"
+version = "0.1.0"
+dependencies = [
+ "wit-bindgen",
+]
+
+[[package]]
+name = "tool-memory-team-b"
+version = "0.1.0"
+dependencies = [
+ "wit-bindgen",
+]
+
+[[package]]
 name = "tool-notes"
 version = "0.1.0"
 dependencies = [

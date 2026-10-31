@@ -1,0 +1,20 @@
+# Step 3's memory tool for team-b: tool-memory's own source, built with its
+# store import labelled `team-b`. The platform binds that label to team-b's
+# store (k8s/values.yaml); the image is tool-memory-team-b.
+[package]
+name = "tool-memory-team-b"
+edition.workspace = true
+version.workspace = true
+publish.workspace = true
+
+[lib]
+crate-type = ["cdylib"]
+path = "../tool-memory/src/lib.rs"
+
+[features]
+default = ["team-b"]
+team-a = []
+team-b = []
+
+[dependencies]
+wit-bindgen.workspace = true

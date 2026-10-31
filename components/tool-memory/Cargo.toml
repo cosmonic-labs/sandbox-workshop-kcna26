@@ -7,6 +7,12 @@ publish.workspace = true
 [lib]
 crate-type = ["cdylib"]
 
+[features]
+# Label the store import with a team's name (step 3). The team crates,
+# components/tool-memory-team-a and -team-b, build this crate's source with
+# one of these on.
+team-a = []
+team-b = []
+
 [dependencies]
 wit-bindgen.workspace = true
-
