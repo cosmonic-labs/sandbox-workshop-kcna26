@@ -92,7 +92,7 @@ Three things keep a team inside its own store:
   lets a team ask only for the store named after its namespace. team-b asking
   for `team-a` is refused at `kubectl apply` (`other-store.yaml` tries).
 * The same policy keeps the teams on the default host group, where their
-  stores are declared.
+  stores are declared, and stops them pinning a host (`hostId`).
 
 `make prove` runs these checks and a restart of the host pod and of Valkey
 (team-a's facts are still there afterwards): `control-checks.txt`.

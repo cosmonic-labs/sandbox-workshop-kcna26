@@ -437,7 +437,8 @@ v2.11.0 (`make prove`).
   `host-aliases`. Requests for a name are spread over every workload that
   claims it, so that squatter would get a share (3 of 8 in a test). The
   workshop's admission policy (`k8s/tenant-policy.yaml`) keeps the teams'
-  namespaces on `hostgroup: default`. A real platform needs the same kind of
+  namespaces on `hostgroup: default` and refuses a pinned `hostId`, which
+  the operator honours before `hostSelector`. A real platform needs the same kind of
   rule, and one for ingress names such as `a.agent.localhost` on a shared
   host.
 * **A keyvalue store is chosen by a label built into the component.** The

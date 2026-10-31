@@ -112,6 +112,15 @@ reset_count
   echo "\$ kubectl apply -f steps/03-tenants/other-store.yaml"
   kubectl apply -f steps/03-tenants/other-store.yaml 2>&1 || true
   echo
+  echo "# team-b pins its workload to the fixtures host: Kubernetes refuses it too"
+  FIXTURES_HOST=$(kubectl get hosts -n wasmcloud -l hostgroup=fixtures -o jsonpath='{.items[0].hostId}')
+  sed -e 's/name: other-store/name: pinned/' -e 's/- name: team-a$/- name: team-b/' \
+    -e 's/tool-memory-team-a/tool-memory-team-b/' -e 's/other-store.b/pinned.b/' \
+    -e "s/^      hostSelector:/      hostId: $FIXTURES_HOST\\
+      hostSelector:/" steps/03-tenants/other-store.yaml >"$RUN_DIR/pinned.yaml"
+  echo "\$ kubectl apply -f .run/pinned.yaml   # team-b's own store, hostId: <the fixtures host>"
+  kubectl apply -f "$RUN_DIR/pinned.yaml" 2>&1 || true
+  echo
   echo "# team-b sets team-a's prefix in its own manifest: the host refuses it (workloadConfig: deny)"
   echo "\$ kubectl apply -f steps/03-tenants/own-prefix.yaml"
   kubectl apply -f steps/03-tenants/own-prefix.yaml
