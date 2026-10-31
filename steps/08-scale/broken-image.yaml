@@ -46,13 +46,9 @@ spec:
                 LLM_URL: http://llm.workshop-sites.svc/v1/chat/completions
                 LLM_MODEL: fake-model
         # memory is the only component that imports keyvalue. The platform
-        # declares the backend (k8s/values.yaml) and creates the bucket.
+        # declares the backend and the store (k8s/values.yaml).
         - name: memory
           image: workshop-toolbox-registry:5000/workshop/tool-memroy:0.4.0
-          localResources:
-            environment:
-              config:
-                MEMORY_BUCKET: agent-memory
         - name: notes
           image: workshop-toolbox-registry:5000/workshop/tool-notes:0.4.0
           localResources:

@@ -31,7 +31,7 @@ does not stop prompt injection; it decides what a hijacked agent can reach.**
   Codespaces has it). Run `make build` once beforehand to fetch the crates.
   Without Rust, step 2 uses the prebuilt image.
 
-Every other tool (wash, kind, kubectl, helm, nats, wasm-tools) is downloaded
+Every other tool (wash, kind, kubectl, helm, wasm-tools) is downloaded
 into `.tools/` by `make tools`, pinned and checked against a SHA256. Nothing
 is installed outside the repo folder and nothing runs with sudo.
 
@@ -52,7 +52,7 @@ the commands to run and the output to expect (`expected-output.txt`).
 | --- | --- | --- |
 | 1 | `kubectl apply` the agent | A Workload is a custom resource; it runs on a wasmCloud host pod |
 | 2 | Build its memory tool with `wash` | A component imports only what it asks for; a capability is an interface the platform grants |
-| 3 | Two teams, two namespaces | One host pod, many tenants, each with its own hostname, bucket and grants |
+| 3 | Two teams, two namespaces | One host pod, many tenants, each with its own hostname, store and grants |
 | 4 | Run the same agent as a container | Kubernetes defaults start open: it leaks its Secret and its service account token |
 | 5 | A web tool allowed one host | Planted attack 1 fails at the egress check, but the one allowed host is still a way out |
 | 6 | A notes tool over one read only folder | Planted attack 2 fails at the folder boundary |
@@ -90,7 +90,7 @@ down` does nothing destructive; `make clean` deletes the cluster.
    namespace             └──┬────────────────────┬──┘    ▲ Services planted, collector,
    workshop-data            │ keyvalue           │ HTTP  │ llm (.workshop-sites.svc)
    ┌──────────────────┐     │                    └───────┘
-   │ data-nats        │◀────┘                      only hosts in a component's
+   │ valkey           │◀────┘                      only hosts in a component's
    └──────────────────┘                            allowedHosts; all else denied
 ```
 
@@ -110,11 +110,13 @@ down` does nothing destructive; `make clean` deletes the cluster.
   There are two host groups: `default` for the teams' agents, and
   `fixtures`, in its own namespace, for the toy sites. A workload picks one
   with `hostSelector: {hostgroup: ...}`.
-* **The data service.** The platform declares where keyvalue data lives
-  (`k8s/values.yaml`, `plugins:`) and creates the buckets
-  (`scripts/stores.sh`). Workloads only ask for "keyvalue": since v2.11.0 a
-  workload may not name a backend's address itself, and it can open a bucket
-  but not create one. Blobstore (object storage) works the same way.
+* **The data service.** One Valkey server (`k8s/data-valkey.yaml`). The
+  platform declares where keyvalue data lives (`k8s/values.yaml`,
+  `plugins:`): a default store for the default namespace and one store per
+  team, each its own key prefix. Workloads only ask for "keyvalue", by store
+  name: since v2.11.0 a workload may not set a backend's address or prefix
+  itself, and an admission policy (`k8s/tenant-policy.yaml`) lets a team ask
+  only for its own store. Blobstore (object storage) works the same way.
 * **Only granted ways out.** A component reaches a host over HTTP only if
   that host is in its own `allowedHosts`. Everything else is denied by
   default. The toy sites are ordinary Kubernetes Services, so an agent's
@@ -149,7 +151,7 @@ If you know Kubernetes, most of this maps onto things you already know.
   YAML manifest. You apply it as a `WorkloadDeployment`, which plays the role
   of a Deployment; the operator schedules it onto a host pod.
 * **Capability**: one specific kind of access a component is granted, such as
-  a keyvalue bucket, one folder, or a list of hosts it may call over HTTP.
+  a keyvalue store, one folder, or a list of hosts it may call over HTTP.
   Capabilities are granted per component in the manifest, much like a volume
   mount or a network policy, except that the default is "nothing".
 * **WIT**: the interface definition language for components (in the same
@@ -166,7 +168,7 @@ If you know Kubernetes, most of this maps onto things you already know.
   HTTP  ┌──────────────────────────────────────────────────────────────┐
  ─────▶ │  agent (harness) ──▶ model                                   │
         │        │                                                     │
-        │        ├──▶ memory   ── keyvalue       (one bucket)          │
+        │        ├──▶ memory   ── keyvalue       (one store)           │
         │        ├──▶ notes    ── one folder, mounted read only        │
         │        └──▶ web      ── HTTP out       (allowedHosts list)   │
         └──────────────────────────────────────────────────────────────┘
@@ -377,7 +379,9 @@ name, not `agent.localhost`. Use `curl`.
 | `curl: (7) Failed to connect to 127.0.0.1 port 18180` | The cluster is not up | `make up` |
 | `kubectl` talks to another cluster | Your context changed back | `kubectl config use-context kind-workshop-toolbox` |
 | `kubectl wait` times out | The host is still pulling | `kubectl get workloads -A`, then try again; `make up` reloads everything |
-| A tool says `{"no-such-store":"bucket ..."}` | The stores were reset or never made | `scripts/stores.sh create` |
+| A tool says `{"other":"Redis error: broken pipe"}` | The data service restarted; v2.11.0's redis backend doesn't reconnect | `kubectl -n wasmcloud rollout restart deployment/hostgroup-default` (and `-n workshop-sites ... hostgroup-fixtures`) |
+| A workload's `Message:` says a store `is not among` the declared ones | The manifest names a keyvalue store the platform didn't declare | Use the store your namespace is given (`k8s/values.yaml`, `bindings:`) |
+| `kubectl apply` is denied by `workshop-toolbox-tenant-stores` | A team's manifest asks for another store or host group | Name the keyvalue host interface after the namespace; use `hostgroup: default` |
 | Port 18180 is taken | Another program has it | `HOST_HTTP=127.0.0.1:18190 make up` after `make clean` (the port is fixed when the cluster is created) |
 
 ## Layout
@@ -386,7 +390,8 @@ name, not `agent.localhost`. Use `curl`.
 artifacts/        prebuilt components and SHA256SUMS (what make up pushes)
 components/       the Rust source: agent, models, tools, not-installed, toy-sites
   common/         HTTP helpers over wasi:http@0.3.0, shared by source path
-k8s/              chart values, the data service, the toy sites' Services, the ingress
+k8s/              chart values, the data service, the toy sites' Services, the ingress,
+                  the teams' admission policy
 scripts/          up, down, stores, prove, push, tools, doctor
 steps/            one folder per step: manifest, README, expected output
 wit/              workshop:toolbox and the WASI 0.3 / wasmCloud WIT it uses
@@ -400,7 +405,8 @@ v2.11.0 (`make prove`).
 * **Works as the steps claim:** labelled imports between components in one
   workload; per component `allowedHosts`; a read only `hostPath` volume on one
   component, inside the host's `hostPaths.allowed` list; keyvalue on a
-  backend the platform declares; workloads from different
+  backend the platform declares, one store per team with its own key prefix
+  that a workload can't change; workloads from different
   namespaces on one host pod; `kubectl scale` on a WorkloadDeployment.
 * **A grant belongs to one component, for calls made one after another.**
   Concurrent calls through linked components can currently borrow a
@@ -426,12 +432,23 @@ v2.11.0 (`make prove`).
   the toy sites by Kubernetes Services. `make prove` checks that the same
   claim now catches nothing.
 * **A workload chooses its own host group.** `hostSelector` is part of the
-  Workload spec, so nothing stops team-b from asking for
-  `hostgroup: fixtures` and claiming `planted.workshop-sites.svc` there with
+  Workload spec, so without a policy team-b could ask for
+  `hostgroup: fixtures` and claim `planted.workshop-sites.svc` there with
   `host-aliases`. Requests for a name are spread over every workload that
-  claims it, so that squatter would get a share (3 of 8 in a test). Admission
-  policy has to decide which namespaces may use which host group, and the
-  same holds for ingress names such as `a.agent.localhost` on a shared host.
+  claims it, so that squatter would get a share (3 of 8 in a test). The
+  workshop's admission policy (`k8s/tenant-policy.yaml`) keeps the teams'
+  namespaces on `hostgroup: default`. A real platform needs the same kind of
+  rule, and one for ingress names such as `a.agent.localhost` on a shared
+  host.
+* **A keyvalue store is chosen by a label built into the component.** The
+  host serves a store to the component import with the same label
+  (`import team-a: wasmcloud:keyvalue/store`), and the store names in
+  `bindings:` are host wide, not per namespace. So each team's memory tool is
+  its own build (`tool-memory-team-a`, `tool-memory-team-b`, the same source
+  with a different label), and admission policy has to decide which
+  namespace may ask for which name. An import with no label gets the entry's
+  own config; give that a prefix of its own too, or it reads every key in
+  the server.
 * **Service names are listed by hand.** The operator adds a Service's DNS
   names to a workload's routes by itself only for wasi:http 0.2 handlers
   (`kubernetes.service`, wasmCloud#5582). The toy sites are WASI 0.3, so
@@ -445,6 +462,15 @@ v2.11.0 (`make prove`).
   v0.33.0, kindnet's policy enforcement dropped the DNS replies to the
   operator and host pods, which then crash looped. Keep them on in a real
   cluster.
-* **The workshop runs its own data service** because the chart's NATS
-  requires mutual TLS with client certificates, which the multiplexed
-  keyvalue backend does not present.
+* **The data service is Valkey, not NATS.** The keyvalue plugin's redis
+  backend (Valkey speaks the same protocol) ignores bucket names and keeps
+  each store apart by the prefix the platform sets. Its NATS backend opens
+  any bucket on the server by name, so on v2.11.0 nothing stops one tenant
+  from opening another's bucket; scoping buckets is draft wasmCloud#5498.
+  The workshop also runs its own data service because the chart's NATS
+  requires mutual TLS with client certificates.
+* **The redis backend doesn't reconnect.** The host keeps one connection
+  per store and shares it across workloads. After Valkey restarts, every
+  call answers `Redis error: broken pipe` until the host pods restart;
+  redeploying a workload reuses the broken connection. The data itself
+  survives (Valkey keeps it on a volume).

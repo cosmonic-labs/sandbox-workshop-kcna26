@@ -1,0 +1,43 @@
+# Step 3 negative check: team-b asks for its own store, but sets the store's
+# key prefix to team-a's in its manifest.
+#
+# Kubernetes accepts it (the name matches the namespace). The host refuses
+# it when it binds the workload: the keyvalue plugin runs with
+# workloadConfig: deny (k8s/values.yaml), so url, prefix and backend come
+# only from the platform. The workload never becomes Ready, and its Message
+# says why.
+apiVersion: runtime.wasmcloud.dev/v1alpha1
+kind: WorkloadDeployment
+metadata:
+  name: own-prefix
+  namespace: team-b
+spec:
+  replicas: 1
+  template:
+    spec:
+      hostSelector:
+        hostgroup: default
+      hostInterfaces:
+        - namespace: wasi
+          package: http
+          interfaces: [handler]
+          config:
+            host: own-prefix.b.agent.localhost
+        - name: team-b
+          namespace: wasmcloud
+          package: keyvalue
+          version: 0.2.0
+          interfaces: [store]
+          config:
+            prefix: "team-a:"
+      components:
+        - name: agent
+          image: workshop-toolbox-registry:5000/workshop/agent:0.4.0
+        - name: model
+          image: workshop-toolbox-registry:5000/workshop/model-scripted:0.4.0
+        - name: memory
+          image: workshop-toolbox-registry:5000/workshop/tool-memory-team-b:0.4.0
+        - name: notes
+          image: workshop-toolbox-registry:5000/workshop/not-installed:0.4.0
+        - name: web
+          image: workshop-toolbox-registry:5000/workshop/not-installed:0.4.0

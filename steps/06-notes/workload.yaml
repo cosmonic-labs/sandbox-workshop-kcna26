@@ -47,13 +47,9 @@ spec:
         - name: model
           image: workshop-toolbox-registry:5000/workshop/model-scripted:0.4.0
         # memory is the only component that imports keyvalue. The platform
-        # declares the backend (k8s/values.yaml) and creates the bucket.
+        # declares the backend and the store (k8s/values.yaml).
         - name: memory
           image: workshop-toolbox-registry:5000/workshop/tool-memory:0.4.0
-          localResources:
-            environment:
-              config:
-                MEMORY_BUCKET: agent-memory
         - name: notes
           image: workshop-toolbox-registry:5000/workshop/tool-notes:0.4.0
           localResources:

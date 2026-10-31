@@ -15,10 +15,10 @@ cd agent-toolbox-workshop
 make doctor
 ```
 
-- [ ] `make doctor` before `make tools`: red `FAIL` on wash, kind, kubectl,
-      helm and nats, each with `fix: make tools`. Exit is nonzero.
-- [ ] `make tools`: six `ok` lines (wash, nats, wasm-tools, kind, kubectl,
-      helm), under a minute on good Wi-Fi.
+- [ ] `make doctor` before `make tools`: red `FAIL` on wash, kind, kubectl
+      and helm, each with `fix: make tools`. Exit is nonzero.
+- [ ] `make tools`: five `ok` lines (wash, wasm-tools, kind, kubectl, helm),
+      under a minute on good Wi-Fi.
 - [ ] `make doctor`: every Required line green, ending in `Ready.`
 - [ ] `make up`: ends with the cluster, registry and ingress lines and a
       `stores` line, in about 2 minutes the first time. `kubectl config
@@ -26,9 +26,13 @@ make doctor
 - [ ] `export PATH="$PWD/.tools:$PATH"`, then walk steps 1 to 7 by hand from
       each `steps/*/README.md`. Every command runs as written and the output
       matches the **Expected** block.
-- [ ] `make prove`: ends with `proofs written:` and seven files. `git diff
-      steps` shows only host ids, the service account token prefix and pod
-      names.
+- [ ] `make prove`: ends with `proofs written:` and the transcripts. `git
+      diff steps` shows only host ids, the service account token prefix, pod
+      names and the order Valkey lists keys in.
+- [ ] Step 3's `control-checks.txt`: team-b's `other-store.yaml` is denied
+      by `workshop-toolbox-tenant-stores`, `own-prefix.yaml` never becomes
+      Ready and its `Message:` names `prefix`, and after the host pod and
+      Valkey restart each team still recalls only its own fact.
 - [ ] `make clean`: the cluster and the registry container are gone; your
       previous kubectl context still exists (`kubectl config get-contexts`).
 
@@ -48,7 +52,7 @@ make doctor
 ## 4. In the room
 
 - [ ] Conference Wi-Fi: `make up` on a machine that ran `make tools && make
-      up` the day before needs no downloads (kind's node image and the chart
-      images are cached).
+      up` the day before needs no downloads (kind's node image, the chart
+      images and the Valkey image are cached).
 - [ ] Jumping ahead works: on a fresh `make up`, `kubectl apply -f
       steps/05-web/workload.yaml` alone, then step 5's commands.

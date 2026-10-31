@@ -1,5 +1,5 @@
-# Step 8, broken on purpose: step 7's workload with a typo in the memory
-# bucket's name. This one becomes Ready. Find out what goes wrong.
+# Step 8, broken on purpose: step 7's workload asks for a keyvalue store by
+# a name the platform never declared. Find out what goes wrong.
 
 apiVersion: runtime.wasmcloud.dev/v1alpha1
 kind: WorkloadDeployment
@@ -24,7 +24,8 @@ spec:
           interfaces: [handler]
           config:
             host: agent.localhost
-        - namespace: wasmcloud
+        - name: agent-memory
+          namespace: wasmcloud
           package: keyvalue
           version: 0.2.0
           interfaces: [store]
@@ -46,13 +47,9 @@ spec:
                 LLM_URL: http://llm.workshop-sites.svc/v1/chat/completions
                 LLM_MODEL: fake-model
         # memory is the only component that imports keyvalue. The platform
-        # declares the backend (k8s/values.yaml) and creates the bucket.
+        # declares the backend and the store (k8s/values.yaml).
         - name: memory
           image: workshop-toolbox-registry:5000/workshop/tool-memory:0.4.0
-          localResources:
-            environment:
-              config:
-                MEMORY_BUCKET: agent-memroy
         - name: notes
           image: workshop-toolbox-registry:5000/workshop/tool-notes:0.4.0
           localResources:

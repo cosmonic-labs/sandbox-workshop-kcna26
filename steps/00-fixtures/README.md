@@ -30,6 +30,7 @@ curl -s -H 'Host: sites.localhost' http://127.0.0.1:18180/count    # leaks so fa
 curl -s -X POST -H 'Host: sites.localhost' http://127.0.0.1:18180/reset
 ```
 
-The collector keeps its count, and the last 50 leaks, in the keyvalue bucket
-`toy-collector`. In a browser, http://sites.localhost:18180 shows the same
+The collector keeps its count, and the last 50 leaks, in keyvalue, in a store
+of its own: the fixtures host group's keyvalue backend uses the key prefix
+`toy-sites:` (`k8s/values.yaml`). In a browser, http://sites.localhost:18180 shows the same
 thing live (`GET /leaks` is its JSON).

@@ -1,0 +1,41 @@
+# Step 3 negative check: team-b asks for team-a's store.
+#
+# The same agent as team-b's in tenants.yaml, but its memory tool is team-a's
+# image and its keyvalue host interface is named team-a. The keyvalue plugin
+# would serve it: store names are host wide, not per namespace. Kubernetes
+# refuses it first, at kubectl apply, because team-b is a tenant namespace
+# and k8s/tenant-policy.yaml lets a tenant ask only for the store named after
+# its namespace.
+apiVersion: runtime.wasmcloud.dev/v1alpha1
+kind: WorkloadDeployment
+metadata:
+  name: other-store
+  namespace: team-b
+spec:
+  replicas: 1
+  template:
+    spec:
+      hostSelector:
+        hostgroup: default
+      hostInterfaces:
+        - namespace: wasi
+          package: http
+          interfaces: [handler]
+          config:
+            host: other-store.b.agent.localhost
+        - name: team-a
+          namespace: wasmcloud
+          package: keyvalue
+          version: 0.2.0
+          interfaces: [store]
+      components:
+        - name: agent
+          image: workshop-toolbox-registry:5000/workshop/agent:0.4.0
+        - name: model
+          image: workshop-toolbox-registry:5000/workshop/model-scripted:0.4.0
+        - name: memory
+          image: workshop-toolbox-registry:5000/workshop/tool-memory-team-a:0.4.0
+        - name: notes
+          image: workshop-toolbox-registry:5000/workshop/not-installed:0.4.0
+        - name: web
+          image: workshop-toolbox-registry:5000/workshop/not-installed:0.4.0

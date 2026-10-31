@@ -130,21 +130,24 @@ kubectl logs -n wasmcloud deployment/hostgroup-default --since=5m | grep 'failed
 ... failed to start workload ... reason="failed to pull image for component 'memory': failed to pull component from workshop-toolbox-registry:5000/workshop/tool-memroy:0.4.0: ...
 ```
 
-The last one becomes Ready, so `kubectl` sees nothing wrong:
+The last one asks for a keyvalue store the platform never declared:
 
 ```sh
 kubectl apply -f steps/07-real-model/workload.yaml && sleep 2 && kubectl wait --for=condition=Ready workloaddeployment/toolbox-agent
-kubectl apply -f steps/08-scale/broken-bucket.yaml && sleep 2 && kubectl wait --for=condition=Ready workloaddeployment/toolbox-agent
-curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'recall what you know about me'
+kubectl apply -f steps/08-scale/broken-store.yaml
+sleep 2 && kubectl wait --for=condition=Ready workloaddeployment/toolbox-agent --timeout=30s
+kubectl describe workloads -n default | grep -E '^Name:|Message:'
 ```
 
 ```
-[tool recall_all] error: {"no-such-store":"bucket agent-memroy"}
+Message: workload is not operational: WORKLOAD_STATE_ERROR: workload ... cannot bind plugin 'wasmcloud-keyvalue-multiplexed': this plugin declares bindings; it serves `team-a`, `team-b` and `agent-memory` is not among them; ...
 ```
 
-The tool's typed error names the problem. A workload can open only a bucket
-the platform created (`scripts/stores.sh`), so a misspelled name fails
-instead of quietly creating an empty store.
+The manifest names its keyvalue host interface `agent-memory`. The platform
+declares a store per name (`k8s/values.yaml`, `bindings:`), and a workload
+can ask only for one of those, so a misspelled or invented name fails at
+startup instead of quietly opening an empty store. The message lists the
+names that exist.
 
 Put step 7 back when you're done:
 `kubectl apply -f steps/07-real-model/workload.yaml && sleep 2 && kubectl wait --for=condition=Ready workloaddeployment/toolbox-agent`.
@@ -156,7 +159,7 @@ Put step 7 back when you're done:
 | The previous step's output right after an apply | The new version isn't running yet | Wait: `sleep 2 && kubectl wait --for=condition=Ready ...` |
 | `kubectl wait` times out, but `curl` still answers | The new version failed; the old one keeps serving | `kubectl describe workloads -n <ns>`, the `Message:` lines |
 | The message says `Workload not found` | The host couldn't start it | `kubectl logs -n wasmcloud deployment/hostgroup-default` |
-| A tool error such as `no-such-store` or `access-denied` | The workload runs, but a grant or a name is wrong | The tool's message, then the manifest's `hostInterfaces`, `allowedHosts`, volumes or environment |
+| A tool error such as `access-denied` or `Redis error` | The workload runs, but a grant is wrong or the data service is down | The tool's message, then the manifest's `allowedHosts` or volumes, or `kubectl get pods -n workshop-data` |
 | HTTP 502 from `curl` | No ready replica behind that hostname yet | `kubectl get endpointslices -n <ns>`, and whether the step was applied |
 | HTTP 404 from `curl` | No workload claims that hostname | The `Host:` header, and the manifest's `host:` |
 

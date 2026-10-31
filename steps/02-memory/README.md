@@ -24,7 +24,7 @@ recall-all: async func() -> result<list<entry>, error>;
 
 Each function takes one record, so every argument has a doc comment, and
 fails with the interface's own `error` variant: `no-such-store` when the
-bucket is missing, `access-denied` when the store refuses, and so on.
+store is missing, `access-denied` when the store refuses, and so on.
 
 The tool knows nothing about agents or models. The model speaks JSON, so
 something has to translate. A host could build these tool definitions from
@@ -35,21 +35,22 @@ the typed call it makes.
 
 **The capability.** `memory` is the only component that imports keyvalue
 (`wasmcloud:keyvalue/store`). In `workload.yaml` the workload asks for it
-under `hostInterfaces`, and the memory component names its bucket in
-`MEMORY_BUCKET`. That is all the workload says. Where the data lives is the
-platform's decision: `k8s/values.yaml` declares the backend (the cluster's
-data service) under `plugins:`, and `scripts/stores.sh` created the bucket.
-A workload can open a bucket the platform made; it cannot create one, and it
-cannot point keyvalue at an address of its own choosing. Blobstore (object
-storage) works the same way: the platform declares the backend and creates
-the store, and the workload only asks for the interface.
+under `hostInterfaces`. That is all the workload says. Where the data lives
+is the platform's decision: `k8s/values.yaml` declares the backend (the
+cluster's Valkey data service) under `plugins:`, and the key prefix this
+workload's store gets (`agent:`). A workload cannot point keyvalue at an
+address of its own choosing or pick its own prefix: since v2.11.0 the host
+refuses a manifest that tries. Blobstore (object storage) works the same
+way: the platform declares the backend, and the workload only asks for the
+interface.
 
 ## Build it
 
-The tool is one Rust file, `components/tool-memory/src/lib.rs`, about 90
-lines. Open it: it imports nothing but keyvalue (`wasmcloud::keyvalue::store`)
-and reads its bucket's name from `MEMORY_BUCKET`. The three `async fn`s
-under `impl Guest for Memory` are the WIT functions above.
+The tool is one Rust file, `components/tool-memory/src/lib.rs`, about 110
+lines. Open it: it imports nothing but keyvalue (`wasmcloud::keyvalue::store`).
+The three `async fn`s under `impl Guest for Memory` are the WIT functions
+above. (The `cfg(feature = ...)` lines at the top build the same file for
+step 3's teams; you can ignore them here.)
 
 Building needs Rust 1.98.1 with the `wasm32-wasip2` target (`make doctor`
 says whether you have it). No Rust? Skip to **Run**: the prebuilt image is
@@ -68,7 +69,6 @@ list of what it can ask the host for:
 
 ```
 world root {
-  import wasi:cli/environment@0.3.0;
   import wasmcloud:keyvalue/types@0.2.0;
   import wasmcloud:keyvalue/store@0.2.0;
   ...
@@ -146,15 +146,14 @@ The memory survives the redeploy because it lives in the data service, not
 in the component. Every call to a tool runs in a fresh instance; nothing is
 kept in memory between calls. Remember the API key: step 5 tries to steal it.
 
-You can look at the bucket directly. `nats` is one of the pinned tools, and
-port 14322 is the cluster's data service, which `make up` maps to your
-laptop:
+You can look at the store directly, with `valkey-cli` in the data service's
+pod. Every key has this workload's store prefix, `agent:`:
 
 ```sh
-nats --server nats://127.0.0.1:14322 kv ls agent-memory
+kubectl exec -n workshop-data deploy/valkey -- valkey-cli --scan --pattern 'agent:*'
 ```
 
-Memories from an earlier run stay in the bucket, so a step that failed can
-still show old facts. `scripts/stores.sh reset` empties every bucket.
+Memories from an earlier run stay in the store, so a step that failed can
+still show old facts. `scripts/stores.sh reset` empties every store.
 
 Full transcript: `expected-output.txt`.

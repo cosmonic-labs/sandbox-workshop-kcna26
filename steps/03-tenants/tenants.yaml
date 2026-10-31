@@ -1,15 +1,23 @@
 # Step 3: two teams, two namespaces, one host pod.
 #
 # Each team's agent is the step 2 workload, in its own Kubernetes namespace,
-# with its own ingress name and its own memory bucket. The runtime operator
-# places both on the same wasmCloud host pod: the host is multi-tenant, and
-# each workload keeps its own memory and its own grants. Who may apply a
-# Workload into a team's namespace is ordinary Kubernetes RBAC.
+# with its own ingress name and its own store. The runtime operator places
+# both on the same wasmCloud host pod: the host is multi-tenant, and each
+# workload keeps its own memory and its own grants. Who may apply a Workload
+# into a team's namespace is ordinary Kubernetes RBAC.
+#
+# Its own store: each team's memory tool asks for keyvalue under the team's
+# name (`name: team-a` below, the label built into tool-memory-team-a). The
+# platform declares that name with its own key prefix (k8s/values.yaml), and
+# the label on the namespace puts it under k8s/tenant-policy.yaml, which lets
+# a team ask only for the store named after its namespace.
 ---
 apiVersion: v1
 kind: Namespace
 metadata:
   name: team-a
+  labels:
+    workshop-toolbox/tenant: "true"
 ---
 # The way in: a Service with no selector. The runtime operator fills in its
 # endpoints (spec.kubernetes.service below); the workshop's ingress sends
@@ -49,7 +57,10 @@ spec:
           interfaces: [handler]
           config:
             host: a.agent.localhost
-        - namespace: wasmcloud
+        # The team's own store: the platform gives the name team-a its
+        # own key prefix. A manifest can't set the prefix or the address.
+        - name: team-a
+          namespace: wasmcloud
           package: keyvalue
           version: 0.2.0
           interfaces: [store]
@@ -58,14 +69,10 @@ spec:
           image: workshop-toolbox-registry:5000/workshop/agent:0.4.0
         - name: model
           image: workshop-toolbox-registry:5000/workshop/model-scripted:0.4.0
-        # memory is the only component that imports keyvalue. The platform
-        # declares the backend (k8s/values.yaml) and creates the bucket.
+        # memory is the only component that imports keyvalue: the same
+        # tool as step 2, with its store import labelled team-a.
         - name: memory
-          image: workshop-toolbox-registry:5000/workshop/tool-memory:0.4.0
-          localResources:
-            environment:
-              config:
-                MEMORY_BUCKET: tenant-a-memory
+          image: workshop-toolbox-registry:5000/workshop/tool-memory-team-a:0.4.0
         - name: notes
           image: workshop-toolbox-registry:5000/workshop/not-installed:0.4.0
         - name: web
@@ -75,6 +82,8 @@ apiVersion: v1
 kind: Namespace
 metadata:
   name: team-b
+  labels:
+    workshop-toolbox/tenant: "true"
 ---
 # The way in: a Service with no selector. The runtime operator fills in its
 # endpoints (spec.kubernetes.service below); the workshop's ingress sends
@@ -114,7 +123,10 @@ spec:
           interfaces: [handler]
           config:
             host: b.agent.localhost
-        - namespace: wasmcloud
+        # The team's own store: the platform gives the name team-b its
+        # own key prefix. A manifest can't set the prefix or the address.
+        - name: team-b
+          namespace: wasmcloud
           package: keyvalue
           version: 0.2.0
           interfaces: [store]
@@ -123,14 +135,10 @@ spec:
           image: workshop-toolbox-registry:5000/workshop/agent:0.4.0
         - name: model
           image: workshop-toolbox-registry:5000/workshop/model-scripted:0.4.0
-        # memory is the only component that imports keyvalue. The platform
-        # declares the backend (k8s/values.yaml) and creates the bucket.
+        # memory is the only component that imports keyvalue: the same
+        # tool as step 2, with its store import labelled team-b.
         - name: memory
-          image: workshop-toolbox-registry:5000/workshop/tool-memory:0.4.0
-          localResources:
-            environment:
-              config:
-                MEMORY_BUCKET: tenant-b-memory
+          image: workshop-toolbox-registry:5000/workshop/tool-memory-team-b:0.4.0
         - name: notes
           image: workshop-toolbox-registry:5000/workshop/not-installed:0.4.0
         - name: web

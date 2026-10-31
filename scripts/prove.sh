@@ -44,14 +44,17 @@ hosts() {
   kubectl get pods -A -l wasmcloud.com/name=hostgroup
   echo
 }
-STORES="$DATA_NATS_URL"
-N() { nats --server "$STORES" "$@"; }
+VALKEY='kubectl exec -n workshop-data deploy/valkey -- valkey-cli'
+messages() { # namespace: each workload's name and status message
+  kubectl describe workloads -n "$1" | grep -E '^Name:|Message:' || true
+}
 
 # Clean slate, with one host pod in the default host group (step 8 adds one).
 kubectl -n wasmcloud scale deployment hostgroup-default --replicas=1 >/dev/null
 kubectl -n wasmcloud rollout status deployment/hostgroup-default --timeout=180s >/dev/null
 kubectl delete workloaddeployment --all -n default >/dev/null 2>&1 || true
 kubectl delete -f steps/03-tenants/squatter.yaml --ignore-not-found >/dev/null 2>&1 || true
+kubectl delete -f steps/03-tenants/own-prefix.yaml --ignore-not-found >/dev/null 2>&1 || true
 kubectl delete -f steps/03-tenants/tenants.yaml --ignore-not-found >/dev/null 2>&1 || true
 kubectl delete -f steps/04-container/gullible-agent.yaml --ignore-not-found >/dev/null 2>&1 || true
 "$ROOT/scripts/stores.sh" reset >/dev/null
@@ -81,8 +84,8 @@ reset_count
   ask agent.localhost 'remember that my api key is sk-demo-123'
   redeploy steps/02-memory/workload.yaml
   ask agent.localhost 'what do you remember?'
-  echo "\$ nats --server $STORES kv ls agent-memory"
-  N kv ls agent-memory
+  echo "\$ $VALKEY --scan --pattern 'agent:*'"
+  $VALKEY --scan --pattern 'agent:*'
 } >"$(OUT 02-memory)" 2>&1
 
 {
@@ -100,12 +103,45 @@ reset_count
 } >"$(OUT 03-tenants)" 2>&1
 
 {
-  echo "# Step 3, make prove only: the squatter check"
+  echo "# Step 3, make prove only: each team's store, then the squatter check"
+  echo "# The data service holds each team's facts under its own store's prefix:"
+  echo "\$ $VALKEY --scan --pattern 'team-*'"
+  $VALKEY --scan --pattern 'team-*' | sort
+  echo
+  echo "# team-b asks for team-a's store: Kubernetes refuses it (k8s/tenant-policy.yaml)"
+  echo "\$ kubectl apply -f steps/03-tenants/other-store.yaml"
+  kubectl apply -f steps/03-tenants/other-store.yaml 2>&1 || true
+  echo
+  echo "# team-b sets team-a's prefix in its own manifest: the host refuses it (workloadConfig: deny)"
+  echo "\$ kubectl apply -f steps/03-tenants/own-prefix.yaml"
+  kubectl apply -f steps/03-tenants/own-prefix.yaml
+  sleep 8
+  echo "\$ kubectl describe workloads -n team-b | grep -E '^Name:|Message:'"
+  messages team-b | grep -A1 'own-prefix'
+  kubectl delete -f steps/03-tenants/own-prefix.yaml >/dev/null
+  echo
+  echo "# Each team's facts survive a restart of the data service and of the host pods."
+  echo "# (v2.11.0's redis backend doesn't reconnect, so the host pods restart after Valkey.)"
+  echo "\$ kubectl -n workshop-data rollout restart deployment/valkey"
+  kubectl -n workshop-data rollout restart deployment/valkey >/dev/null
+  kubectl -n workshop-data rollout status deployment/valkey --timeout=180s >/dev/null
+  echo "\$ kubectl -n wasmcloud rollout restart deployment/hostgroup-default"
+  echo "\$ kubectl -n workshop-sites rollout restart deployment/hostgroup-fixtures"
+  kubectl -n wasmcloud rollout restart deployment/hostgroup-default >/dev/null
+  kubectl -n workshop-sites rollout restart deployment/hostgroup-fixtures >/dev/null
+  kubectl -n wasmcloud rollout status deployment/hostgroup-default --timeout=180s >/dev/null
+  kubectl -n workshop-sites rollout status deployment/hostgroup-fixtures --timeout=180s >/dev/null
+  sleep 5
+  kubectl wait --for=condition=Ready workloaddeployment --all --all-namespaces --timeout=180s >/dev/null
+  ask a.agent.localhost 'what do you remember?'
+  ask b.agent.localhost 'what do you remember?'
   echo "# Squatter check: team-b claims the toy sites' names on the host it shares with team-a."
   echo "# team-a's agent gets step 5's web tool (allowed planted.workshop-sites.svc only)."
   sed -e '/^  name: toolbox-agent$/a\
   namespace: team-a' -e 's/host: agent.localhost/host: a.agent.localhost/' \
-    -e 's/MEMORY_BUCKET: agent-memory/MEMORY_BUCKET: tenant-a-memory/' \
+    -e 's/^        - namespace: wasmcloud$/        - name: team-a\
+          namespace: wasmcloud/' \
+    -e 's#workshop/tool-memory:0.4.0#workshop/tool-memory-team-a:0.4.0#' \
     steps/05-web/workload.yaml >"$RUN_DIR/team-a-web.yaml"
   apply .run/team-a-web.yaml >/dev/null
   apply steps/03-tenants/squatter.yaml
@@ -251,9 +287,12 @@ reset_count
   kubectl logs -n wasmcloud deployment/hostgroup-default --since=5m | grep 'failed to start' | tail -1 || true
   apply steps/07-real-model/workload.yaml >/dev/null
   echo
-  echo "# Troubleshoot 3: a typo in the bucket's name"
-  apply steps/08-scale/broken-bucket.yaml
-  ask agent.localhost 'recall what you know about me'
+  echo "# Troubleshoot 3: a store the platform never declared"
+  echo "\$ kubectl apply -f steps/08-scale/broken-store.yaml"
+  kubectl apply -f steps/08-scale/broken-store.yaml
+  sleep 8
+  echo "\$ kubectl describe workloads -n default | grep -E '^Name:|Message:'"
+  kubectl describe workloads -n default | grep -E '^Name:|Message:' || true
   apply steps/07-real-model/workload.yaml >/dev/null
 } >"$(OUT 08-scale)" 2>&1
 
