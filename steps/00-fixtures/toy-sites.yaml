@@ -30,7 +30,7 @@ spec:
           interfaces: [handler]
           config:
             host: sites.localhost
-            host-aliases: planted.workshop-sites.svc,collector.workshop-sites.svc,llm.workshop-sites.svc
+            host-aliases: planted.workshop-sites.svc,collector.workshop-sites.svc,llm.workshop-sites.svc,api.workshop-sites.svc
         - namespace: wasmcloud
           package: keyvalue
           version: 0.2.0

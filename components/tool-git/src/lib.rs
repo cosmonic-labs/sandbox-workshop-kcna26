@@ -88,6 +88,9 @@ fn log(repo: &gix::Repository, args: &[&str]) -> Result<String, Error> {
             continue;
         } else if let Some(v) = a.strip_prefix("-n") {
             n = v.parse().map_err(|_| bad("-n needs a number"))?;
+        } else if let Some(v) = a.strip_prefix('-').filter(|v| v.chars().all(|c| c.is_ascii_digit()) && !v.is_empty()) {
+            // git's shorthand: -5 means -n 5.
+            n = v.parse().map_err(|_| bad(format!("log: {a} is not a number")))?;
         } else if a == "--oneline" {
             fmt = "%h %s".into();
         } else if let Some(v) = a.strip_prefix("--format=").or_else(|| a.strip_prefix("--pretty=format:")) {

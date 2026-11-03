@@ -20,10 +20,12 @@ source "$(dirname "$0")/env.sh"
 CTX="kind-$CLUSTER"
 K() { kubectl --context "$CTX" "$@"; }
 
-# The notes folder (step 6), and a scratch copy for the read-write control
-# case, reach the host pod through the kind node: a node path, mounted into
-# the host container by k8s/values.yaml, and allowed by its hostPaths list.
-mkdir -p "$RUN_DIR/notes-rw"
+# The data the tools read (the talks database, the hostile repository, a
+# writable folder for curl) reaches the host pod through the kind node: a node
+# path, mounted into the host container by k8s/values.yaml, and allowed by its
+# hostPaths list. Build it before the cluster, because kind mounts these node
+# paths at creation time.
+"$ROOT/scripts/fixtures.sh"
 if ! kind get clusters 2>/dev/null | grep -qx "$CLUSTER"; then
   cat >"$RUN_DIR/kind-config.yaml" <<YAML
 kind: Cluster
@@ -38,10 +40,14 @@ nodes:
         hostPort: ${DATA_NATS_URL##*:}
         listenAddress: "127.0.0.1"
     extraMounts:
-      - hostPath: $ROOT/steps/06-notes/notes
-        containerPath: /workshop/notes
-      - hostPath: $RUN_DIR/notes-rw
-        containerPath: /workshop/notes-rw
+      - hostPath: $RUN_DIR/sqlite-data
+        containerPath: /workshop/sqlite-data
+        readOnly: true
+      - hostPath: $RUN_DIR/repo
+        containerPath: /workshop/repo
+        readOnly: true
+      - hostPath: $RUN_DIR/curl-data
+        containerPath: /workshop/curl-data
 YAML
   kind create cluster --name "$CLUSTER" --config "$RUN_DIR/kind-config.yaml"
 fi

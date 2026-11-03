@@ -1,0 +1,38 @@
+# Step 1: run the agent and its three tools
+$ kubectl apply -f steps/01-run-it/workload.yaml && sleep 2 && kubectl wait --for=condition=Ready workloaddeployment/toolbox-agent
+
+# sqlite reads the talks database:
+$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'list the talks'
+[user] list the talks
+[model] call sqlite({"sql":"select title, room from talks order by title limit 5"})
+[tool sqlite] ok: A Capability Model for WebAssembly | Room 1 Components over Containers | Room 1 Debugging Wasm in Production | Room 2 From VMs to Sandboxes | Hall A Least Privilege for Multi-Tenant Clusters | Hall B
+[model] Done. Here is what each step returned: sqlite: A Capability Model for WebAssembly | Room 1 Components over Containers | Room 1 Debugging Wasm in Production | Room 2 Fr
+
+# git reads the repository:
+$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'show the recent commits'
+[user] show the recent commits
+[model] call git({"arguments":"log --oneline -5"})
+[tool git] ok: 79f302d Add gitattributes ceee4c1 Add a backup reminder 2ae34e0 Note the 1.3 dashboard ecd5969 Initial commit
+[model] Done. Here is what each step returned: git: 79f302d Add gitattributes ceee4c1 Add a backup reminder 2ae34e0 Note the 1.3 dashboard ecd5969 Initial commit
+
+# curl reaches the one host it is granted:
+$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'fetch http://api.workshop-sites.svc/data'
+[user] fetch http://api.workshop-sites.svc/data
+[model] call curl({"arguments":"-s http://api.workshop-sites.svc/data"})
+[tool curl] ok: {"service":"releases","version":"1.2","notes":"several bug fixes and performance improvements"}
+[model] Done. Here is what each step returned: curl: {"service":"releases","version":"1.2","notes":"several bug fixes and performance improvements"}
+
+# The agent harness's imports from this workshop: the model and three typed, labelled tool slots
+$ wasm-tools component wit artifacts/agent.wasm | grep 'import .*workshop:toolbox'
+  import workshop:toolbox/types@0.4.0;
+  import model: workshop:toolbox/model@0.4.0;
+  import curl: workshop:toolbox/curl@0.4.0;
+  import sqlite: workshop:toolbox/sqlite@0.4.0;
+  import git: workshop:toolbox/git@0.4.0;
+# The harness imports no HTTP client, no filesystem and no sockets, so this prints nothing:
+$ wasm-tools component wit artifacts/agent.wasm | grep -E 'wasi:(http/client|filesystem|sockets)'
+# The tools are small. Look at the sizes:
+$ ls -l artifacts/tool_curl.wasm artifacts/tool_sqlite.wasm artifacts/tool_git.wasm
+182047 artifacts/tool_curl.wasm
+2450652 artifacts/tool_git.wasm
+1174683 artifacts/tool_sqlite.wasm

@@ -59,10 +59,32 @@ pub fn split(line: &str) -> Result<Vec<String>, String> {
     Ok(out)
 }
 
+/// Split a bundle of short flags, as curl does: `-sL` becomes `-s -L`. A
+/// token is a bundle when it is a single dash followed by two or more letters.
+/// The last flag in a bundle may still take the next argument as its value, so
+/// `-so out.txt` becomes `-s -o out.txt`.
+fn expand_bundles(args: Vec<String>) -> Vec<String> {
+    let mut out = Vec::with_capacity(args.len());
+    for a in args {
+        let is_bundle = a.len() > 2
+            && a.starts_with('-')
+            && !a.starts_with("--")
+            && a[1..].chars().all(|c| c.is_ascii_alphabetic());
+        if is_bundle {
+            for c in a[1..].chars() {
+                out.push(format!("-{c}"));
+            }
+        } else {
+            out.push(a);
+        }
+    }
+    out
+}
+
 /// Parse curl's options. Unknown options are an error, as in curl.
 pub fn parse(line: &str) -> Result<Opts, String> {
     let mut o = Opts { max_redirs: 50, ..Default::default() };
-    let mut args = split(line)?.into_iter();
+    let mut args = expand_bundles(split(line)?).into_iter();
     while let Some(a) = args.next() {
         let mut val = |name: &str| args.next().ok_or_else(|| format!("option {name}: requires parameter"));
         match a.as_str() {
@@ -87,7 +109,7 @@ pub fn parse(line: &str) -> Result<Opts, String> {
                 }
             }
             "-i" | "--include" => o.include = true,
-            "-s" | "--silent" | "-S" | "--show-error" | "-sS" | "-Ss" => {}
+            "-s" | "--silent" | "-S" | "--show-error" => {}
             "-v" | "--verbose" => o.verbose = true,
             "-o" | "--output" => o.output = Some(val(&a)?),
             "-L" | "--location" => o.location = true,
@@ -167,6 +189,16 @@ mod tests {
         assert_eq!(parse("-d @/data/body.json u").unwrap().data_file.as_deref(), Some("/data/body.json"));
         assert!(parse("--upload-file x u").unwrap_err().contains("unknown"));
         assert!(parse("-H").unwrap_err().contains("requires parameter"));
+    }
+
+    #[test]
+    fn expands_bundled_short_flags() {
+        let o = parse("-sL http://x.test/r").unwrap();
+        assert!(o.location);
+        assert_eq!(o.url.as_deref(), Some("http://x.test/r"));
+        // The last flag in a bundle still takes its value.
+        let o = parse("-so out.txt http://x.test").unwrap();
+        assert_eq!(o.output.as_deref(), Some("out.txt"));
     }
 
     #[test]

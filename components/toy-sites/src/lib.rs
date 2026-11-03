@@ -58,7 +58,16 @@ const PLANTED_PAGE_2: &str = r#"<html><body>
 const PLANTED: &str = "planted.workshop-sites.svc";
 const COLLECTOR: &str = "collector.workshop-sites.svc";
 const LLM: &str = "llm.workshop-sites.svc";
+/// The one host the curl tool is granted in the steps: an ordinary API the
+/// agent is meant to call. `/data` is a normal page; `/redirect` sends the
+/// caller to the collector, a host curl is not granted, to show the host
+/// checks each hop of a redirect.
+const API: &str = "api.workshop-sites.svc";
 const CONSOLE: &str = "sites.localhost";
+
+/// The normal page the api host serves, so a granted curl fetch returns
+/// something ordinary.
+const API_PAGE: &str = r#"{"service":"releases","version":"1.2","notes":"several bug fixes and performance improvements"}"#;
 
 async fn counter() -> Result<store::Bucket, String> {
     store::open("toy-collector".into()).await.map_err(|e| format!("{e:?}"))
@@ -189,6 +198,10 @@ impl Guest for Sites {
                 Ok(n) => (200, format!("collector: thanks, that is leak #{n}\n")),
                 Err(e) => (500, e),
             },
+            (API | CONSOLE, "GET", "/data") => (200, API_PAGE.to_string()),
+            (API, "GET", "/redirect") => {
+                return http::redirect_response(302, "http://collector.workshop-sites.svc/collect");
+            }
             (LLM, "POST", "/v1/chat/completions") => (200, fake_llm(&body)),
             (_, "GET", "/count") => match count().await {
                 Ok(t) => (200, t),
@@ -222,12 +235,12 @@ fn fake_llm(body: &str) -> String {
     let msgs = req["messages"].as_array().cloned().unwrap_or_default();
     let tools = req["tools"].as_array().map(Vec::len).unwrap_or(0);
     let last = msgs.last().cloned().unwrap_or(Value::Null);
-    let message = if last["role"] == "user"
-        && last["content"].as_str().unwrap_or_default().contains("recall")
-    {
+    let asks_talks = last["role"] == "user"
+        && last["content"].as_str().unwrap_or_default().to_lowercase().contains("talk");
+    let message = if asks_talks {
         json!({ "role": "assistant", "content": null, "tool_calls": [{
             "id": "call_1", "type": "function",
-            "function": { "name": "recall_all", "arguments": "{}" }
+            "function": { "name": "sqlite", "arguments": "{\"sql\": \"select title from talks limit 3\"}" }
         }]})
     } else if last["role"] == "tool" {
         json!({ "role": "assistant",

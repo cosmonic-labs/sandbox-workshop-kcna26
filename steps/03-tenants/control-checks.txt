@@ -1,9 +1,0 @@
-# Step 3, make prove only: the squatter check
-# Squatter check: team-b claims the toy sites' names on the host it shares with team-a.
-# team-a's agent gets step 5's web tool (allowed planted.workshop-sites.svc only).
-$ kubectl apply -f steps/03-tenants/squatter.yaml && sleep 2 && kubectl wait --for=condition=Ready workloaddeployment/toolbox-agent
-workloaddeployment.runtime.wasmcloud.dev/squatter created
-
-# Six fetches from team-a; with local routing on, the squatter would answer them.
-$ curl -s -H 'Host: a.agent.localhost' http://127.0.0.1:18180/ -d 'fetch http://planted.workshop-sites.svc/page'   # x6
-answered by the toy sites: 6 of 6; by the squatter: 0 of 6

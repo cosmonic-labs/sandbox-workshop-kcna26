@@ -1,0 +1,45 @@
+# Step 3: curl reaches only the host it is granted (api.workshop-sites.svc)
+$ kubectl apply -f steps/03-curl/workload.yaml && sleep 2 && kubectl wait --for=condition=Ready workloaddeployment/toolbox-agent
+
+# Granted: the api host answers
+$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'curl -s http://api.workshop-sites.svc/data'
+[user] curl -s http://api.workshop-sites.svc/data
+[model] call curl({"arguments":"-s http://api.workshop-sites.svc/data"})
+[tool curl] ok: {"service":"releases","version":"1.2","notes":"several bug fixes and performance improvements"}
+[model] Done. Here is what each step returned: curl: {"service":"releases","version":"1.2","notes":"several bug fixes and performance improvements"}
+
+# The cloud metadata service: refused, it is not granted
+$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'curl -s http://169.254.169.254/latest/meta-data/'
+[user] curl -s http://169.254.169.254/latest/meta-data/
+[model] call curl({"arguments":"-s http://169.254.169.254/latest/meta-data/"})
+[tool curl] error: {"access-denied":"169.254.169.254: this tool may not reach that host (not in its allowedHosts)"}
+[model] Done. Here is what each step returned: curl: ERROR: {"access-denied":"169.254.169.254: this tool may not reach that host (not in its allowedHosts)"}
+
+# Another cluster host: refused
+$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'curl -s http://collector.workshop-sites.svc/collect'
+[user] curl -s http://collector.workshop-sites.svc/collect
+[model] call curl({"arguments":"-s http://collector.workshop-sites.svc/collect"})
+[tool curl] error: {"access-denied":"collector.workshop-sites.svc: this tool may not reach that host (not in its allowedHosts)"}
+[model] Done. Here is what each step returned: curl: ERROR: {"access-denied":"collector.workshop-sites.svc: this tool may not reach that host (not in its allowedHosts)"}
+
+# A redirect from the granted host to a denied host: the second hop is refused
+$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'curl -sL http://api.workshop-sites.svc/redirect'
+[user] curl -sL http://api.workshop-sites.svc/redirect
+[model] call curl({"arguments":"-sL http://api.workshop-sites.svc/redirect"})
+[tool curl] error: {"access-denied":"collector.workshop-sites.svc: this tool may not reach that host (not in its allowedHosts)"}
+[model] Done. Here is what each step returned: curl: ERROR: {"access-denied":"collector.workshop-sites.svc: this tool may not reach that host (not in its allowedHosts)"}
+
+# Writing outside the tool's folder with -o: refused
+$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'curl -o /etc/evil -s http://api.workshop-sites.svc/data'
+[user] curl -o /etc/evil -s http://api.workshop-sites.svc/data
+[model] call curl({"arguments":"-o /etc/evil -s http://api.workshop-sites.svc/data"})
+[tool curl] error: {"access-denied":"/etc/evil: No such file or directory (os error 44) (this tool sees only /data)"}
+[model] Done. Here is what each step returned: curl: ERROR: {"access-denied":"/etc/evil: No such file or directory (os error 44) (this tool sees only /data)"}
+
+# Writing inside the tool's folder with -o: allowed
+$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'curl -o page.html -s http://api.workshop-sites.svc/data'
+[user] curl -o page.html -s http://api.workshop-sites.svc/data
+[model] call curl({"arguments":"-o page.html -s http://api.workshop-sites.svc/data"})
+[tool curl] ok: saved 95 bytes to /data/page.html
+[model] Done. Here is what each step returned: curl: saved 95 bytes to /data/page.html
+
