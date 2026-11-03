@@ -66,10 +66,12 @@ if [ "$(git -C "$ROOT/.upstream" rev-parse -q --verify HEAD 2>/dev/null)" != \
 fi
 
 # The host pod pulls components from this container by its name on the kind
-# network; the step manifests name it as $REGISTRY_CONTAINER:5000.
+# network; the step manifests name it as $REGISTRY_CONTAINER:5000. It restarts
+# with Docker, so a codespace or laptop restart does not strand the host pods
+# with nothing to pull from.
 if ! docker ps --format '{{.Names}}' | grep -qx "$REGISTRY_CONTAINER"; then
   docker rm -f "$REGISTRY_CONTAINER" >/dev/null 2>&1 || true
-  docker run -d --name "$REGISTRY_CONTAINER" -p "127.0.0.1:$KIND_REGISTRY_PORT:5000" registry:2 >/dev/null
+  docker run -d --restart unless-stopped --name "$REGISTRY_CONTAINER" -p "127.0.0.1:$KIND_REGISTRY_PORT:5000" registry:2 >/dev/null
   sleep 1
 fi
 docker network connect kind "$REGISTRY_CONTAINER" 2>/dev/null || true
