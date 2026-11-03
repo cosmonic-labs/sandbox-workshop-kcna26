@@ -10,10 +10,11 @@ wasm-tools component wit artifacts/tool_curl.wasm | grep -E 'import|export'
 ```
 
 It exports `workshop:toolbox/curl` and imports `wasi:http/client`, plus the
-command line basics Rust's standard library needs. It imports no filesystem
-write it does not use, no sockets and no environment. What `curl` can reach is
-not in the code: it is the `allowedHosts` list in the manifest, which this step
-sets to one host.
+command line basics Rust's standard library needs (environment, standard
+streams) and a filesystem for `-o`, which the manifest limits to one folder. It
+imports no sockets, so every request goes through the host. What `curl` can
+reach is not in the code: it is the `allowedHosts` list in the manifest, which
+this step sets to one host.
 
 **Build it yourself** (optional; needs Rust 1.98.1 with the `wasm32-wasip2`
 target, which `make doctor` checks). `curl` is pure Rust, so no C toolchain is
