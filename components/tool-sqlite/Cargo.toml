@@ -1,0 +1,13 @@
+[package]
+name = "tool-sqlite"
+edition.workspace = true
+version.workspace = true
+publish.workspace = true
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+wit-bindgen.workspace = true
+# Compiles SQLite's C source with wasi-sdk's clang (see build.rs).
+rusqlite = { version = "0.37", features = ["bundled", "wasm32-wasi-vfs"] }
