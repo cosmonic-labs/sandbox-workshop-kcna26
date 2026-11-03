@@ -1,0 +1,33 @@
+# Familiar command line tools, built as WebAssembly components. Their own
+# workspace, so the workshop components above keep their lockfile and
+# profile. Build from this folder: cargo build --release
+[workspace]
+resolver = "2"
+members = ["curl", "sqlite", "git"]
+# The patched crates below are path dependencies, not tools of their own.
+exclude = ["git/vendor"]
+
+[workspace.package]
+edition = "2021"
+version = "0.1.0"
+publish = false
+
+# Small enough to share, quick enough to rebuild after each edit. For the
+# smallest file, build with --profile small (link-time optimization, slower).
+[profile.release]
+opt-level = "s"
+strip = true
+
+[profile.small]
+inherits = "release"
+opt-level = "z"
+lto = true
+panic = "abort"
+codegen-units = 1
+
+# gix's file mapping and timestamp crates have no wasm32-wasip2 support yet.
+# These copies read files into memory instead of mapping them, and set times
+# through WASI. See git/vendor/*/src for the changed files.
+[patch.crates-io]
+memmap2 = { path = "git/vendor/memmap2" }
+filetime = { path = "git/vendor/filetime" }

@@ -1,0 +1,9 @@
+[package]
+name = "sqlite3"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+# Compiles SQLite's C source with wasi-sdk's clang (see build.rs).
+rusqlite = { version = "0.37", features = ["bundled", "wasm32-wasi-vfs"] }

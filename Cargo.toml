@@ -10,6 +10,8 @@ members = [
   "components/tool-web",
   "components/toy-sites",
 ]
+# tools/ is its own workspace (familiar CLI tools as components).
+exclude = ["tools"]
 
 [workspace.package]
 edition = "2024"

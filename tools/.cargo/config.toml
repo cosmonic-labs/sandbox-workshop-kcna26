@@ -1,0 +1,4 @@
+# Every tool here is a WebAssembly component, so build for that target by
+# default when you run cargo from this folder.
+[build]
+target = "wasm32-wasip2"
