@@ -182,6 +182,116 @@ interface web {
 }
 
 // ---------------------------------------------------------------------------
+// Familiar command line tools.
+//
+// Each one takes what you would type after the program's name, so you can
+// teach it new tricks without changing this file. Each is famous for an
+// escape (sqlite3's .shell, curl reaching the cloud metadata service, git
+// running hooks); as components they have nothing to escape to.
+// ---------------------------------------------------------------------------
+
+/// curl: HTTP requests from a command line, only to the hosts in this
+/// component's allowedHosts.
+@since(version = 0.4.0)
+interface curl {
+  /// Why a curl call failed.
+  ///
+  /// Payload strings are diagnostic. Their wording is not stable, and
+  /// programs should not parse them.
+  variant error {
+    /// The arguments are malformed, such as an unknown option or no URL.
+    /// The payload says which and why.
+    invalid-argument(string),
+    /// This tool may not do this: the host is not in its allowedHosts, or a
+    /// file is outside its folder. The payload names what was refused.
+    access-denied(string),
+    /// The request was allowed but did not complete: the name did not
+    /// resolve, the connection failed or timed out. The payload says what
+    /// happened.
+    network(string),
+    /// Any other failure. Treat it as a generic failure.
+    other(option<string>),
+  }
+
+  /// Arguments for `run`.
+  record run-args {
+    /// What you would type after `curl`, such as
+    /// `-s -H "Accept: application/json" https://example.com`.
+    arguments: string,
+  }
+
+  /// Run curl with these arguments and return what it prints: the response
+  /// body, plus headers with -i, or a short summary with -o.
+  run: async func(args: run-args) -> result<string, error>;
+}
+
+/// sqlite3: SQL over the database files in this component's folder.
+@since(version = 0.4.0)
+interface sqlite {
+  /// Why a sqlite call failed.
+  ///
+  /// Payload strings are diagnostic. Their wording is not stable, and
+  /// programs should not parse them.
+  variant error {
+    /// The statement is empty or malformed, or names an unknown
+    /// dot-command. The payload is SQLite's message.
+    invalid-argument(string),
+    /// This tool may not do this: the database or an attached file is
+    /// outside its folder, or the folder is read only. The payload names it.
+    access-denied(string),
+    /// No database file exists at this path. The payload names it.
+    not-found(string),
+    /// Any other failure. Treat it as a generic failure.
+    other(option<string>),
+  }
+
+  /// Arguments for `query`.
+  record query-args {
+    /// SQL to run, such as `select title from talks limit 5`, or a
+    /// dot-command such as `.tables` or `.schema talks`.
+    sql: string,
+  }
+
+  /// Run SQL against this tool's database and return the rows, one per
+  /// line, with columns separated by " | ".
+  query: async func(args: query-args) -> result<string, error>;
+}
+
+/// git: read a repository in this component's folder. Only commands that
+/// read are available.
+@since(version = 0.4.0)
+interface git {
+  /// Why a git call failed.
+  ///
+  /// Payload strings are diagnostic. Their wording is not stable, and
+  /// programs should not parse them.
+  variant error {
+    /// The arguments are malformed, or name a command this tool does not
+    /// offer. The payload says which and why.
+    invalid-argument(string),
+    /// This tool may not do this: the path is outside its folder. The
+    /// payload names it.
+    access-denied(string),
+    /// No repository, revision or file exists by this name. The payload
+    /// names it.
+    not-found(string),
+    /// Any other failure. Treat it as a generic failure.
+    other(option<string>),
+  }
+
+  /// Arguments for `run`.
+  record run-args {
+    /// What you would type after `git`, such as `log --oneline -5` or
+    /// `show HEAD:README.md`.
+    arguments: string,
+  }
+
+  /// Run a read-only git command in the repository and return what it
+  /// prints.
+  run: async func(args: run-args) -> result<string, error>;
+}
+
+// ---------------------------------------------------------------------------
 // The model.
 // ---------------------------------------------------------------------------
 
@@ -298,6 +408,27 @@ world notes-tool {
 world web-tool {
   import wasi:http/client@0.3.0;
   export web;
+}
+
+/// The curl tool: outgoing HTTP, only to the hosts in this component's
+/// allowedHosts, and files only in the folder its manifest mounts.
+@since(version = 0.4.0)
+world curl-tool {
+  import wasi:http/client@0.3.0;
+  export curl;
+}
+
+/// The sqlite tool: database files in the folder its manifest mounts, and
+/// nothing else.
+@since(version = 0.4.0)
+world sqlite-tool {
+  export sqlite;
+}
+
+/// The git tool: a repository in the folder its manifest mounts, read only.
+@since(version = 0.4.0)
+world git-tool {
+  export git;
 }
 
 /// The placeholder that fills every slot until a step installs the real
