@@ -12,7 +12,7 @@
     "cpus": 4,
     "memory": "8gb"
   },
-  "onCreateCommand": "cargo fetch --locked || true",
+  "onCreateCommand": "cargo fetch --locked || true; (cd tools && cargo build --release --locked) || true",
   "postCreateCommand": "mkdir -p .tools && ln -sf /opt/workshop-tools/* .tools/ && make tools && make doctor",
   "forwardPorts": [
     18180
