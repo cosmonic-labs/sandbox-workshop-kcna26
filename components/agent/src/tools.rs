@@ -2,9 +2,9 @@
 //!
 //! A model only understands JSON. It is shown a list of tools, each with a
 //! name, a description and a JSON Schema for its arguments, and it answers
-//! with JSON such as {"name": "remember", "arguments": {"key": "...",
-//! "fact": "..."}}. The tools only understand typed functions such as
-//! `memory::remember(RememberArgs { key, fact })`.
+//! with JSON such as {"name": "curl", "arguments": {"arguments": "-s
+//! https://example.com"}}. The tools only understand typed functions such as
+//! `curl::run(RunArgs { arguments })`.
 //!
 //! Something has to translate between the two. A host could do it: read each
 //! tool's WIT, build the definitions the model sees from the WIT's names,
@@ -19,20 +19,18 @@
 //!   the tool's arguments: the field names are the JSON properties and the
 //!   field doc comments are their descriptions.
 //! - The function's doc comment is the tool's description.
-//! - The tool's name is the WIT function name in snake_case, or a name that
-//!   reads better to a model (`read_note` for `notes.read`). A host keeps a
-//!   rename table like that too.
+//! - The tool's name is the WIT function name, or a name that reads better to
+//!   a model (`curl` for the curl tool's `run`). A host keeps a rename table
+//!   like that too.
 //! - A typed error reaches the model as `{"case": "payload"}`, the JSON form
-//!   of a WIT variant, so the model can tell a missing file from a denied
-//!   one.
-//! - A result with a `text` field (the web tool's `response`) shows its other
-//!   fields as one compact JSON line, then the text.
+//!   of a WIT variant, so the model can tell a denied request from a network
+//!   failure.
 //!
-//! One shortcut: a host shows any other result as compact JSON. The rows
-//! here write a short sentence instead, so the transcript reads well on a
-//! slide.
+//! Each of these three tools is a familiar command line program. Its one
+//! argument is the command line you would type after the program's name, so a
+//! tool learns new tricks without a new row here.
 
-use crate::{memory, notes, web};
+use crate::{curl, git, sqlite};
 use serde_json::{Value, json};
 
 /// One function the model may call.
@@ -50,58 +48,35 @@ pub struct Tool {
 
 /// The whole table. `call` below makes the typed call behind each row.
 pub const TOOLS: &[Tool] = &[
-    // workshop:toolbox/memory.remember
+    // workshop:toolbox/curl.run
     Tool {
-        name: "remember",
-        description: "Remember a fact under a short key, for later conversations. A fact \
-                      already stored under the key is replaced.",
-        params: &[
-            ("key", "A short name for the fact, such as \"favorite color\"."),
-            ("fact", "The fact itself."),
-        ],
+        name: "curl",
+        description: "Make an HTTP request with curl and return what it prints. Only the \
+                      hosts this tool is granted can be reached.",
+        params: &[(
+            "arguments",
+            "What you would type after curl, such as -s https://example.com.",
+        )],
     },
-    // workshop:toolbox/memory.recall
+    // workshop:toolbox/sqlite.query
     Tool {
-        name: "recall",
-        description: "Look up the fact remembered under one key. Returns none when nothing \
-                      is stored under it.",
-        params: &[("key", "The key the fact was stored under.")],
+        name: "sqlite",
+        description: "Run SQL against this tool's database and return the rows. Also accepts \
+                      dot-commands such as .tables and .schema.",
+        params: &[(
+            "sql",
+            "SQL to run, such as select title from talks limit 5, or a dot-command such as .tables.",
+        )],
     },
-    // workshop:toolbox/memory.recall-all
+    // workshop:toolbox/git.run
     Tool {
-        name: "recall_all",
-        description: "List every fact remembered so far, in no particular order.",
-        params: &[],
-    },
-    // workshop:toolbox/notes.read
-    Tool {
-        name: "read_note",
-        description: "Read a file from the user's notes folder and return its text.",
-        params: &[("path", "The file's path inside the notes folder, such as todo.txt.")],
-    },
-    // workshop:toolbox/notes.append
-    Tool {
-        name: "append_note",
-        description: "Add one line to the end of a file in the user's notes folder.",
-        params: &[
-            ("path", "The file's path inside the notes folder, such as todo.txt."),
-            ("line", "The text to add. A line break is added after it."),
-        ],
-    },
-    // workshop:toolbox/web.fetch
-    Tool {
-        name: "fetch",
-        description: "Fetch a web page with HTTP GET and return the server's answer.",
-        params: &[("url", "The full URL, such as http://example.com/page.")],
-    },
-    // workshop:toolbox/web.post
-    Tool {
-        name: "post",
-        description: "Send text to a URL with HTTP POST and return the server's answer.",
-        params: &[
-            ("url", "The full URL, such as http://example.com/form."),
-            ("body", "The text to send."),
-        ],
+        name: "git",
+        description: "Run a read-only git command in this tool's repository and return what it \
+                      prints, such as log, show, diff, blame or ls-files.",
+        params: &[(
+            "arguments",
+            "What you would type after git, such as log --oneline -5.",
+        )],
     },
 ];
 
@@ -111,53 +86,20 @@ pub const TOOLS: &[Tool] = &[
 /// function is async (WASI 0.3), so each arm awaits the linked component.
 pub async fn call(name: &str, a: &Args) -> Result<String, String> {
     match name {
-        "remember" => {
-            let args = memory::RememberArgs { key: a.get("key")?, fact: a.get("fact")? };
-            let line = format!("remembered {} = {}", args.key, args.fact);
-            memory::remember(args).await.map_err(memory_error)?;
-            Ok(line)
+        "curl" => {
+            let args = curl::RunArgs { arguments: a.get("arguments")? };
+            curl::run(args).await.map_err(curl_error)
         }
-        "recall" => {
-            let args = memory::RecallArgs { key: a.get("key")? };
-            let key = args.key.clone();
-            let fact = memory::recall(args).await.map_err(memory_error)?;
-            Ok(fact.unwrap_or(format!("nothing remembered under {key}")))
+        "sqlite" => {
+            let args = sqlite::QueryArgs { sql: a.get("sql")? };
+            sqlite::query(args).await.map_err(sqlite_error)
         }
-        "recall_all" => {
-            let entries = memory::recall_all().await.map_err(memory_error)?;
-            if entries.is_empty() {
-                return Ok("nothing remembered yet".into());
-            }
-            let lines: Vec<String> =
-                entries.iter().map(|e| format!("{} = {}", e.key, e.fact)).collect();
-            Ok(lines.join("; "))
-        }
-        "read_note" => {
-            let args = notes::ReadArgs { path: a.get("path")? };
-            notes::read(args).await.map_err(notes_error)
-        }
-        "append_note" => {
-            let args = notes::AppendArgs { path: a.get("path")?, line: a.get("line")? };
-            let path = args.path.clone();
-            notes::append(args).await.map_err(notes_error)?;
-            Ok(format!("appended to {path}"))
-        }
-        "fetch" => {
-            let args = web::FetchArgs { url: a.get("url")? };
-            web::fetch(args).await.map(response).map_err(web_error)
-        }
-        "post" => {
-            let args = web::PostArgs { url: a.get("url")?, body: a.get("body")? };
-            web::post(args).await.map(response).map_err(web_error)
+        "git" => {
+            let args = git::RunArgs { arguments: a.get("arguments")? };
+            git::run(args).await.map_err(git_error)
         }
         other => Err(variant("invalid-argument", Some(format!("no tool named '{other}'")))),
     }
-}
-
-/// A result with a `text` field: the other fields as one JSON line, then the
-/// text.
-fn response(r: web::Response) -> String {
-    format!("{}\n{}", json!({ "status": r.status }), r.text)
 }
 
 /// A WIT variant case as JSON: `{"case": payload}`.
@@ -167,33 +109,32 @@ fn variant(case: &str, payload: Option<String>) -> String {
     Value::Object(map).to_string()
 }
 
-fn memory_error(e: memory::Error) -> String {
-    use memory::Error::*;
-    match e {
-        InvalidArgument(m) => variant("invalid-argument", Some(m)),
-        NoSuchStore(m) => variant("no-such-store", Some(m)),
-        AccessDenied(m) => variant("access-denied", Some(m)),
-        Unavailable(m) => variant("unavailable", Some(m)),
-        Other(m) => variant("other", m),
-    }
-}
-
-fn notes_error(e: notes::Error) -> String {
-    use notes::Error::*;
-    match e {
-        InvalidArgument(m) => variant("invalid-argument", Some(m)),
-        NotFound(m) => variant("not-found", Some(m)),
-        AccessDenied(m) => variant("access-denied", Some(m)),
-        Other(m) => variant("other", m),
-    }
-}
-
-fn web_error(e: web::Error) -> String {
-    use web::Error::*;
+fn curl_error(e: curl::Error) -> String {
+    use curl::Error::*;
     match e {
         InvalidArgument(m) => variant("invalid-argument", Some(m)),
         AccessDenied(m) => variant("access-denied", Some(m)),
         Network(m) => variant("network", Some(m)),
+        Other(m) => variant("other", m),
+    }
+}
+
+fn sqlite_error(e: sqlite::Error) -> String {
+    use sqlite::Error::*;
+    match e {
+        InvalidArgument(m) => variant("invalid-argument", Some(m)),
+        AccessDenied(m) => variant("access-denied", Some(m)),
+        NotFound(m) => variant("not-found", Some(m)),
+        Other(m) => variant("other", m),
+    }
+}
+
+fn git_error(e: git::Error) -> String {
+    use git::Error::*;
+    match e {
+        InvalidArgument(m) => variant("invalid-argument", Some(m)),
+        AccessDenied(m) => variant("access-denied", Some(m)),
+        NotFound(m) => variant("not-found", Some(m)),
         Other(m) => variant("other", m),
     }
 }
