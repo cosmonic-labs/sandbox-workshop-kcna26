@@ -22,6 +22,9 @@ cd "$DEST"
 git init -q
 git config user.email fixture@example.invalid
 git config user.name 'Workshop Fixture'
+# Fixed commit dates, so the repository and its commit ids are the same on
+# every build and the git transcripts do not change from run to run.
+export GIT_AUTHOR_DATE='2026-01-02T10:00:00 +0000' GIT_COMMITTER_DATE='2026-01-02T10:00:00 +0000'
 
 # A few ordinary commits, so log, show, diff and blame have something to read.
 cat > README.md <<'EOF'

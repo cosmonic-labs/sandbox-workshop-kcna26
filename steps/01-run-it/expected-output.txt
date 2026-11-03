@@ -12,8 +12,8 @@ $ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'list the talks'
 $ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'show the recent commits'
 [user] show the recent commits
 [model] call git({"arguments":"log --oneline -5"})
-[tool git] ok: 79f302d Add gitattributes ceee4c1 Add a backup reminder 2ae34e0 Note the 1.3 dashboard ecd5969 Initial commit
-[model] Done. Here is what each step returned: git: 79f302d Add gitattributes ceee4c1 Add a backup reminder 2ae34e0 Note the 1.3 dashboard ecd5969 Initial commit
+[tool git] ok: 72e53e6 Add gitattributes 493d64f Add a backup reminder 8a3630c Note the 1.3 dashboard 0c5ab57 Initial commit
+[model] Done. Here is what each step returned: git: 72e53e6 Add gitattributes 493d64f Add a backup reminder 8a3630c Note the 1.3 dashboard 0c5ab57 Initial commit
 
 # curl reaches the one host it is granted:
 $ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'fetch http://api.workshop-sites.svc/data'
@@ -35,4 +35,4 @@ $ wasm-tools component wit artifacts/agent.wasm | grep -E 'wasi:(http/client|fil
 $ ls -l artifacts/tool_curl.wasm artifacts/tool_sqlite.wasm artifacts/tool_git.wasm
 182047 artifacts/tool_curl.wasm
 2450652 artifacts/tool_git.wasm
-1174683 artifacts/tool_sqlite.wasm
+1173947 artifacts/tool_sqlite.wasm
