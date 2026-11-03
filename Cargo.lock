@@ -385,6 +385,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "tool-curl"
+version = "0.1.0"
+dependencies = [
+ "wit-bindgen",
+]
+
+[[package]]
 name = "tool-memory"
 version = "0.1.0"
 dependencies = [

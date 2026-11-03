@@ -5,6 +5,7 @@ members = [
   "components/model-scripted",
   "components/model-real",
   "components/not-installed",
+  "components/tool-curl",
   "components/tool-memory",
   "components/tool-notes",
   "components/tool-sqlite",
