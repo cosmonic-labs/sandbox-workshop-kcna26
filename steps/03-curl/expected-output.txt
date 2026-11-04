@@ -43,3 +43,17 @@ $ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'curl -o page.ht
 [tool curl] ok: saved 95 bytes to /data/page.html
 [model] Done. Here is what each step returned: curl: saved 95 bytes to /data/page.html
 
+# Reading a file:// URL outside the tool's folder: refused
+$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'curl -s file:///etc/passwd'
+[user] curl -s file:///etc/passwd
+[model] call curl({"arguments":"-s file:///etc/passwd"})
+[tool curl] error: {"access-denied":"/etc/passwd: No such file or directory (os error 44) (this tool sees only /data)"}
+[model] Done. Here is what each step returned: curl: ERROR: {"access-denied":"/etc/passwd: No such file or directory (os error 44) (this tool sees only /data)"}
+
+# Reading a file:// URL inside the tool's folder: allowed
+$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'curl -s file:///data/page.html'
+[user] curl -s file:///data/page.html
+[model] call curl({"arguments":"-s file:///data/page.html"})
+[tool curl] ok: {"service":"releases","version":"1.2","notes":"several bug fixes and performance improvements"}
+[model] Done. Here is what each step returned: curl: {"service":"releases","version":"1.2","notes":"several bug fixes and performance improvements"}
+

@@ -26,12 +26,18 @@ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'curl -sL http://a
 curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'curl -o /etc/evil -s http://api.workshop-sites.svc/data'
 # Write inside the tool's folder: allowed
 curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'curl -o page.html -s http://api.workshop-sites.svc/data'
+# Read a file:// URL outside the tool's folder: refused
+curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'curl -s file:///etc/passwd'
+# Read a file:// URL inside the tool's folder: allowed
+curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'curl -s file:///data/page.html'
 ```
 
 **Expected:** the granted host answers. The metadata service, the other host
 and the second hop of the redirect all come back as `access-denied` from the
-host's grant check. Writing to `/etc/evil` is refused because the tool sees only
-`/data`; writing `page.html` into `/data` works. The redirect is the sharpest
+host's grant check. Writing to `/etc/evil` and reading `file:///etc/passwd` are both
+refused because the tool sees only `/data`; writing `page.html` into `/data`
+and reading it back with `file://` work. The tool does not check file paths
+itself: the filesystem it is given holds only that one folder. The redirect is the sharpest
 one: the host checks the hop you did not type.
 
 **The grant is the only thing stopping it.** `make prove` runs a control with

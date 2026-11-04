@@ -78,6 +78,10 @@ kubectl wait --for=condition=Ready workloaddeployment/toy-sites -n workshop-site
   ask agent.localhost 'curl -o /etc/evil -s http://api.workshop-sites.svc/data'
   echo "# Writing inside the tool's folder with -o: allowed"
   ask agent.localhost 'curl -o page.html -s http://api.workshop-sites.svc/data'
+  echo "# Reading a file:// URL outside the tool's folder: refused"
+  ask agent.localhost 'curl -s file:///etc/passwd'
+  echo "# Reading a file:// URL inside the tool's folder: allowed"
+  ask agent.localhost 'curl -s file:///data/page.html'
 } >"$(OUT 03-curl)" 2>&1
 
 {

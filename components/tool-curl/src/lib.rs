@@ -73,7 +73,15 @@ fn file_error(path: &str, e: std::io::Error) -> Error {
 
 async fn run(o: cli::Opts) -> Result<String, Error> {
     let first = o.url.as_deref().ok_or_else(|| Error::InvalidArgument("no URL specified".into()))?;
-    let mut url = cli::check_scheme(first).map_err(Error::InvalidArgument)?;
+    let mut url = match cli::target(first, false).map_err(Error::InvalidArgument)? {
+        cli::Target::Http(url) => url,
+        // No check here on purpose: the path goes straight to the
+        // filesystem, which holds only the folder the manifest mounts.
+        cli::Target::File(path) => {
+            let bytes = std::fs::read(&path).map_err(|e| file_error(&path, e))?;
+            return output(&o, &bytes, String::new());
+        }
+    };
     let mut body = match &o.data_file {
         Some(p) => {
             let path = in_folder(p);
@@ -127,8 +135,12 @@ async fn run(o: cli::Opts) -> Result<String, Error> {
                     ))));
                 }
                 // Each hop is a new request, checked by the host the same way.
-                url = cli::check_scheme(&cli::resolve_location(&url, &loc))
-                    .map_err(Error::InvalidArgument)?;
+                url = match cli::target(&cli::resolve_location(&url, &loc), true)
+                    .map_err(Error::InvalidArgument)?
+                {
+                    cli::Target::Http(url) => url,
+                    cli::Target::File(_) => unreachable!("redirects never yield file targets"),
+                };
                 if matches!(status, 301 | 302 | 303) && method == "POST" {
                     method = "GET".into();
                     body = None;
@@ -139,16 +151,21 @@ async fn run(o: cli::Opts) -> Result<String, Error> {
         if o.fail && status >= 400 {
             return Err(Error::Other(Some(format!("The requested URL returned error: {status}"))));
         }
-        match &o.output {
-            Some(p) if p != "-" => {
-                let path = in_folder(p);
-                std::fs::write(&path, &bytes).map_err(|e| file_error(&path, e))?;
-                out.push_str(&format!("saved {} bytes to {path}\n", bytes.len()));
-            }
-            _ => out.push_str(&String::from_utf8_lossy(&bytes)),
-        }
-        return Ok(out);
+        return output(&o, &bytes, out);
     }
+}
+
+/// Write the body to `-o`'s file, or append it to what is printed.
+fn output(o: &cli::Opts, bytes: &[u8], mut out: String) -> Result<String, Error> {
+    match &o.output {
+        Some(p) if p != "-" => {
+            let path = in_folder(p);
+            std::fs::write(&path, bytes).map_err(|e| file_error(&path, e))?;
+            out.push_str(&format!("saved {} bytes to {path}\n", bytes.len()));
+        }
+        _ => out.push_str(&String::from_utf8_lossy(bytes)),
+    }
+    Ok(out)
 }
 
 struct Curl;

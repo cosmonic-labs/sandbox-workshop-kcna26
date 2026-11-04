@@ -124,15 +124,28 @@ pub fn parse(line: &str) -> Result<Opts, String> {
     Ok(o)
 }
 
-/// Add curl's default scheme, and refuse schemes other than http and https.
-/// A convenience, not the boundary: the host decides which hosts are
-/// reachable.
-pub fn check_scheme(url: &str) -> Result<String, String> {
+/// What a URL asks curl to fetch.
+#[derive(Debug, PartialEq)]
+pub enum Target {
+    Http(String),
+    /// A `file://` URL's path. Read through the filesystem, so it can only
+    /// reach the folder the manifest mounts for this tool.
+    File(String),
+}
+
+/// Add curl's default scheme and sort the URL into a request or a file read.
+/// Other schemes are refused, as a convenience: the host decides which hosts
+/// and folders are reachable. Like curl, a redirect may not lead to `file://`.
+pub fn target(url: &str, from_redirect: bool) -> Result<Target, String> {
     let url = if url.contains("://") { url.to_string() } else { format!("http://{url}") };
-    let scheme = url.split("://").next().unwrap_or("").to_ascii_lowercase();
-    match scheme.as_str() {
-        "http" | "https" => Ok(url),
-        _ => Err(format!("Protocol \"{scheme}\" not supported or disabled in libcurl")),
+    let (scheme, rest) = url.split_once("://").unwrap_or(("", ""));
+    match scheme.to_ascii_lowercase().as_str() {
+        "http" | "https" => Ok(Target::Http(url)),
+        "file" if !from_redirect => {
+            let path = rest.strip_prefix("localhost").unwrap_or(rest);
+            Ok(Target::File(if path.is_empty() { "/".into() } else { path.to_string() }))
+        }
+        s => Err(format!("Protocol \"{s}\" not supported or disabled in libcurl")),
     }
 }
 
@@ -203,9 +216,11 @@ mod tests {
 
     #[test]
     fn schemes_and_redirects() {
-        assert_eq!(check_scheme("example.com").unwrap(), "http://example.com");
-        assert!(check_scheme("file:///etc/passwd").unwrap_err().contains("\"file\""));
-        assert!(check_scheme("gopher://x").is_err());
+        assert_eq!(target("example.com", false).unwrap(), Target::Http("http://example.com".into()));
+        assert_eq!(target("file:///etc/passwd", false).unwrap(), Target::File("/etc/passwd".into()));
+        assert_eq!(target("file://localhost/data/a", false).unwrap(), Target::File("/data/a".into()));
+        assert!(target("file:///etc/passwd", true).unwrap_err().contains("\"file\""));
+        assert!(target("gopher://x", false).is_err());
         assert_eq!(resolve_location("https://a.test/x/y?q", "z"), "https://a.test/x/z");
         assert_eq!(resolve_location("https://a.test/x/y", "/r"), "https://a.test/r");
         assert_eq!(resolve_location("https://a.test/x", "//b.test/p"), "https://b.test/p");
