@@ -1,0 +1,31 @@
+# Step 2: the curl tool imports only an HTTP client; its reach is the grant
+$ kubectl apply -f steps/02-build-curl/workload.yaml && sleep 2 && kubectl wait --for=condition=Ready workloaddeployment/toolbox-agent
+
+$ wasm-tools component wit artifacts/tool_curl.wasm | grep -E 'import|export'
+  import wasi:http/types@0.3.0;
+  import wasi:http/client@0.3.0;
+  import wasi:io/poll@0.2.9;
+  import wasi:clocks/monotonic-clock@0.2.9;
+  import wasi:clocks/wall-clock@0.2.9;
+  import wasi:io/error@0.2.9;
+  import wasi:io/streams@0.2.9;
+  import wasi:cli/stdout@0.2.9;
+  import wasi:cli/stderr@0.2.9;
+  import wasi:cli/stdin@0.2.9;
+  import wasi:cli/environment@0.2.9;
+  import wasi:cli/exit@0.2.9;
+  import wasi:cli/terminal-input@0.2.9;
+  import wasi:cli/terminal-output@0.2.9;
+  import wasi:cli/terminal-stdin@0.2.9;
+  import wasi:cli/terminal-stdout@0.2.9;
+  import wasi:cli/terminal-stderr@0.2.9;
+  import wasi:filesystem/types@0.2.9;
+  import wasi:filesystem/preopens@0.2.9;
+  export workshop:toolbox/curl@0.4.0;
+# It reaches the one host its manifest grants:
+$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'fetch http://api.workshop-sites.svc/data'
+[user] fetch http://api.workshop-sites.svc/data
+[model] call curl({"arguments":"-s http://api.workshop-sites.svc/data"})
+[tool curl] ok: {"service":"releases","version":"1.2","notes":"several bug fixes and performance improvements"}
+[model] Done. Here is what each step returned: curl: {"service":"releases","version":"1.2","notes":"several bug fixes and performance improvements"}
+

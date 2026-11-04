@@ -31,6 +31,31 @@ pub fn json_response(status: u16, json: String) -> Result<Response, ErrorCode> {
     typed_response(status, "application/json", true, json)
 }
 
+/// A redirect to `location`, so a tool that follows redirects makes a second
+/// request the host checks the same way.
+#[allow(dead_code)]
+pub fn redirect_response(status: u16, location: &str) -> Result<Response, ErrorCode> {
+    let list = vec![
+        ("content-type".to_string(), b"text/plain; charset=utf-8".to_vec()),
+        ("location".to_string(), location.as_bytes().to_vec()),
+    ];
+    let headers = Fields::from_list(&list)
+        .map_err(|e| ErrorCode::InternalError(Some(format!("headers: {e:?}"))))?;
+    let (mut body_tx, body_rx) = crate::wit_stream::new();
+    let (trailers_tx, trailers_rx) = crate::wit_future::new(|| Ok(None));
+    let loc = location.to_string();
+    wit_bindgen::spawn_local(async move {
+        body_tx.write_all(format!("redirecting to {loc}\n").into_bytes()).await;
+        drop(body_tx);
+        let _ = trailers_tx.write(Ok(None)).await;
+    });
+    let (response, _sent) = Response::new(headers, Some(body_rx), trailers_rx);
+    response
+        .set_status_code(status)
+        .map_err(|()| ErrorCode::InternalError(Some(format!("bad status {status}"))))?;
+    Ok(response)
+}
+
 fn typed_response(
     status: u16,
     content_type: &str,

@@ -8,7 +8,8 @@
 set -euo pipefail
 source "$(dirname "$0")/env.sh"
 SERVER="${STORES_URL:-$DATA_NATS_URL}"
-KV="agent-memory toy-collector tenant-a-memory tenant-b-memory"
+# Only the toy sites' collector uses keyvalue now; the agents' tools reach none.
+KV="toy-collector"
 N() { nats --server "$SERVER" "$@"; }
 for _ in $(seq 1 30); do N server check connection >/dev/null 2>&1 && break; sleep 1; done
 if [ "${1:-create}" = reset ]; then

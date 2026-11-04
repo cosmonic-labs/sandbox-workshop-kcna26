@@ -33,6 +33,19 @@ pub async fn send(
     headers: &[(&str, &str)],
     body: Vec<u8>,
 ) -> Result<(u16, Vec<u8>), SendError> {
+    let (status, _headers, body) = send_full(method, url, headers, body).await?;
+    Ok((status, body))
+}
+
+/// [`send`], also returning the response headers, for tools that show or
+/// follow them (curl's -i and -L).
+#[allow(dead_code)]
+pub async fn send_full(
+    method: &str,
+    url: &str,
+    headers: &[(&str, &str)],
+    body: Vec<u8>,
+) -> Result<(u16, Vec<(String, Vec<u8>)>, Vec<u8>), SendError> {
     let invalid = SendError::Invalid;
     let (scheme, rest) = match url.split_once("://") {
         Some(("https", rest)) => (Scheme::Https, rest),
@@ -73,7 +86,8 @@ pub async fn send(
     });
     let response = crate::wasi::http::client::send(request).await.map_err(SendError::Http)?;
     let status = response.get_status_code();
+    let response_headers = response.get_headers().copy_all();
     let (_done_tx, done_rx) = crate::wit_future::new(|| Ok(()));
     let (body, _trailers) = Response::consume_body(response, done_rx);
-    Ok((status, body.collect().await))
+    Ok((status, response_headers, body.collect().await))
 }

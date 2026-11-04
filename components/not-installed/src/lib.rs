@@ -15,7 +15,7 @@ wit_bindgen::generate!({
     generate_all,
 });
 
-use exports::workshop::toolbox::{memory, notes, web};
+use exports::workshop::toolbox::{curl, git, sqlite};
 
 fn missing(tool: &str) -> Option<String> {
     Some(format!("the {tool} tool isn't installed yet"))
@@ -23,33 +23,21 @@ fn missing(tool: &str) -> Option<String> {
 
 struct NotInstalled;
 
-impl memory::Guest for NotInstalled {
-    async fn remember(_: memory::RememberArgs) -> Result<(), memory::Error> {
-        Err(memory::Error::Other(missing("memory")))
-    }
-    async fn recall(_: memory::RecallArgs) -> Result<Option<String>, memory::Error> {
-        Err(memory::Error::Other(missing("memory")))
-    }
-    async fn recall_all() -> Result<Vec<memory::Entry>, memory::Error> {
-        Err(memory::Error::Other(missing("memory")))
+impl curl::Guest for NotInstalled {
+    async fn run(_: curl::RunArgs) -> Result<String, curl::Error> {
+        Err(curl::Error::Other(missing("curl")))
     }
 }
 
-impl notes::Guest for NotInstalled {
-    async fn read(_: notes::ReadArgs) -> Result<String, notes::Error> {
-        Err(notes::Error::Other(missing("notes")))
-    }
-    async fn append(_: notes::AppendArgs) -> Result<(), notes::Error> {
-        Err(notes::Error::Other(missing("notes")))
+impl sqlite::Guest for NotInstalled {
+    async fn query(_: sqlite::QueryArgs) -> Result<String, sqlite::Error> {
+        Err(sqlite::Error::Other(missing("sqlite")))
     }
 }
 
-impl web::Guest for NotInstalled {
-    async fn fetch(_: web::FetchArgs) -> Result<web::Response, web::Error> {
-        Err(web::Error::Other(missing("web")))
-    }
-    async fn post(_: web::PostArgs) -> Result<web::Response, web::Error> {
-        Err(web::Error::Other(missing("web")))
+impl git::Guest for NotInstalled {
+    async fn run(_: git::RunArgs) -> Result<String, git::Error> {
+        Err(git::Error::Other(missing("git")))
     }
 }
 

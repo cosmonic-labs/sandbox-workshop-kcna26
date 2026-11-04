@@ -1,0 +1,38 @@
+# Step 4: sqlite over the database in its read-only folder
+$ kubectl apply -f steps/04-sqlite/workload.yaml && sleep 2 && kubectl wait --for=condition=Ready workloaddeployment/toolbox-agent
+
+# Ordinary SQL works:
+$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'sqlite select title, speaker from talks where track = 'Security' order by title'
+[user] sqlite select title, speaker from talks where track = 'Security' order by title
+[model] call sqlite({"sql":"select title, speaker from talks where track = 'Security' order by title"})
+[tool sqlite] ok: Least Privilege for Multi-Tenant Clusters | C. Okafor Sandboxing Agents and the Code They Write | A. Rivera Secrets Without Tears | I. Costa Supply Chain Attacks in the Wild | F. Haddad
+[model] Done. Here is what each step returned: sqlite: Least Privilege for Multi-Tenant Clusters | C. Okafor Sandboxing Agents and the Code They Write | A. Rivera Secrets With
+
+# Dot-commands work:
+$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'sqlite .tables'
+[user] sqlite .tables
+[model] call sqlite({"sql":".tables"})
+[tool sqlite] ok: talks
+[model] Done. Here is what each step returned: sqlite: talks
+
+# .shell cannot exist: there is no process to start
+$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'sqlite .shell id'
+[user] sqlite .shell id
+[model] call sqlite({"sql":".shell id"})
+[tool sqlite] error: {"invalid-argument":".shell: there is no shell here. This sqlite3 runs as a component that can't start processes."}
+[model] Done. Here is what each step returned: sqlite: ERROR: {"invalid-argument":".shell: there is no shell here. This sqlite3 runs as a component that can't start processes.
+
+# ATTACH to a file outside the folder: refused
+$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'sqlite attach '/etc/passwd' as evil'
+[user] sqlite attach '/etc/passwd' as evil
+[model] call sqlite({"sql":"attach '/etc/passwd' as evil"})
+[tool sqlite] error: {"access-denied":"attach '/etc/passwd' as evil: unable to open database: /etc/passwd"}
+[model] Done. Here is what each step returned: sqlite: ERROR: {"access-denied":"attach '/etc/passwd' as evil: unable to open database: /etc/passwd"}
+
+# load_extension: not available
+$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'sqlite select load_extension('/tmp/evil')'
+[user] sqlite select load_extension('/tmp/evil')
+[model] call sqlite({"sql":"select load_extension('/tmp/evil')"})
+[tool sqlite] error: {"invalid-argument":"no such function: load_extension in select load_extension('/tmp/evil') at offset 7"}
+[model] Done. Here is what each step returned: sqlite: ERROR: {"invalid-argument":"no such function: load_extension in select load_extension('/tmp/evil') at offset 7"}
+

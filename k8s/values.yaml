@@ -35,39 +35,41 @@ runtime:
       # A ClusterIP Service, hostgroup-default, for the ingress to send to.
       service:
         type: ClusterIP
-      # The backend behind the WASI 0.3 keyvalue interface, declared by the
-      # platform, not by workloads: since v2.11.0 a workload may not set a
-      # backend's url itself (workloadConfig defaults to deny). It points at
-      # the workshop's data service (k8s/data-nats.yaml).
-      plugins:
-        - id: wasmcloud-keyvalue-multiplexed
-          allowedHosts: [data-nats.workshop-data.svc:4222]
-          allowedIpNameLookups: [data-nats.workshop-data.svc]
-          config:
-            backend: nats
-            url: nats://data-nats.workshop-data.svc:4222
+      # The agents' tools reach no key value store, so the default host group
+      # declares no keyvalue backend. The toy sites' collector keeps its count
+      # in keyvalue, so that backend lives on the fixtures host group below.
+      #
       # Since v2.11.0 a hostPath volume must lie inside an allowed directory;
-      # the default list is empty.
+      # the default list is empty. The three folders the tools read: the talks
+      # database (sqlite, read only), the hostile repository (git, read only)
+      # and a writable folder for curl's -o.
       hostPaths:
         allowed:
-          - /workshop/notes
-          - /workshop/notes-rw
+          - /workshop/sqlite-data
+          - /workshop/repo
+          - /workshop/curl-data
       # Node paths (kind extraMounts, see scripts/up.sh) mounted into the host
-      # container, so a Workload hostPath volume of /workshop/notes resolves.
+      # container, so a Workload hostPath volume of these paths resolves.
       volumes:
-        - name: notes
+        - name: sqlite-data
           hostPath:
-            path: /workshop/notes
+            path: /workshop/sqlite-data
             type: Directory
-        - name: notes-rw
+        - name: repo
           hostPath:
-            path: /workshop/notes-rw
+            path: /workshop/repo
+            type: Directory
+        - name: curl-data
+          hostPath:
+            path: /workshop/curl-data
             type: Directory
       volumeMounts:
-        - name: notes
-          mountPath: /workshop/notes
-        - name: notes-rw
-          mountPath: /workshop/notes-rw
+        - name: sqlite-data
+          mountPath: /workshop/sqlite-data
+        - name: repo
+          mountPath: /workshop/repo
+        - name: curl-data
+          mountPath: /workshop/curl-data
     # The toy sites (steps/00-fixtures) get a host group of their own, in
     # their own namespace, so the Services in k8s/sites.yaml can select its
     # pods. Workloads land here only by asking: hostSelector hostgroup: fixtures.

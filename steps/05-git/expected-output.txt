@@ -1,0 +1,41 @@
+# Step 5: git reads a hostile repository, and none of its traps fire
+$ kubectl apply -f steps/05-git/workload.yaml && sleep 2 && kubectl wait --for=condition=Ready workloaddeployment/toolbox-agent
+
+# The repository's config wires core.fsmonitor, core.pager, aliases, a
+# smudge filter, a textconv and a credential helper to shell commands.
+# Native git runs several of them just to read the repo. This git runs none.
+# log reads commits:
+$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'git log --oneline -5'
+[user] git log --oneline -5
+[model] call git({"arguments":"log --oneline -5"})
+[tool git] ok: 72e53e6 Add gitattributes 493d64f Add a backup reminder 8a3630c Note the 1.3 dashboard 0c5ab57 Initial commit
+[model] Done. Here is what each step returned: git: 72e53e6 Add gitattributes 493d64f Add a backup reminder 8a3630c Note the 1.3 dashboard 0c5ab57 Initial commit
+
+# show reads a commit and its changed files:
+$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'git show HEAD'
+[user] git show HEAD
+[model] call git({"arguments":"show HEAD"})
+[tool git] ok: commit 72e53e69d29091b2d3f2ade2f8825e83d2175dfa Author: Workshop Fixture <fixture@example.invalid> Date: Fri Jan 2 10:00:00 2026 +0000 Add gitattributes A .gitattributes
+[model] Done. Here is what each step returned: git: commit 72e53e69d29091b2d3f2ade2f8825e83d2175dfa Author: Workshop Fixture <fixture@example.invalid> Date: Fri Jan 2 10:00
+
+# cat-file reads a tracked file (the smudge filter does not run):
+$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'git cat-file -p HEAD:README.md'
+[user] git cat-file -p HEAD:README.md
+[model] call git({"arguments":"cat-file -p HEAD:README.md"})
+[tool git] ok: # Release notes Version 1.2 fixes several bugs and improves performance. Version 1.3 adds the new dashboard.
+[model] Done. Here is what each step returned: git: # Release notes Version 1.2 fixes several bugs and improves performance. Version 1.3 adds the new dashboard.
+
+# blame reads line history:
+$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'git blame README.md'
+[user] git blame README.md
+[model] call git({"arguments":"blame README.md"})
+[tool git] ok: 0c5ab578 (Workshop Fixture 1) # Release notes 0c5ab578 (Workshop Fixture 2) 0c5ab578 (Workshop Fixture 3) Version 1.2 fixes several bugs and improves performance. 8a3630ce (Workshop Fixture 4) Version 1.3 adds the new dashboard.
+[model] Done. Here is what each step returned: git: 0c5ab578 (Workshop Fixture 1) # Release notes 0c5ab578 (Workshop Fixture 2) 0c5ab578 (Workshop Fixture 3) Version 1.2 fi
+
+# A command that writes or reaches the network: refused
+$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'git push origin main'
+[user] git push origin main
+[model] call git({"arguments":"push origin main"})
+[tool git] error: {"invalid-argument":"'push' changes the repository or reaches the network; this git reads only"}
+[model] Done. Here is what each step returned: git: ERROR: {"invalid-argument":"'push' changes the repository or reaches the network; this git reads only"}
+

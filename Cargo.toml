@@ -5,9 +5,9 @@ members = [
   "components/model-scripted",
   "components/model-real",
   "components/not-installed",
-  "components/tool-memory",
-  "components/tool-notes",
-  "components/tool-web",
+  "components/tool-curl",
+  "components/tool-git",
+  "components/tool-sqlite",
   "components/toy-sites",
 ]
 
@@ -22,6 +22,13 @@ publish = false
 wit-bindgen = { version = "0.62.0", features = ["async-spawn", "inter-task-wakeup"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+
+# The git tool's gitoxide needs two crates that don't build for
+# wasm32-wasip2 as published: memmap2's stub mmap, and filetime. These vendored
+# copies carry the fixes. Nothing else in the workspace uses them.
+[patch.crates-io]
+memmap2 = { path = "components/tool-git/vendor/memmap2" }
+filetime = { path = "components/tool-git/vendor/filetime" }
 
 [profile.release]
 lto = true

@@ -1,0 +1,13 @@
+# Step 6: a real model behind the same slot (a fake OpenAI compatible endpoint)
+$ kubectl apply -f steps/06-real-model/workload.yaml && sleep 2 && kubectl wait --for=condition=Ready workloaddeployment/toolbox-agent
+
+# The model asks for a tool, the agent runs it, the model answers:
+$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'what talks are there?'
+[user] what talks are there?
+[model] call sqlite({"sql": "select title from talks limit 3"})
+[tool sqlite] ok: Sandboxing Agents and the Code They Write A Capability Model for WebAssembly Least Privilege for Multi-Tenant Clusters
+[model] (fake-llm) the tool said: Sandboxing Agents and the Code They Write
+A Capability Model for WebAssembly
+Least Privilege for Multi-Tenant Clusters
+
+

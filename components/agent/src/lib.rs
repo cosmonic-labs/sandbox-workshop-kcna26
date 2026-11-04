@@ -10,11 +10,12 @@
 //! the transcript as a timeline; curl gets the same text as ever.
 //!
 //! The harness itself holds no capabilities. Its world imports the model and
-//! three labelled tool slots and nothing else from the host; whatever a tool
-//! can reach is decided by the manifest entry of the component filling that
-//! slot. `tools.rs` translates the model's JSON into typed tool calls and
-//! builds the tool definitions the model sees: work a host could do from the
-//! WIT, done by hand here because upstream wasmCloud doesn't do it yet.
+//! three labelled tool slots (curl, sqlite and git) and nothing else from the
+//! host; whatever a tool can reach is decided by the manifest entry of the
+//! component filling that slot. `tools.rs` translates the model's JSON into
+//! typed tool calls and builds the tool definitions the model sees: work a
+//! host could do from the WIT, done by hand here because upstream wasmCloud
+//! doesn't do it yet.
 
 wit_bindgen::generate!({
     path: "../../wit",
