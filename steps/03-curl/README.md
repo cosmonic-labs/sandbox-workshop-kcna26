@@ -6,7 +6,8 @@
 you did not mean it to: the cloud metadata service, other hosts, and anywhere
 on disk with `-o`. Here every request goes through `wasi:http`, where the host
 checks it against this component's `allowedHosts` before anything leaves, and
-files exist only in the one folder the manifest mounts.
+files, including `file://` URLs, exist only in the one folder the manifest
+mounts.
 
 ## Deploy
 
@@ -86,6 +87,28 @@ curl -s -H 'Host: agent.localhost' \
 ```
 
 The grant includes `/data`, so the write succeeds. The folder is the boundary, not a blanket ban.
+
+**7. Reading a file:// URL outside /data fails:** `curl -s file:///etc/passwd`
+
+```sh
+curl -s -H 'Host: agent.localhost' \
+  http://127.0.0.1:18180/ \
+  -d 'curl -s file:///etc/passwd'
+```
+
+Native curl reads any file your user can. This curl reads `file://` URLs
+through the same one folder, so `/etc/passwd` doesn't exist for it.
+
+**8. Reading a file:// URL inside /data works:** `curl -s file:///data/page.html`
+
+```sh
+curl -s -H 'Host: agent.localhost' \
+  http://127.0.0.1:18180/ \
+  -d 'curl -s file:///data/page.html'
+```
+
+The page you saved in item 6 reads back. The tool doesn't check paths itself:
+the filesystem it is given holds only that one folder.
 
 **The grant is the only thing stopping it.** `make prove` also runs a control
 with `allowedHosts` widened to `*`, and the same request to the collector then
