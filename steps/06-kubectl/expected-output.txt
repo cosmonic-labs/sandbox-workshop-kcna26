@@ -1,0 +1,41 @@
+# Step 6: kubectl reads the demo namespace through the kube-api capability
+$ kubectl apply -f steps/06-kubectl/workload.yaml && sleep 2 && kubectl wait --for=condition=Ready workloaddeployment/toolbox-agent
+
+# Pods in demo, the namespace agent-reader may read:
+$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'kubectl get pods'
+[user] kubectl get pods
+[model] call kubectl({"arguments":"get pods"})
+[tool kubectl] ok: NAME STATUS hello-5d74bcc4b-6zhnh Running hello-5d74bcc4b-z4xhm Running
+[model] Done. Here is what each step returned: kubectl: NAME STATUS hello-5d74bcc4b-6zhnh Running hello-5d74bcc4b-z4xhm Running
+
+# Deployments:
+$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'kubectl get deployments'
+[user] kubectl get deployments
+[model] call kubectl({"arguments":"get deployments"})
+[tool kubectl] ok: NAME STATUS hello 2/2 ready
+[model] Done. Here is what each step returned: kubectl: NAME STATUS hello 2/2 ready
+
+# Secrets: refused by RBAC
+$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'kubectl get secrets'
+[user] kubectl get secrets
+[model] call kubectl({"arguments":"get secrets"})
+[tool kubectl] error: {"access-denied":"Error from server (Forbidden): secrets is forbidden: User \"system:serviceaccount:wasmcloud:agent-reader\" cannot list resource \"secrets\" in API group \"\" in the namespace \"demo\""}
+[model] Done. Here is what each step returned: kubectl: ERROR: {"access-denied":"Error from server (Forbidden): secrets is forbidden: User \"system:serviceaccount:wasmcloud:age
+
+# Every namespace: refused by RBAC
+$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'kubectl get pods -A'
+[user] kubectl get pods -A
+[model] call kubectl({"arguments":"get pods -A"})
+[tool kubectl] error: {"access-denied":"Error from server (Forbidden): pods is forbidden: User \"system:serviceaccount:wasmcloud:agent-reader\" cannot list resource \"pods\" in API group \"\" at the cluster scope"}
+[model] Done. Here is what each step returned: kubectl: ERROR: {"access-denied":"Error from server (Forbidden): pods is forbidden: User \"system:serviceaccount:wasmcloud:agent-
+
+# kube-system: refused by RBAC
+$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'kubectl get pods -n kube-system'
+[user] kubectl get pods -n kube-system
+[model] call kubectl({"arguments":"get pods -n kube-system"})
+[tool kubectl] error: {"access-denied":"Error from server (Forbidden): pods is forbidden: User \"system:serviceaccount:wasmcloud:agent-reader\" cannot list resource \"pods\" in API group \"\" in the namespace \"kube-system\""}
+[model] Done. Here is what each step returned: kubectl: ERROR: {"access-denied":"Error from server (Forbidden): pods is forbidden: User \"system:serviceaccount:wasmcloud:agent-
+
+# The tool imports the kube-api capability and no HTTP client, sockets or secrets:
+$ wasm-tools component wit artifacts/tool_kubectl.wasm | grep -E '^  import (workshop|wasi:http|wasi:sockets|wasmcloud)'
+  import workshop:toolbox/kube-api@0.4.0;

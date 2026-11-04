@@ -2,10 +2,10 @@
 ## Multi-tenant sandboxing for agent harnesses and tools on wasmCloud
 
 A hands-on workshop for KubeCon + CloudNativeCon NA 2026. You `kubectl apply`
-an agent and three tools to your own cluster with **wasmCloud**, a CNCF
+an agent and four tools to your own cluster with **wasmCloud**, a CNCF
 project, then try each tool's most famous escape and watch it fail.
 
-The tools are `curl`, `sqlite3` and `git`, classics from
+The tools are `curl`, `sqlite3`, `git` and `kubectl`. The first three are classics from
 [GTFOBins](https://gtfobins.github.io/), the catalogue of everyday programs
 that break out of restricted shells. The model is a gullible stand-in that
 does whatever it reads. It never refuses, so the only thing that stops an
@@ -47,6 +47,7 @@ switches your kubectl context to it.
 | 3 | `steps/03-curl` | `curl`'s escapes (metadata service, other hosts, redirects, files) refused |
 | 4 | `steps/04-sqlite` | `sqlite3`'s escapes (`.shell`, `ATTACH`, extensions) go nowhere |
 | 5 | `steps/05-git` | A hostile repository's traps (hooks, pager, filters) never fire |
+| 6 | `steps/06-kubectl` | `kubectl` through a platform capability; RBAC still decides |
 
 Steps 1 to 4 tell the whole story; 5 and 6 are for if time allows. Each step
 README has the commands and the output to expect (`expected-output.txt`).

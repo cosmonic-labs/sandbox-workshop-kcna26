@@ -127,6 +127,24 @@ kubectl wait --for=condition=Ready workloaddeployment/toy-sites -n workshop-site
 } >"$(OUT 05-git)" 2>&1
 
 {
+  echo "# Step 6: kubectl reads the demo namespace through the kube-api capability"
+  apply steps/06-kubectl/workload.yaml
+  echo "# Pods in demo, the namespace agent-reader may read:"
+  ask agent.localhost 'kubectl get pods'
+  echo "# Deployments:"
+  ask agent.localhost 'kubectl get deployments'
+  echo "# Secrets: refused by RBAC"
+  ask agent.localhost 'kubectl get secrets'
+  echo "# Every namespace: refused by RBAC"
+  ask agent.localhost 'kubectl get pods -A'
+  echo "# kube-system: refused by RBAC"
+  ask agent.localhost 'kubectl get pods -n kube-system'
+  echo "# The tool imports the kube-api capability and no HTTP client, sockets or secrets:"
+  echo "\$ wasm-tools component wit artifacts/tool_kubectl.wasm | grep -E '^  import (workshop|wasi:http|wasi:sockets|wasmcloud)'"
+  wasm-tools component wit artifacts/tool_kubectl.wasm | grep -E '^  import (workshop|wasi:http|wasi:sockets|wasmcloud)'
+} >"$(OUT 06-kubectl)" 2>&1
+
+{
   echo "# Extra: a real model behind the same slot (a fake OpenAI compatible endpoint)"
   apply extras/real-model/workload.yaml
   echo "# The model asks for a tool, the agent runs it, the model answers:"

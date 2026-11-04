@@ -1,0 +1,102 @@
+# Step 6's cluster side: a namespace with something to look at, and the
+# identity the kube-api plugin uses to look.
+#
+# The plugin (k8s/values.yaml, default host group) holds the token of the
+# agent-reader service account and adds it to every request it sends to the
+# API server. RBAC on agent-reader is the whole of what kubectl may read:
+# pods, their logs, Services, ConfigMaps, Deployments and WorkloadDeployments
+# in the demo namespace. No Secrets, no exec, no port-forward, nothing in any
+# other namespace.
+#
+# scripts/up.sh applies this before the chart, because the host reads the
+# token once, when it starts.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: demo
+---
+# The host groups' namespace; the chart installs into it.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: wasmcloud
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: agent-reader
+  namespace: wasmcloud
+automountServiceAccountToken: false
+---
+# A long-lived token: the token controller fills in `token` (with `ca.crt` and
+# `namespace`). It lasts until this Secret is deleted. The host reads it at
+# startup, so rotating it means restarting the host pods:
+#   kubectl -n wasmcloud rollout restart deploy/hostgroup-default
+apiVersion: v1
+kind: Secret
+metadata:
+  name: kube-api-token
+  namespace: wasmcloud
+  annotations:
+    kubernetes.io/service-account.name: agent-reader
+type: kubernetes.io/service-account-token
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: read-only
+  namespace: demo
+rules:
+  - apiGroups: [""]
+    resources: [pods, pods/log, services, configmaps]
+    verbs: [get, list, watch]
+  - apiGroups: [apps]
+    resources: [deployments]
+    verbs: [get, list, watch]
+  - apiGroups: [runtime.wasmcloud.dev]
+    resources: [workloaddeployments]
+    verbs: [get, list, watch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: agent-reader-read-only
+  namespace: demo
+subjects:
+  - kind: ServiceAccount
+    name: agent-reader
+    namespace: wasmcloud
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: read-only
+---
+# Something to find.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hello
+  namespace: demo
+spec:
+  replicas: 2
+  selector:
+    matchLabels: {app: hello}
+  template:
+    metadata:
+      labels: {app: hello}
+    spec:
+      automountServiceAccountToken: false
+      containers:
+        - name: hello
+          image: busybox:1.36
+          imagePullPolicy: IfNotPresent
+          command: ["sh", "-c", "echo hello from $(hostname); sleep 100000"]
+---
+# And something agent-reader must not read.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: db-password
+  namespace: demo
+stringData:
+  password: not-for-agents

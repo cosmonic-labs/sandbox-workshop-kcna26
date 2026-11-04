@@ -2,6 +2,7 @@
 resolver = "2"
 members = [
   "components/agent",
+  "components/kube-api",
   "components/model-scripted",
   "components/model-real",
   "components/not-installed",
@@ -10,6 +11,9 @@ members = [
   "components/tool-sqlite",
   "components/toy-sites",
 ]
+# tool-kubectl builds on its own (`make kubectl`): its tokio_unstable flag
+# must not reach the other crates.
+exclude = ["components/tool-kubectl"]
 
 [workspace.package]
 edition = "2024"

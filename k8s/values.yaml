@@ -66,6 +66,11 @@ runtime:
           hostPath:
             path: /workshop/curl-data
             type: Directory
+        # Step 6: the cluster CA, so the kube-api plugin can trust the API
+        # server's certificate. Every namespace has it in this ConfigMap.
+        - name: kube-ca
+          configMap:
+            name: kube-root-ca.crt
       volumeMounts:
         - name: sqlite-data
           mountPath: /workshop/sqlite-data
@@ -73,6 +78,26 @@ runtime:
           mountPath: /workshop/repo
         - name: curl-data
           mountPath: /workshop/curl-data
+        - name: kube-ca
+          mountPath: /etc/kube-ca
+          readOnly: true
+      # Outgoing HTTPS from this host group (components and plugins) also
+      # trusts the cluster CA.
+      httpClientCaPaths:
+        - /etc/kube-ca/ca.crt
+      # Step 6's kube-api host component plugin. The platform installs it on
+      # the host group; a workload uses it only by declaring
+      # workshop:toolbox/kube-api in hostInterfaces. It holds agent-reader's
+      # token (the service-account-token Secret kube-api-token, k8s/kube.yaml,
+      # read through its `token` label) and may reach only the API server.
+      plugins:
+        - id: kube-api
+          image: workshop-toolbox-registry:5000/workshop/kube-api:0.4.0
+          pullPolicy: always
+          allowedHosts:
+            - kubernetes.default.svc
+          secretFrom:
+            - kube-api-token
     # The toy sites (steps/00-fixtures) get a host group of their own, in
     # their own namespace, so the Services in k8s/sites.yaml can select its
     # pods. Workloads land here only by asking: hostSelector hostgroup: fixtures.
