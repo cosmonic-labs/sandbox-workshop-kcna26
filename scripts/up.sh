@@ -2,7 +2,7 @@
 # Start the workshop cluster:
 #   kind              a one-node Kubernetes cluster in Docker (context kind-workshop-toolbox)
 #   registry:2        an OCI registry container on the kind network
-#   runtime-operator  the upstream wasmCloud chart, v2.11.0: operator, NATS and
+#   runtime-operator  the upstream wasmCloud chart, v2.12.0: operator, NATS and
 #                     two host groups (default for the agents, fixtures for the
 #                     toy sites), one host pod each
 #   data-nats         the data service behind keyvalue (k8s/data-nats.yaml)
@@ -52,7 +52,7 @@ YAML
   kind create cluster --name "$CLUSTER" --config "$RUN_DIR/kind-config.yaml"
 fi
 
-# The upstream chart, from the v2.11.0 tag (gitignored, fetched once). The
+# The upstream chart, from the v2.12.0 tag (gitignored, fetched once). The
 # check compares commits: the same commit carries more than one tag, so
 # `git describe` can name another one.
 TAG_REF="v$WASMCLOUD_VERSION"

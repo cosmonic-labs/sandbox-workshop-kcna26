@@ -2,12 +2,12 @@
 # OpenAI-compatible endpoint, all one component, all inside the cluster.
 #
 # It runs in its own namespace on its own host group (hostSelector), never on
-# the host pod the teams' agents share. Agents reach it the ordinary way, by
+# the agent's host pod. The agent reaches it the ordinary way, by
 # the Kubernetes Services in k8s/sites.yaml: planted.workshop-sites.svc,
-# collector.workshop-sites.svc and llm.workshop-sites.svc. The host routes a
+# collector.workshop-sites.svc, llm.workshop-sites.svc and api.workshop-sites.svc. The host routes a
 # request by its Host header, so this workload serves those names
 # (host-aliases) and sites.localhost, the name your laptop uses through the
-# ingress. Upstream wasmCloud v2.11.0 adds a Service's DNS names to a
+# ingress. Upstream wasmCloud (v2.12.0) adds a Service's DNS names to a
 # workload by itself only for wasi:http 0.2 handlers (wasmCloud#5582); this
 # one is WASI 0.3, so the names are listed by hand.
 #

@@ -1,25 +1,28 @@
-# Helm values for charts/runtime-operator v2.11.0 on kind: two host groups,
+# Helm values for charts/runtime-operator v2.12.0 on kind: two host groups,
 # one host pod each.
 #
-#   default   the teams' agents (namespace wasmcloud)
+#   default   the agent (namespace wasmcloud)
 #   fixtures  the toy sites only (namespace workshop-sites, k8s/sites.yaml)
 #
 # Local routing (localBypassRouting) is off on both. With it on, any workload
 # on a host may claim any hostname with localRoute and receive a share of the
-# other workloads' requests to it (upstream's threat model: give mutually
-# hostile tenants their own host group). So agents reach the toy sites the
+# other workloads' requests to it. So the agent reaches the toy sites the
 # ordinary way: cluster DNS and a Kubernetes Service.
 gateway:
   # Deprecated upstream; HTTP reaches the host pods through k8s/ingress.yaml.
   enabled: false
-# The chart's baseline NetworkPolicies (ingress only) are on by default since
-# v2.11.0. On kind v0.33.0, kindnet's policy enforcement then drops the DNS
+# The chart's baseline NetworkPolicies (ingress only) are on by default (since
+# v2.11.0). On kind v0.33.0, kindnet's policy enforcement then drops the DNS
 # replies to the operator and host pods, which crash-loop with "failed to
 # lookup address information" (seen 2026-10-27; not yet reported). Off for the
 # workshop cluster only; keep them on in a real cluster.
 networkPolicy:
   enabled: false
 runtime:
+  # The all-features host image carries host component plugins, which step 6's
+  # kube-api plugin needs. The default release image does not.
+  image:
+    tag: 2.12.0-all-features
   # The workshop registry is plain HTTP on the kind network. The chart's
   # ociCaPaths is the safer choice for a real registry: this flag turns off
   # TLS for every registry the host pulls from.
@@ -39,7 +42,7 @@ runtime:
       # declares no keyvalue backend. The toy sites' collector keeps its count
       # in keyvalue, so that backend lives on the fixtures host group below.
       #
-      # Since v2.11.0 a hostPath volume must lie inside an allowed directory;
+      # A hostPath volume must lie inside an allowed directory (since v2.11.0);
       # the default list is empty. The three folders the tools read: the talks
       # database (sqlite, read only), the hostile repository (git, read only)
       # and a writable folder for curl's -o.

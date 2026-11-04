@@ -3,7 +3,7 @@
 # against a SHA256 recorded here. Nothing is installed outside this folder,
 # and nothing runs with sudo.
 #
-#   wash         v2.11.0   wasmCloud CLI; pushes the components (digests from the release's
+#   wash         v2.12.0   wasmCloud CLI; pushes the components (digests from the release's
 #                          sigstore attestation, wash.sigstore.json)
 #   nats         v0.5.0    NATS command line client (creates the keyvalue buckets)
 #   wasm-tools   v1.258.3  inspects component imports (step 1, make prove)
@@ -18,7 +18,7 @@ TOOLS="${TOOLS_DIR:-$ROOT/.tools}"   # the devcontainer image sets TOOLS_DIR
 DL="$TOOLS/dl"
 FORCE=0; [ "${1:-}" = "--force" ] && FORCE=1
 
-WASH_VERSION=2.11.0
+WASH_VERSION=2.12.0
 NATS_CLI_VERSION=0.5.0
 WASM_TOOLS_VERSION=1.258.3
 KIND_VERSION=0.33.0
@@ -40,7 +40,7 @@ esac
 case "$PLAT" in
   darwin-arm64)
     WASH_ASSET=wash-aarch64-apple-darwin
-    WASH_SHA=365d896eaed3894f1c551a1ed7351c2aae9dfa5548ce82041ead92e6253d1954
+    WASH_SHA=1bb197e7e4b97eef6dff792946e07f8f5a680055ecc1839887e249c2eeb0a8c5
     NATS_CLI_SHA=37a6f924bc42c72a38856d9c6125c38885732b2a13387b8bc15d1ff80987520b
     WT_ASSET=aarch64-macos
     WT_SHA=dacd5e6a79c0ad513c369373eb0e595dafadae01fddbb47cda8dee543a31495d
@@ -49,7 +49,7 @@ case "$PLAT" in
     HELM_SHA=4c9982a6cdeb458b60258df66b55398ca5b19293f6877faffe2909ad6f23dfe0 ;;
   darwin-amd64)
     WASH_ASSET=wash-x86_64-apple-darwin
-    WASH_SHA=9c287ea9e027f0c2d391400e7897c8e8225109cfee6efaf2e7b238afea233f17
+    WASH_SHA=b573319de90b0f7cf50bb839f3e92ca75fa6930cc4d2c7579b03967b98cbc306
     NATS_CLI_SHA=9fcf6dbe6462c78a1564d03c8970158f50f50c31ebda5350d2da4a597de796e7
     WT_ASSET=x86_64-macos
     WT_SHA=c0d8452e2e564d414cc1c7273c0cc5c8013d3de1ccc7650deea87eeda1ad3f26
@@ -58,7 +58,7 @@ case "$PLAT" in
     HELM_SHA=bd1d09f316558dda23698527859600936fed1371021ce0f2272d66b2fdcfa69c ;;
   linux-amd64)
     WASH_ASSET=wash-x86_64-unknown-linux-musl
-    WASH_SHA=ba28e81516c3147519506e64b73d1351857088483deebcc6824e9b5d1fe72997
+    WASH_SHA=558e05829d7922044cfe1779a5c3680cc3b46513bd4576a73cc4d1613c9ce8b8
     NATS_CLI_SHA=d9fc93e9e9ab0310deff7e719a8a0da6f9d66f26d473f039aaee70155507aecc
     WT_ASSET=x86_64-linux
     WT_SHA=99b486a9ddc19af0260cd5f98f3b709a60817a3acd20efc9c582d719caebbf6d
@@ -67,7 +67,7 @@ case "$PLAT" in
     HELM_SHA=1e4ab49e429626cf6c6958d914248b78c9730803c2751b87627e171dc800e7bb ;;
   linux-arm64)
     WASH_ASSET=wash-aarch64-unknown-linux-musl
-    WASH_SHA=af79cb91a8a5c2fa26576e70308fc3a080ca51f34ab74c5cc30816be483b6b9b
+    WASH_SHA=464ac1a7915452844fd91a839ef984e4dc1c96ac85f2562813a6361c3772c060
     NATS_CLI_SHA=39496b0e332ba8d1b7dcbac2019c7d1e7a7f0d0ccefef9da547e9d6eeed408c8
     WT_ASSET=aarch64-linux
     WT_SHA=4b9d10d460343bf7e13dcfa8ddc1e06661ff1894d4e3caf3920780c5b21dc1dd

@@ -119,7 +119,7 @@ registry.
 The toy sites (`steps/00-fixtures`) are fake websites inside the cluster, so
 the workshop needs no internet.
 
-## Known limits (wasmCloud v2.11.0)
+## Known limits (wasmCloud v2.12.0)
 
 * Workloads on one host are separated by the WebAssembly runtime alone. For
   mutually hostile tenants, use separate host groups or nodes, and decide who

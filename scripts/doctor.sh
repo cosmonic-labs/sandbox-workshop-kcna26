@@ -11,7 +11,7 @@
 set -uo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TOOLS="$ROOT/.tools"
-WASH_VERSION=2.11.0
+WASH_VERSION=2.12.0
 RUST_VERSION=1.98.1
 
 if [ -t 1 ] && [ -z "${NO_COLOR:-}" ]; then
