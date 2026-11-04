@@ -157,6 +157,9 @@ if command -v rustup >/dev/null 2>&1; then
     opt "Rust $RUST_VERSION is not installed (only needed to build; the prebuilt artifacts/ work without it)" \
       "fix: rustup toolchain install $RUST_VERSION --target wasm32-wasip2"
   fi
+elif [ -x "${CARGO_HOME:-$HOME/.cargo}/bin/rustup" ]; then
+  opt "Rust is installed in ${CARGO_HOME:-$HOME/.cargo}/bin, but that folder is not on your PATH (only needed to build)" \
+    "fix: source \"${CARGO_HOME:-$HOME/.cargo}/env\"    (add that line to your shell profile to keep it)"
 else
   opt "Rust (rustup) was not found on your PATH (only needed to build; the prebuilt artifacts/ work without it)" \
     "fix: see https://rustup.rs, then: rustup toolchain install $RUST_VERSION --target wasm32-wasip2"

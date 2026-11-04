@@ -38,7 +38,7 @@ kubectl wait --for=condition=Ready workloaddeployment/toy-sites -n workshop-site
   echo "# Step 1: run the agent and its three tools"
   apply steps/01-run-it/workload.yaml
   echo "# sqlite reads the talks database:"
-  ask agent.localhost 'list the talks'
+  ask agent.localhost 'list the talks in sqlite'
   echo "# git reads the repository:"
   ask agent.localhost 'show the recent commits'
   echo "# curl reaches the one host it is granted:"

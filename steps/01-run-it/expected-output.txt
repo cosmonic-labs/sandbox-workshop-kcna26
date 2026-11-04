@@ -2,8 +2,8 @@
 $ kubectl apply -f steps/01-run-it/workload.yaml && sleep 2 && kubectl wait --for=condition=Ready workloaddeployment/toolbox-agent
 
 # sqlite reads the talks database:
-$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'list the talks'
-[user] list the talks
+$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'list the talks in sqlite'
+[user] list the talks in sqlite
 [model] call sqlite({"sql":"select title, room from talks order by title limit 5"})
 [tool sqlite] ok: A Capability Model for WebAssembly | Room 1 Components over Containers | Room 1 Debugging Wasm in Production | Room 2 From VMs to Sandboxes | Hall A Least Privilege for Multi-Tenant Clusters | Hall B
 [model] Done. Here is what each step returned: sqlite: A Capability Model for WebAssembly | Room 1 Components over Containers | Room 1 Debugging Wasm in Production | Room 2 Fr
