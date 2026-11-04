@@ -25,7 +25,7 @@ make doctor
       `kubectl config current-context` says `kind-workshop-toolbox`.
 - [ ] `export PATH="$PWD/.tools:$PATH"`, then walk steps 1 to 6 by hand from
       each `steps/*/README.md`. Every command runs as written and the output
-      matches the **Expected** block.
+      matches the result line under it.
 - [ ] `make prove`: ends with `proofs written:` and the step files. `git diff
       steps` shows nothing: the transcripts are deterministic.
 - [ ] `make clean`: the cluster and the registry container are gone; your

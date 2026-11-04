@@ -27,7 +27,7 @@ spec:
       name: toolbox-agent
   template:
     spec:
-      # The team host group; the toy sites have one of their own.
+      # The default host group; the toy sites have one of their own.
       hostSelector:
         hostgroup: default
       hostInterfaces:

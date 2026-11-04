@@ -47,7 +47,6 @@ switches your kubectl context to it.
 | 3 | `steps/03-curl` | `curl`'s escapes (metadata service, other hosts, redirects, files) refused |
 | 4 | `steps/04-sqlite` | `sqlite3`'s escapes (`.shell`, `ATTACH`, extensions) go nowhere |
 | 5 | `steps/05-git` | A hostile repository's traps (hooks, pager, filters) never fire |
-| 6 | `steps/06-real-model` | A real model in the same slot, with no rebuild |
 
 Steps 1 to 4 tell the whole story; 5 and 6 are for if time allows. Each step
 README has the commands and the output to expect (`expected-output.txt`).
@@ -141,5 +140,7 @@ the workshop needs no internet.
 * `TESTING.md` is the pre-workshop test checklist.
 * `extras/container/` is the same gullible agent as an ordinary container,
   leaking its Secret and token, for the presentation.
+* `extras/real-model/` swaps the scripted model for `model-real` (an OpenAI
+  compatible endpoint) in the same slot, with no rebuild.
 * The tool interfaces are in `wit/toolbox.wit`; the harness's tool table is
   `components/agent/src/tools.rs`.

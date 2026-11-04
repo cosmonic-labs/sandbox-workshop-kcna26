@@ -1,4 +1,4 @@
-# Step 6: swap in a real model.
+# Extra: swap in a real model.
 #
 # The model slot is a label like any tool slot, so swapping the model is a
 # manifest change, from model-scripted to model-real. Nothing is rebuilt. The

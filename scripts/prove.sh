@@ -127,11 +127,11 @@ kubectl wait --for=condition=Ready workloaddeployment/toy-sites -n workshop-site
 } >"$(OUT 05-git)" 2>&1
 
 {
-  echo "# Step 6: a real model behind the same slot (a fake OpenAI compatible endpoint)"
-  apply steps/06-real-model/workload.yaml
+  echo "# Extra: a real model behind the same slot (a fake OpenAI compatible endpoint)"
+  apply extras/real-model/workload.yaml
   echo "# The model asks for a tool, the agent runs it, the model answers:"
   ask agent.localhost 'what talks are there?'
-} >"$(OUT 06-real-model)" 2>&1
+} >extras/real-model/expected-output.txt 2>&1
 
 echo "proofs written:"
 ls steps/*/expected-output.txt steps/*/control-checks.txt

@@ -14,7 +14,7 @@ from one component, all inside the cluster, so the workshop needs no internet:
   instruction, used by the container demo in the presentation
   (`extras/container`).
 * `llm.workshop-sites.svc/v1/chat/completions`: a fake OpenAI compatible model
-  for step 6.
+  for the real-model extra (`extras/real-model`).
 
 Each name is an ordinary Kubernetes Service (`k8s/sites.yaml`, namespace
 `workshop-sites`) that selects the pods of the `fixtures` host group, and the

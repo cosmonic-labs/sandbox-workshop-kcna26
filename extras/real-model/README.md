@@ -1,6 +1,8 @@
-# Step 6: swap in a real model
+# Extra: swap in a real model
 
-**Folder:** `steps/06-real-model`
+**Folder:** `extras/real-model`
+
+Not a numbered step: run it on the big screen, or after step 5.
 
 The `model` slot is a label like any tool slot, so swapping the model is a
 manifest change, from `model-scripted` to `model-real`. Nothing is rebuilt, and
@@ -13,7 +15,7 @@ offline. Only `model-real` is granted that host; no tool gets it.
 **Run:**
 
 ```sh
-kubectl apply -f steps/06-real-model/workload.yaml && sleep 2 && kubectl wait --for=condition=Ready workloaddeployment/toolbox-agent
+kubectl apply -f extras/real-model/workload.yaml && sleep 2 && kubectl wait --for=condition=Ready workloaddeployment/toolbox-agent
 curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'what talks are there?'
 ```
 
