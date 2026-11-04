@@ -12,6 +12,9 @@ set -euo pipefail
 source "$(dirname "$0")/env.sh"
 
 mkdir -p "$RUN_DIR/sqlite-data" "$RUN_DIR/curl-data"
+# The host runs as uid 65532, so it can only write here if the folder is open
+# to everyone. macOS file sharing hides this; Linux nodes and gVisor enforce it.
+chmod 0777 "$RUN_DIR/curl-data"
 rm -f "$RUN_DIR/sqlite-data/main.db"
 sqlite3 "$RUN_DIR/sqlite-data/main.db" < "$ROOT/fixtures/talks.sql"
 
