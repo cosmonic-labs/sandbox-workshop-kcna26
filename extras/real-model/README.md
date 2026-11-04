@@ -6,7 +6,7 @@ Not a numbered step: run it on the big screen, or after step 5.
 
 The `model` slot is a label like any tool slot, so swapping the model is a
 manifest change, from `model-scripted` to `model-real`. Nothing is rebuilt, and
-the three tools are unchanged.
+the tools are unchanged.
 
 `model-real` speaks the OpenAI chat completions API. `LLM_URL` points at the
 fake endpoint in the toy sites (`llm.workshop-sites.svc`), so this still runs

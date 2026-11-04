@@ -2,8 +2,9 @@
 
 **Folder:** `steps/01-run-it`
 
-Deploy an agent and three tools with `kubectl`, then ask it questions. Every
-tool slot is already filled, so the agent answers right away.
+Deploy an agent and its tools with `kubectl`, then ask it questions. curl,
+sqlite and git are ready, so the agent answers right away; the kubectl slot
+holds a placeholder until step 6.
 
 ## Deploy
 
@@ -57,9 +58,9 @@ what the tool returned.
 
 ## What you ran
 
-One workload with five components: the agent harness (the loop that asks the
-model, calls a tool and repeats), the model, and three tools. Each tool gets
-only what its entry in the manifest grants:
+One workload with six components: the agent harness (the loop that asks the
+model, calls a tool and repeats), the model, three tools and a placeholder in
+the kubectl slot. Each tool gets only what its entry in the manifest grants:
 
 | Component | Can reach | Everything else |
 | --- | --- | --- |
@@ -67,6 +68,7 @@ only what its entry in the manifest grants:
 | `sqlite` | `/data`, read only (the talks database) | refused |
 | `curl` | `api.workshop-sites.svc`, and `/data` for `-o` | refused |
 | `git` | `/repo`, read only | refused |
+| `kubectl` (placeholder) | nothing; it answers "not installed yet" | refused |
 
 The grants are a few lines of `workload.yaml`:
 
@@ -95,7 +97,7 @@ ls -l artifacts/tool_curl.wasm artifacts/tool_sqlite.wasm artifacts/tool_git.was
 
 `curl` is about 180 KB, `sqlite3` about 1.2 MB, `git` about 2.4 MB.
 
-The harness imports the model and three tool slots, and no network or files of
+The harness imports the model and four tool slots, and no network or files of
 its own. The second command prints nothing:
 
 ```sh

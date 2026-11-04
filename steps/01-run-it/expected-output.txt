@@ -29,6 +29,7 @@ $ wasm-tools component wit artifacts/agent.wasm | grep 'import .*workshop:toolbo
   import curl: workshop:toolbox/curl@0.4.0;
   import sqlite: workshop:toolbox/sqlite@0.4.0;
   import git: workshop:toolbox/git@0.4.0;
+  import kubectl: workshop:toolbox/kubectl@0.4.0;
 # The harness imports no HTTP client, no filesystem and no sockets, so this prints nothing:
 $ wasm-tools component wit artifacts/agent.wasm | grep -E 'wasi:(http/client|filesystem|sockets)'
 # The tools are small. Look at the sizes:

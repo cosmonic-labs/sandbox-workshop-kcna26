@@ -1,5 +1,6 @@
-/// The workshop's own interfaces: three tools, the model, and the worlds that
-/// say what each component may touch.
+/// The workshop's own interfaces: four tools, the Kubernetes API capability
+/// behind one of them, the model, and the worlds that say what each component
+/// may touch.
 ///
 /// The tools follow typed-tool conventions. Each function takes
 /// one record whose fields are the tool's arguments, each interface has its
@@ -123,6 +124,58 @@ interface git {
   run: async func(args: run-args) -> result<string, error>;
 }
 
+/// kubectl: read Kubernetes objects from a command line, as the service
+/// account the platform gave this workload. Requests go through the kube-api
+/// capability; this tool holds no token and reaches nothing else.
+@since(version = 0.4.0)
+interface kubectl {
+  /// Why a kubectl call failed.
+  ///
+  /// Payload strings are diagnostic. Their wording is not stable, and
+  /// programs should not parse them.
+  variant error {
+    /// The arguments are malformed, such as an unknown command or resource.
+    /// The payload says which and why.
+    invalid-argument(string),
+    /// The API server refused the request (its RBAC), or this tool does not
+    /// offer the command at all. The payload names what was refused.
+    access-denied(string),
+    /// The request did not reach the API server, or no answer came back.
+    /// The payload says what happened.
+    network(string),
+    /// Any other failure. Treat it as a generic failure.
+    other(option<string>),
+  }
+
+  /// Arguments for `run`.
+  record run-args {
+    /// What you would type after `kubectl`, such as `get pods -n demo`.
+    arguments: string,
+  }
+
+  /// Run kubectl with these arguments and return what it prints.
+  run: async func(args: run-args) -> result<string, error>;
+}
+
+/// The Kubernetes API, as a capability. A host component plugin serves it: it
+/// holds the service account token, adds it to each request, and reaches only
+/// the API server. A caller never sees the token.
+@since(version = 0.4.0)
+interface kube-api {
+  /// What the API server answered.
+  record response {
+    /// HTTP status, such as 200 or 403.
+    status: u16,
+    /// The response body, usually JSON.
+    body: list<u8>,
+  }
+
+  /// Send one request to the API server. `method` is GET, POST, and so on;
+  /// `path-and-query` is relative to the API server, such as
+  /// `/api/v1/namespaces/demo/pods`. The error is a failure to send it at all.
+  send: async func(method: string, path-and-query: string, body: list<u8>) -> result<response, string>;
+}
+
 // ---------------------------------------------------------------------------
 // The model.
 // ---------------------------------------------------------------------------
@@ -200,6 +253,7 @@ world agent {
   import curl: curl;
   import sqlite: sqlite;
   import git: git;
+  import kubectl: kubectl;
   export wasi:http/handler@0.3.0;
 }
 
@@ -239,14 +293,35 @@ world git-tool {
   export git;
 }
 
+/// The kubectl tool: no outgoing HTTP, no sockets, no token. Its only way to
+/// the cluster is the kube-api capability.
+@since(version = 0.4.0)
+world kubectl-tool {
+  import kube-api;
+  export kubectl;
+}
+
+/// The kube-api host component plugin, installed on the host group by the
+/// platform, not by a workload: the service account token (its labelled
+/// `token` secret) and outgoing HTTP, which its own allowedHosts limit to the
+/// API server.
+@since(version = 0.4.0)
+world kube-api-plugin {
+  import token: wasmcloud:secrets/secret@2.1.0;
+  import wasmcloud:secrets/reveal@2.1.0;
+  import wasi:http/client@0.3.0;
+  export kube-api;
+}
+
 /// The placeholder that fills every slot until a step installs the real
-/// tool. One image, all three interfaces, every function returns an error
-/// saying the tool isn't installed yet.
+/// tool. One image, all four tool interfaces, every function returns an
+/// error saying the tool isn't installed yet.
 @since(version = 0.4.0)
 world not-installed {
   export curl;
   export sqlite;
   export git;
+  export kubectl;
 }
 
 /// Test fixture, not part of the toolbox: the planted web page, the

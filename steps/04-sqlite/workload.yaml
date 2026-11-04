@@ -1,10 +1,11 @@
-# Step 1: run the agent and its three tools.
+# Step 4: try sqlite3's escapes. The same agent and grants as step 1.
 #
 # The agent harness (the component that runs the loop: ask the model, call a
-# tool, repeat) imports a model and three labelled tool slots: curl, sqlite
-# and git. The host links each label to the workload component of the same
-# name, so every slot must be filled. Here every slot has its real tool and
-# the scripted model, so the agent answers straight away.
+# tool, repeat) imports a model and four labelled tool slots: curl, sqlite,
+# git and kubectl. The host links each label to the workload component of the
+# same name, so every slot must be filled. Here curl, sqlite and git have
+# their real tools and the scripted model, so the agent answers straight away;
+# kubectl holds a placeholder until step 6.
 #
 # Each tool reaches only what this manifest grants it:
 #   curl    the hosts in its allowedHosts (api.workshop-sites.svc), and the folder
@@ -66,6 +67,10 @@ spec:
               - name: repo
                 mountPath: /repo
                 readOnly: true
+        # The kubectl slot waits for step 6: the placeholder answers that the
+        # tool isn't installed yet.
+        - name: kubectl
+          image: workshop-toolbox-registry:5000/workshop/not-installed:0.4.0
       volumes:
         - name: curl-data
           hostPath:
