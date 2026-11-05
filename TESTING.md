@@ -10,8 +10,8 @@ Start Docker first (Docker Desktop, OrbStack or Podman, 4 GB or more for
 containers).
 
 ```sh
-git clone https://github.com/cosmonic-labs/agent-tools-workshop
-cd agent-tools-workshop
+git clone https://github.com/cosmonic-labs/sandbox-workshop-kcna26
+cd sandbox-workshop-kcna26
 make doctor
 ```
 
