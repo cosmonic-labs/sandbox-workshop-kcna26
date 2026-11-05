@@ -11,6 +11,8 @@
 #   make check-fixtures-db  the committed .db files match their checksums and sources
 #   make prove       replay steps 1 to 4 on the cluster, rewrite their expected-output.txt
 #   make verify      replay the same, change nothing, check each result is what it should be
+#   make github-sign-in   sign step 4's agent in to GitHub from the terminal (code flow, for Codespaces)
+#   make github-sign-out  sign it out again
 #   make down        changes nothing; make clean deletes the cluster and the registry
 #
 #   No Docker? Open the repo in GitHub Codespaces (see README.md).
@@ -18,7 +20,7 @@
 SHELL := /bin/bash
 .DEFAULT_GOAL := help
 
-.PHONY: help tools doctor up push-build build build-all fixtures-db check-fixtures-db prove verify down clean
+.PHONY: help tools doctor up push-build build build-all fixtures-db check-fixtures-db prove verify github-sign-in github-sign-out down clean
 
 help:
 	@sed -n 's/^#   //p' $(firstword $(MAKEFILE_LIST))
@@ -57,6 +59,12 @@ prove:
 
 verify:
 	@./scripts/prove.sh --verify
+
+github-sign-in:
+	@./scripts/github-sign-in.sh
+
+github-sign-out:
+	@./scripts/github-sign-in.sh --out
 
 down:
 	@./scripts/down.sh

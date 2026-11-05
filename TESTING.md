@@ -53,7 +53,7 @@ make doctor
       from the docker-in-docker feature).
 - [ ] `make up` completes inside the codespace. Note how long it takes.
 - [ ] Steps 1 to 4 run as written from the codespace terminal (step 2 with the prebuilt curl, step 4's
-      sign-in with the curl commands its README gives).
+      sign-in with `make github-sign-in`).
 
 ## 3. Build curl yourself
 
@@ -75,13 +75,35 @@ make doctor
       address, so the unauthenticated limit (60 requests an hour) runs out
       fast. Signed in, each person gets their own 5,000.
 
-## 5. GitHub sign-in (once the OAuth app's client id is in k8s/values.yaml)
+## 5. GitHub sign-in (the OAuth app's client id and secret are in k8s/values.yaml)
 
-- [ ] Step 4's chat page: **Sign in with GitHub** shows a code and a link;
-      entering the code on github.com turns it into `Signed in to GitHub as
-      <you>` within a few seconds, and `gh` answers end with
-      `(signed in)` and a limit of 5000.
+### 5a. Browser flow, the chat page
+
+- [ ] Step 4's chat page: **Sign in with GitHub** goes to github.com and asks
+      to approve "KubeCon sandbox workshop" with no scopes listed. Approving
+      lands back on the chat page showing `Signed in to GitHub as <you>`, and
+      `gh` answers end with `(signed in)` and a limit of 5000.
+- [ ] Clicking **Cancel** on GitHub's page instead lands back on the chat page
+      with "GitHub sign-in was cancelled on github.com."
+- [ ] The browser's back button to the old `/github/callback?code=...`
+      address shows "That sign-in expired or was already used": a code
+      works once.
+- [ ] `curl -s -o /dev/null -w '%{redirect_url}\n' -H 'Host: agent.localhost'
+      http://127.0.0.1:18180/github/login` prints a
+      `https://github.com/login/oauth/authorize?...` address with
+      `redirect_uri=http%3A%2F%2Fagent.localhost%3A18180%2Fgithub%2Fcallback`,
+      a `state`, `code_challenge_method=S256` and no `scope`.
 - [ ] `gh api -X POST /repos/wasmCloud/wasmCloud/issues/5885/comments`,
       signed in: still `github-api plugin: only GET requests are allowed`.
 - [ ] **Sign out** returns to `Sign in with GitHub`; applying another
       manifest or restarting the host pod signs you out too.
+
+### 5b. Code flow, the terminal (Codespaces)
+
+- [ ] `make github-sign-in` prints `Open https://github.com/login/device and
+      enter XXXX-XXXX`; entering the code on github.com (any device) ends it
+      with `Signed in to GitHub as <you>` within a few seconds. It prints no
+      token.
+- [ ] The chat page, if open, shows the same login.
+- [ ] Ctrl-C while it waits stops the script; `make github-sign-out` prints
+      `Signed out of GitHub.`

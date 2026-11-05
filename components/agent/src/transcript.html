@@ -76,12 +76,14 @@
     border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer;
   }
   .btn:hover { background: var(--hover); }
+  a.btn { display: inline-block; text-decoration: none; }
   .btn:disabled { opacity: 0.55; cursor: default; }
   .tools { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; justify-content: flex-end; }
 
   /* GitHub sign-in (step 4): a button, then the code to enter, then who. */
   .gh { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; font-size: 0.8rem; color: var(--muted); }
   .gh a { color: var(--brand-ink); font-weight: 600; }
+  .gh a.btn { color: var(--ink); }
   .gh code {
     font-size: 0.9rem; font-weight: 700; color: var(--strong); background: var(--sunken);
     padding: 0.1rem 0.45rem; border-radius: 0.35rem; letter-spacing: 0.05em;
@@ -161,13 +163,23 @@
     content: ""; position: absolute; left: 0; right: 0; top: -1.25rem; height: 1.25rem; pointer-events: none;
     background: linear-gradient(to bottom, transparent, var(--bg));
   }
-  .examples { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; margin-bottom: 0.6rem; }
-  .examples .kicker { margin-right: 0.2rem; }
+  /* Example prompts: one row that scrolls sideways, faded at the edge while there is more. */
+  .examples { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.6rem; min-width: 0; }
+  .chips {
+    display: flex; gap: 0.4rem; flex: 1; min-width: 0; overflow-x: auto; scroll-snap-type: x proximity;
+    scroll-behavior: smooth; scrollbar-width: thin; padding: 3px 3px 5px;
+  }
+  .chips.more {
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 3rem), transparent);
+    mask-image: linear-gradient(to right, #000 calc(100% - 3rem), transparent);
+  }
   .chip {
     font: inherit; font-size: 0.75rem; padding: 0.25rem 0.7rem; border-radius: 999px; cursor: pointer;
     border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+    flex: none; white-space: nowrap; scroll-snap-align: start;
   }
   .chip:hover { background: var(--hover); border-color: var(--muted); }
+  .chip:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
   .box {
     display: flex; align-items: center; gap: 0.5rem; padding: 0.4rem 0.4rem 0.4rem 1rem;
     border: 1px solid var(--line); border-radius: 1.1rem; background: var(--surface); box-shadow: var(--shadow);
@@ -228,15 +240,15 @@
   <form class="col" id="form">
     <div class="examples" role="group" aria-label="Example prompts">
       <span class="kicker" aria-hidden="true">Try</span>
-      <button class="chip" type="button" title="Step 1">hello</button>
-      <button class="chip" type="button" title="Step 1">fetch http://api.workshop-sites.svc/data</button>
-      <button class="chip" type="button" title="Step 2">curl -s http://169.254.169.254/latest/meta-data/</button>
-      <button class="chip" type="button" title="Step 2">curl -sL http://api.workshop-sites.svc/redirect</button>
-      <button class="chip" type="button" title="Step 3">sqlite .shell id</button>
-      <button class="chip" type="button" title="Step 3">sqlite attach 'file:/workshop/private-data/payroll.db?immutable=1' as p</button>
-      <button class="chip" type="button" title="Step 4">triage the open PRs in wasmCloud/wasmCloud</button>
-      <button class="chip" type="button" title="Step 4">gh api -X POST /repos/wasmCloud/wasmCloud/issues/1/comments</button>
-      <button class="chip" type="button" title="Step 4">curl -s https://api.github.com/repos/wasmCloud/wasmCloud/pulls</button>
+      <div class="chips" id="chips">
+        <button class="chip" type="button" title="Step 1">fetch http://api.workshop-sites.svc/data</button>
+        <button class="chip" type="button" title="Step 2">curl -s http://169.254.169.254/latest/meta-data/</button>
+        <button class="chip" type="button" title="Step 3">sqlite .shell id</button>
+        <button class="chip" type="button" title="Step 3">sqlite attach 'file:/workshop/private-data/payroll.db?immutable=1' as p; select name, salary from p.salaries</button>
+        <button class="chip" type="button" title="Step 4">triage the open PRs in wasmCloud/wasmCloud</button>
+        <button class="chip" type="button" title="Step 4">gh api -X POST /repos/wasmCloud/wasmCloud/issues/5885/comments</button>
+        <button class="chip" type="button" title="Step 4">curl -s https://api.github.com/repos/wasmCloud/wasmCloud/pulls</button>
+      </div>
     </div>
     <div class="box">
       <label class="sr-only" for="prompt">Prompt</label>
@@ -452,10 +464,22 @@
     }
   }
 
-  // GitHub sign-in. The harness passes each call to the github-api plugin,
-  // which runs GitHub's device flow and keeps the token; this page only sees
-  // the code to enter, where to enter it, and the login once signed in.
+  // GitHub sign-in. "Sign in with GitHub" is a plain link to /github/login:
+  // the harness asks the github-api plugin for GitHub's address and the
+  // browser goes there, approves, and comes back through /github/callback,
+  // where the plugin trades GitHub's single-use code for a token it keeps.
+  // This page only ever sees the signed-in login. A sign-in begun from a
+  // terminal (make github-sign-in, the code flow) shows here while it waits.
   let ghTimer = null;
+  const ghReasons = {
+    'denied': 'GitHub sign-in was cancelled on github.com.',
+    'expired': 'That sign-in expired or was already used. Sign in again.',
+    'not-set-up': 'GitHub sign-in is not set up on this cluster (see the README). Everything works signed out.',
+    'failed': 'GitHub sign-in did not complete. Try again.',
+  };
+  const ghParams = new URLSearchParams(location.search);
+  let ghNote = ghReasons[ghParams.get('github')] || '';
+  if (ghParams.has('github')) history.replaceState(null, '', location.pathname);
   async function gh(path, method) {
     try {
       const res = await fetch(path, { method: method || 'GET', cache: 'no-store' });
@@ -487,15 +511,29 @@
         ghButton('Cancel', async () => ghShow(await gh('/github/sign-out', 'POST'))));
       ghTimer = setTimeout(async () => ghShow(await gh('/github/status')), 5000);
     } else {
-      if (s.state === 'error') box.append(el('span', 'why', s.error));
-      box.append(ghButton('Sign in with GitHub', async () => ghShow(await gh('/github/sign-in', 'POST'))));
+      const why = s.state === 'error' ? s.error : ghNote;
+      if (why) box.append(el('span', 'why', why));
+      const a = el('a', 'btn', 'Sign in with GitHub');
+      a.href = '/github/login';
+      box.append(a);
     }
+    ghNote = '';
   }
   gh('/github/status').then((s) => ghShow(s.state === 'error' ? { state: 'signed-out' } : s));
 
   $('form').addEventListener('submit', (e) => { e.preventDefault(); send($('prompt').value); });
   document.querySelectorAll('.examples button').forEach((b) =>
     b.addEventListener('click', () => { $('prompt').value = b.textContent; send(b.textContent); }));
+  // The chip row: fade the right edge while more chips are out of view, and
+  // bring a chip into view when the keyboard focuses it.
+  const chips = $('chips');
+  const fade = () => chips.classList.toggle('more',
+    chips.scrollLeft + chips.clientWidth < chips.scrollWidth - 2);
+  chips.addEventListener('scroll', fade, { passive: true });
+  window.addEventListener('resize', fade);
+  chips.addEventListener('focusin', (e) => e.target.scrollIntoView(
+    { block: 'nearest', inline: 'nearest', behavior: reduced ? 'auto' : 'smooth' }));
+  fade();
   $('clear').addEventListener('click', () => { runs = []; save(); renderAll(); $('prompt').focus(); });
 
   renderAll();

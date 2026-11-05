@@ -256,6 +256,12 @@ PR=5885
   # calling workload, or it would have refused. Then forget it again.
   fact signin "$(curl -s -m 30 -X POST -H 'Host: agent.localhost' "$URL/github/sign-in")"
   curl -s -m 30 -X POST -H 'Host: agent.localhost' "$URL/github/sign-out" >/dev/null
+  # The browser flow: /github/login sends the browser to GitHub (or back to
+  # the page when sign-in isn't set up), and a callback whose state this
+  # workload never made is refused. Status and where each one redirects.
+  fact weblogin "$(curl -s -m 30 -o /dev/null -w '%{http_code} %{redirect_url}' -H 'Host: agent.localhost' "$URL/github/login")"
+  fact webstate "$(curl -s -m 30 -o /dev/null -w '%{http_code} %{redirect_url}' -H 'Host: agent.localhost' "$URL/github/callback?code=not-a-code&state=not-a-state")"
+  curl -s -m 30 -X POST -H 'Host: agent.localhost' "$URL/github/sign-out" >/dev/null
 } >"$(OUT steps/04-github)" 2>&1
 
 if [ "$MODE" = write ]; then
@@ -425,6 +431,21 @@ case "$(sed -n 's/^signin=//p' "$FACTS")" in
   *'"state":"pending"'* | *'GitHub sign-in is not set up on this cluster'*) ;;
   *) fail facts 'sign-in starts, or says it is not set up (and the plugin named the workload)' \
     'pending, or not set up' "$(sed -n 's/^signin=//p' "$FACTS")" ;;
+esac
+CHECKED=$((CHECKED + 1))
+got=$(sed -n 's/^weblogin=//p' "$FACTS")
+case "$got" in
+  *scope*) fail facts 'the browser sign-in asks GitHub for no scopes' 'no scope parameter' "$got" ;;
+  '302 https://github.com/login/oauth/authorize?client_id='*'&redirect_uri=http%3A%2F%2Fagent.localhost%3A18180%2Fgithub%2Fcallback&state='*'&code_challenge='*'&code_challenge_method=S256') ;;
+  '302 '*'/?github=not-set-up') ;;
+  *) fail facts '/github/login redirects to GitHub (PKCE S256, the fixed callback), or back saying sign-in is not set up' \
+    '302 https://github.com/login/oauth/authorize?...' "$got" ;;
+esac
+CHECKED=$((CHECKED + 1))
+got=$(sed -n 's/^webstate=//p' "$FACTS")
+case "$got" in
+  '302 '*'/?github=expired') ;;
+  *) fail facts 'a callback with a state this workload never made is refused' '302 .../?github=expired' "$got" ;;
 esac
 
 

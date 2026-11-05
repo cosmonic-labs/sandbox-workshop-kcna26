@@ -35,17 +35,24 @@ pub fn json_response(status: u16, json: String) -> Result<Response, ErrorCode> {
 /// request the host checks the same way.
 #[allow(dead_code)]
 pub fn redirect_response(status: u16, location: &str) -> Result<Response, ErrorCode> {
+    redirect_text(status, location, format!("redirecting to {location}\n"))
+}
+
+/// A redirect to `location` whose body says something of its own, for a
+/// reader using curl.
+#[allow(dead_code)]
+pub fn redirect_text(status: u16, location: &str, text: String) -> Result<Response, ErrorCode> {
     let list = vec![
         ("content-type".to_string(), b"text/plain; charset=utf-8".to_vec()),
         ("location".to_string(), location.as_bytes().to_vec()),
+        ("cache-control".to_string(), b"no-store".to_vec()),
     ];
     let headers = Fields::from_list(&list)
         .map_err(|e| ErrorCode::InternalError(Some(format!("headers: {e:?}"))))?;
     let (mut body_tx, body_rx) = crate::wit_stream::new();
     let (trailers_tx, trailers_rx) = crate::wit_future::new(|| Ok(None));
-    let loc = location.to_string();
     wit_bindgen::spawn_local(async move {
-        body_tx.write_all(format!("redirecting to {loc}\n").into_bytes()).await;
+        body_tx.write_all(text.into_bytes()).await;
         drop(body_tx);
         let _ = trailers_tx.write(Ok(None)).await;
     });

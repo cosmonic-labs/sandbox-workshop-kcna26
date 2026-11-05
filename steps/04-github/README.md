@@ -18,10 +18,8 @@ checks, and the issue search. It refuses everything else and says so.
 
 The same plugin runs the sign-in. The agent harness imports its other
 interface, `github-auth`, for the chat page's **Sign in with GitHub**. The
-plugin does the whole of GitHub's device flow itself (you enter a short code
-on github.com, and GitHub hands the plugin a token), so the token never
-leaves the plugin. The harness and the tool see the code, the address to
-enter it at and your login, nothing more.
+plugin does the whole sign-in itself and keeps the token GitHub hands it, so
+the token never leaves the plugin. The harness and the tool never see it.
 
 ## Three layers
 
@@ -57,26 +55,59 @@ http://agent.localhost:18180, or run the curl command under it.
 **1. Sign in (optional):** click **Sign in with GitHub** at the top of the
 chat page.
 
-The page shows a code such as `WDJB-MJHT` and a link to
-github.com/login/device. Open the link, enter the code, and approve. Within a
-few seconds the page says `Signed in to GitHub as <you>`.
+Your browser goes to github.com, which asks you to approve the "KubeCon
+sandbox workshop" app (sign in to GitHub first if you aren't). Approve, and
+GitHub sends you back to the chat page, which now says
+`Signed in to GitHub as <you>`. The app asks for no scopes, so the token can
+read only what anyone can read.
 
-Without signing in, GitHub allows 60 requests an hour, shared by everyone
-behind the same IP address, which in a conference room is everyone on the
-Wi-Fi. Signed in, you get your own 5,000. Each prompt below costs 1 to 3
-requests, and every `gh` answer ends with how many are left. If you'd
-rather not sign in, or the limit runs out, follow along with the samples
-here; the refusals in prompts 6 to 8 send nothing to GitHub.
+Why sign in at all: without a token, GitHub allows 60 requests an hour,
+shared by everyone behind the same IP address, which in a conference room is
+everyone on the Wi-Fi. Signed in, you get your own 5,000. Each prompt below
+costs 1 to 3 requests, and every `gh` answer ends with how many are left. If
+you'd rather not sign in, or the limit runs out, follow along with the
+samples here; the refusals in prompts 6 to 8 send nothing to GitHub.
 
-In Codespaces, sign in with curl:
+How it works. This is GitHub's OAuth web application flow, with PKCE. The
+plugin makes a random `state` and a secret verifier, and sends your browser
+to GitHub with the state and a hash of the verifier. GitHub sends your
+browser back to `http://agent.localhost:18180/github/callback` with the same
+state and a code. The harness passes both to the plugin, which checks the
+state and trades the code for a token, proving it holds the verifier and
+the OAuth app's client secret. So the agent does see one thing: that code.
+It works once, for a few minutes, and only together with the verifier and
+the secret, which never leave the plugin. The token itself never reaches the
+agent.
+
+**In Codespaces, or without a browser on the same machine,** the browser
+can't come back to `agent.localhost`, so sign in from the terminal with
+GitHub's device flow instead:
+
+```sh
+make github-sign-in
+```
+
+```
+Open https://github.com/login/device and enter WDJB-MJHT
+Waiting for GitHub (Ctrl-C to stop waiting; the code expires in 14 minutes)...
+Signed in to GitHub as <you>
+```
+
+Open the link in any browser, on any device, enter the code and approve.
+`make github-sign-out` signs out. The same with curl:
 
 ```sh
 curl -s -X POST -H 'Host: agent.localhost' http://127.0.0.1:18180/github/sign-in
 curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/github/status
+curl -s -X POST -H 'Host: agent.localhost' http://127.0.0.1:18180/github/sign-out
 ```
 
 The first prints the code and the link. Enter the code, then the second
-prints `{"login":"<you>","state":"signed-in"}`.
+prints `{"login":"<you>","state":"signed-in"}`. The third signs out.
+
+Use the browser when you can. GitHub lets one OAuth app start only 50 device
+flow sign-ins an hour, for everyone using it, and a full room would run
+through that. The browser flow has no such limit.
 
 **2. The open pull requests** (allowed): `triage the open PRs in wasmCloud/wasmCloud`
 
@@ -198,7 +229,7 @@ Whatever the model asks `gh` to do, the only door out is the plugin.
 | github-api plugin (platform) | each workload's token, in memory | `github.com` and `api.github.com` only (`allowedHosts`), `GET` only, the allowlisted paths only |
 
 The platform side is in `k8s/values.yaml`: the plugin, its `allowedHosts`,
-and its `client-id`, the GitHub OAuth app sign-in uses.
+and the GitHub OAuth app sign-in uses (`client-id` and `client-secret`).
 
 ## What this doesn't do
 
@@ -208,6 +239,13 @@ and its `client-id`, the GitHub OAuth app sign-in uses.
   out, and a host restart signs everyone out. **Sign out** forgets it; GitHub
   keeps it valid until you revoke it under Settings > Applications >
   Authorized OAuth Apps.
+* **The agent sees the browser flow's code.** GitHub sends it back through
+  the harness. It is single use, expires in minutes, and is useless without
+  the plugin's PKCE verifier and the app's client secret. The agent never
+  sees a token.
+* **The client secret is in the repo.** That is on purpose, as GitHub's own
+  CLI does: it identifies the app, and gets no token without a person
+  approving on github.com. It will be rotated after the event.
 * **What the agent reads, it can pass on.** The plugin decides what reaches
   GitHub, not where the answers go next. The agent could hand what `gh` read
   to `curl`, which may still reach its one allowed host. Grants limit reach,
@@ -218,8 +256,8 @@ and its `client-id`, the GitHub OAuth app sign-in uses.
 * **One call at a time.** The harness awaits each tool call before the next,
   which keeps clear of wasmCloud#5756 (see the main README's known limits).
 * **Sign-in needs an OAuth app.** Until the platform sets the plugin's
-  `client-id`, Sign in with GitHub says sign-in isn't set up, and everything
-  else works signed out.
+  `client-id` and `client-secret`, Sign in with GitHub says sign-in isn't set
+  up, and everything else works signed out.
 
 Full transcript: [`expected-output.txt`](expected-output.txt). GitHub's
 answers are live, so the transcript writes each one as

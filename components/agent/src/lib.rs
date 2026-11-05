@@ -15,11 +15,16 @@
 //! nothing else from the host; whatever a tool can reach is
 //! decided by the manifest entry of the component filling that slot.
 //!
-//! Sign-in is the one thing the harness does besides the loop. The page's
-//! "Sign in with GitHub" control calls `/github/status`, `/github/sign-in` and
-//! `/github/sign-out` here, and the harness passes each to github-auth. The
-//! plugin behind it runs GitHub's device flow and keeps the token; the
-//! harness only ever sees the code to enter, where to enter it and the
+//! Sign-in is the one thing the harness does besides the loop, and it passes
+//! every part of it to github-auth. The page's "Sign in with GitHub" opens
+//! `/github/login`, which answers with a redirect to GitHub (the plugin's
+//! browser flow); GitHub sends the browser back to `/github/callback` with a
+//! single-use code, which the harness hands to the plugin. That code is
+//! useless on its own: trading it for a token takes the plugin's PKCE
+//! verifier and the OAuth app's client secret. `/github/sign-in` and
+//! `/github/status` run the code flow (GitHub's device flow) for a terminal,
+//! and `/github/sign-out` forgets the sign-in. The plugin keeps the token;
+//! the harness sees at most the single-use code, a code to enter and the
 //! signed-in login. `tools.rs` translates the model's JSON into
 //! typed tool calls and builds the tool definitions the model sees: work a
 //! host could do from the WIT, done by hand here because upstream wasmCloud
@@ -47,6 +52,13 @@ const MAX_STEPS: usize = 8;
 /// The transcript page, for a browser at http://agent.localhost:18180/.
 const PAGE: &str = include_str!("transcript.html");
 
+/// Where GitHub sends the browser back after the person approves. It must
+/// match the OAuth app's callback URL exactly. A request that names a port
+/// in its Host header (as a browser does) gets that host and port instead,
+/// so a cluster made with another HOST_HTTP port still sends a matching
+/// address; the OAuth app's callback URL must then name that port too.
+const DEFAULT_REDIRECT_URI: &str = "http://agent.localhost:18180/github/callback";
+
 struct Agent;
 
 impl Guest for Agent {
@@ -72,6 +84,13 @@ impl Guest for Agent {
             .get_path_with_query()
             .map(|p| p.split('?').next().unwrap_or("").to_string())
             .unwrap_or_default();
+        if matches!(req.get_method(), Method::Get) {
+            match path.as_str() {
+                "/github/login" => return github_login(&redirect_uri(&req)).await,
+                "/github/callback" => return github_callback(&query).await,
+                _ => {}
+            }
+        }
         if let Some(json) = github(&path, &req.get_method()).await {
             return http::json_response(200, json);
         }
@@ -98,7 +117,73 @@ impl Guest for Agent {
 
 export!(Agent);
 
-/// The sign-in control's three calls, passed to github-auth. The answer is
+/// `GET /github/login`: begin the browser flow and send the browser to
+/// GitHub. On failure, back to the page with a short reason it explains.
+/// A plain navigation: it runs no tool, and the state the plugin makes is
+/// what ties the callback to it.
+async fn github_login(redirect_uri: &str) -> Result<Response, ErrorCode> {
+    match github_auth::begin_web(redirect_uri.to_string()).await {
+        Ok(url) => http::redirect_response(302, &url),
+        Err(e) => back_to_page(&e),
+    }
+}
+
+/// `GET /github/callback?code=..&state=..`: GitHub sending the browser back.
+/// The plugin checks the state and trades the code; the harness never sees
+/// the token. Then back to the page, which shows who is signed in, or why
+/// not (`error=access_denied` when the person clicked Cancel on GitHub).
+async fn github_callback(query: &str) -> Result<Response, ErrorCode> {
+    let param = |name: &str| {
+        query.split('&').find_map(|kv| {
+            kv.split_once('=').filter(|(k, _)| *k == name).map(|(_, v)| url_decode(v))
+        })
+    };
+    if let Some(error) = param("error") {
+        let reason = if error == "access_denied" { "denied" } else { "failed" };
+        return http::redirect_text(302, &format!("/?github={reason}"), format!("GitHub: {error}\n"));
+    }
+    let (code, state) = (param("code").unwrap_or_default(), param("state").unwrap_or_default());
+    match github_auth::complete_web(code, state).await {
+        Ok(_) => http::redirect_response(302, "/"),
+        Err(e) => back_to_page(&e),
+    }
+}
+
+/// A redirect to the page with one of a few fixed reasons, which the page
+/// turns into its own words. The page never shows text from the address, so
+/// a crafted link can't put words on it. The body has the plugin's message,
+/// for curl.
+fn back_to_page(e: &github_auth::WebError) -> Result<Response, ErrorCode> {
+    use github_auth::WebError;
+    let (reason, message) = match e {
+        WebError::NotSetUp(m) => ("not-set-up", m),
+        WebError::UnknownState(m) => ("expired", m),
+        WebError::Failed(m) => ("failed", m),
+    };
+    http::redirect_text(302, &format!("/?github={reason}"), format!("{message}\n"))
+}
+
+/// The browser flow's redirect address: the request's own host and port
+/// when its Host header names a port, else the default.
+fn redirect_uri(req: &Request) -> String {
+    let host = req
+        .get_headers()
+        .get("host")
+        .first()
+        .map(|v| String::from_utf8_lossy(v).trim().to_ascii_lowercase())
+        .unwrap_or_default();
+    let plain = host.bytes().all(|b| b.is_ascii_alphanumeric() || matches!(b, b'.' | b'-' | b':'));
+    match host.split_once(':') {
+        Some((name, port))
+            if plain && !name.is_empty() && !port.is_empty() && port.bytes().all(|b| b.is_ascii_digit()) =>
+        {
+            format!("http://{host}/github/callback")
+        }
+        _ => DEFAULT_REDIRECT_URI.to_string(),
+    }
+}
+
+/// The code flow and sign-out, passed to github-auth. The answer is
 /// JSON for the page: `state` is signed-out, pending (with the code to enter
 /// and where), signed-in (with the login) or error (with why). None of it is
 /// the token: github-auth never hands that out.
