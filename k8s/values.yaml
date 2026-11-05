@@ -123,7 +123,7 @@ runtime:
             - api.github.com
           config:
             client-id: Ov23liN4pgXbvHJYd83G
-            client-secret: REPLACE-WITH-GITHUB-OAUTH-APP-CLIENT-SECRET
+            client-secret: 9728ab4cc69121ce7e38da40d446e402e94d83ce
     # The toy sites (steps/00-fixtures) get a host group of their own, in
     # their own namespace, so the Services in k8s/sites.yaml can select its
     # pods. Workloads land here only by asking: hostSelector hostgroup: fixtures.
