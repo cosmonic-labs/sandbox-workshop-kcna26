@@ -63,7 +63,7 @@ spec:
         # git is the extra in extras/git.
         - name: git
           image: workshop-toolbox-registry:5000/workshop/not-installed:0.4.0
-        # kubectl arrives in step 4.
+        # kubectl is the extra in extras/kubectl.
         - name: kubectl
           image: workshop-toolbox-registry:5000/workshop/not-installed:0.4.0
       volumes:

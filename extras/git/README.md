@@ -2,8 +2,8 @@
 
 **Folder:** `extras/git`
 
-Extra credit: the session doesn't cover this one. It builds on step 4's
-cluster state. Its manifest is `steps/04-kubectl/workload.yaml` with one
+Extra credit: the session doesn't cover this one. It builds on step 3's
+cluster state. Its manifest is `steps/03-sqlite/workload.yaml` with one
 change: the `git` slot, which holds the placeholder in every step, gets the
 real git tool and the repository, read only. The repository is already on
 your cluster: `make up` builds it into `.run/repo` for this extra.
@@ -93,7 +93,7 @@ kubectl apply -f extras/git/workload.yaml \
   workloaddeployment/toolbox-agent
 ```
 
-The same agent as step 4, with the real git tool in its slot. Its grant: the
+The same agent as step 3, with the real git tool in its slot. Its grant: the
 repository, read only.
 
 ```yaml

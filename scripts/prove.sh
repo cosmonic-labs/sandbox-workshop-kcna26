@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Replay every step (steps/01-agent to steps/04-kubectl) and the git extra
-# (extras/git) on the kind cluster (make up) and write each one's transcript
+# Replay every step (steps/01-agent to steps/03-sqlite) and the kubectl and
+# git extras (extras/kubectl, extras/git) on the kind cluster (make up) and write each one's transcript
 # to <folder>/expected-output.txt. Resets the demo state first so the outputs
 # are repeatable. The commands echoed with "$" are the ones the READMEs ask
 # attendees to run, quoted so they paste into a shell. Extra checks that no
@@ -209,8 +209,8 @@ kubectl wait --for=condition=Ready workloaddeployment/toy-sites -n workshop-site
 } >"$(OUT steps/03-sqlite)" 2>&1
 
 {
-  echo "# Step 4: kubectl reads the demo namespace through the kube-api capability"
-  apply steps/04-kubectl/workload.yaml
+  echo "# Extra: kubectl reads the demo namespace through the kube-api capability"
+  apply extras/kubectl/workload.yaml
   echo "# Allowed (grant and RBAC): pods in demo"
   ask agent.localhost 'kubectl get pods'
   echo "# Allowed (RBAC): deployments"
@@ -238,19 +238,19 @@ kubectl wait --for=condition=Ready workloaddeployment/toy-sites -n workshop-site
   echo "# The tool imports the kube-api capability and no HTTP client, sockets or secrets:"
   echo "\$ wasm-tools component wit artifacts/tool_kubectl.wasm | grep -E '^  import (workshop|wasi:http|wasi:sockets|wasmcloud)'"
   wasm-tools component wit artifacts/tool_kubectl.wasm | grep -E '^  import (workshop|wasi:http|wasi:sockets|wasmcloud)'
-} >"$(OUT steps/04-kubectl)" 2>&1
+} >"$(OUT extras/kubectl)" 2>&1
 
 {
-  echo "# Step 4 control: the Role widened to read Secrets, nothing else changed"
-  echo "\$ kubectl apply -f steps/04-kubectl/control-secrets-role.yaml"
-  kubectl apply -f steps/04-kubectl/control-secrets-role.yaml
+  echo "# Extra kubectl, control: the Role widened to read Secrets, nothing else changed"
+  echo "\$ kubectl apply -f extras/kubectl/control-secrets-role.yaml"
+  kubectl apply -f extras/kubectl/control-secrets-role.yaml
   ask agent.localhost 'kubectl get secrets'
   echo "\$ kubectl apply -f k8s/kube.yaml"
   kubectl apply -f k8s/kube.yaml >/dev/null
   echo "# Reverted: refused again"
   ask agent.localhost 'kubectl get secrets'
   fact role-reads-secrets "$(kubectl -n demo get role read-only -o jsonpath='{.rules[*].resources}' | grep -c secrets || true)"
-} >"$(CHECKS steps/04-kubectl)" 2>&1
+} >"$(CHECKS extras/kubectl)" 2>&1
 
 {
   echo "# Extra: git reads a hostile repository, and none of its programs run"
@@ -289,7 +289,7 @@ kubectl wait --for=condition=Ready workloaddeployment/toy-sites -n workshop-site
 
 if [ "$MODE" = write ]; then
   echo "proofs written:"
-  ls steps/*/expected-output.txt steps/*/control-checks.txt extras/git/expected-output.txt extras/git/control-checks.txt
+  ls steps/*/expected-output.txt steps/*/control-checks.txt extras/*/expected-output.txt extras/*/control-checks.txt
   exit 0
 fi
 
@@ -403,7 +403,7 @@ expect "$f" "sqlite select load_extension('/tmp/evil')" invalid-argument 'no suc
 absent "$f" 'import wasi:http' 'sqlite imports no HTTP'
 absent "$f" 'import wasi:sockets' 'sqlite imports no sockets'
 
-f=$(OUT steps/04-kubectl)
+f=$(OUT extras/kubectl)
 expect "$f" 'kubectl get pods' ok 'NAME READY STATUS RESTARTS AGE hello-<pod> 1/1 Running 0 <age>'
 expect "$f" 'kubectl get deployments' ok 'NAME READY UP-TO-DATE AVAILABLE AGE hello 2/2 2 2 <age>'
 expect "$f" 'kubectl logs deployment/hello' ok 'hello from hello-<pod>'
@@ -420,7 +420,7 @@ expect "$f" 'kubectl auth can-i list secrets' ok '[tool kubectl] ok: no'
 expect "$f" 'kubectl auth can-i list pods' ok '[tool kubectl] ok: yes'
 present "$f" 'import workshop:toolbox/kube-api@0.4.0' 'kubectl imports the kube-api capability'
 absent "$f" '  import wasi:http' 'kubectl imports no HTTP client'
-f=$(CHECKS steps/04-kubectl)
+f=$(CHECKS extras/kubectl)
 expect "$f" 'kubectl get secrets' ok 'db-password'
 last=$(awk '/Reverted: refused again/ { on = 1 } on && /^\[tool kubectl\]/ { print; exit }' "$f")
 CHECKED=$((CHECKED + 1))

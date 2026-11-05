@@ -9,7 +9,8 @@
 #
 # Nothing in this workload has a grant: no allowedHosts, no volumes. Later
 # steps put real tools into the slots, each with its own grant: curl in step
-# 2, sqlite in step 3, kubectl in step 4. git is the extra in extras/git.
+# 2, sqlite in step 3. kubectl and git are extras (extras/kubectl,
+# extras/git).
 
 apiVersion: runtime.wasmcloud.dev/v1alpha1
 kind: WorkloadDeployment

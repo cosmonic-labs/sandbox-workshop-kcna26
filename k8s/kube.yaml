@@ -1,5 +1,5 @@
-# Step 4's cluster side: a namespace with something to look at, and the
-# identity the kube-api plugin uses to look.
+# extras/kubectl's cluster side: a namespace with something to look at, and
+# the identity the kube-api plugin uses to look.
 #
 # The plugin (k8s/values.yaml, default host group) holds the token of a
 # read-only identity, the agent-reader service account, shared by any workload
@@ -8,8 +8,8 @@
 # is the whole of what those workloads may do: read pods, their logs,
 # Services, Deployments and WorkloadDeployments in the demo namespace. No
 # Secrets, no ConfigMaps, no writes, no exec, nothing in any other namespace.
-# Pod logs are allowed because step 4 reads one; logs can carry sensitive data,
-# so grant pods/log only where that is acceptable. To see what the Role allows
+# Pod logs are allowed because extras/kubectl reads one; logs can carry
+# sensitive data, so grant pods/log only where that is acceptable. To see what the Role allows
 # from the agent's side, ask it: `kubectl auth can-i list secrets` answers no.
 #
 # scripts/up.sh applies this before the chart, because the host reads the

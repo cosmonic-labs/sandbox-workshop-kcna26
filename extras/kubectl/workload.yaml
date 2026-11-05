@@ -1,6 +1,7 @@
-# Step 4: give the agent kubectl.
+# Extra: give the agent kubectl. steps/03-sqlite/workload.yaml with two
+# changes: the kubectl slot holds the real kubectl tool, and hostInterfaces
+# declares the kube-api capability it uses.
 #
-# The same agent as step 3, with the real kubectl tool in its slot.
 # kubectl gets no allowedHosts, no volumes and no token. Its only way to the
 # cluster is the workshop:toolbox/kube-api interface, declared below under
 # hostInterfaces and served by the kube-api plugin the platform installed on

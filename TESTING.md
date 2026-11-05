@@ -26,8 +26,9 @@ make doctor
       `kubectl config current-context` says `kind-workshop-toolbox`.
 - [ ] `make check-fixtures-db` (maintainers, needs sqlite3): ends with
       `fixtures/talks.db: matches fixtures/talks.sql`.
-- [ ] `export PATH="$PWD/.tools:$PATH"`, then walk steps 1 to 4 by hand from
-      each `steps/*/README.md`, then `extras/git/README.md`. Every command
+- [ ] `export PATH="$PWD/.tools:$PATH"`, then walk steps 1 to 3 by hand from
+      each `steps/*/README.md`, then `extras/kubectl/README.md` and
+      `extras/git/README.md`. Every command
       runs as written and the output matches the result line under it.
 - [ ] `make prove`: ends with `proofs written:` and the step and extra
       files. `git diff steps extras` shows nothing: the transcripts are
@@ -35,8 +36,9 @@ make doctor
       ages as `<age>`; the git extra's native control in
       `extras/git/control-checks.txt` depends on the local git version).
       `extras/real-model` is not replayed: it needs a real model.
-- [ ] `make verify`: replays steps 1 to 4 and `extras/git` without writing anything and ends
-      with `verify: all N checks passed`. It checks each result, not the
+- [ ] `make verify`: replays steps 1 to 3, `extras/kubectl` and
+      `extras/git` without writing anything and ends with
+      `verify: all N checks passed`. It checks each result, not the
       exact text: allowed calls return what they should, each refusal has the
       expected error and the refusing layer's message (the grant, the tool's
       own code, or RBAC), the native git control runs the repository's
@@ -44,7 +46,7 @@ make doctor
       controls revert. A mismatch prints `FAIL`, what was wanted and what came
       back, and exits nonzero.
 - [ ] Every `$ curl ...` line in `steps/*/expected-output.txt` and
-      `extras/git/expected-output.txt` pastes into a shell and runs as
+      `extras/*/expected-output.txt` pastes into a shell and runs as
       written.
 - [ ] `make clean`: the cluster and the registry container are gone; your
       previous kubectl context still exists (`kubectl config get-contexts`).
@@ -55,8 +57,8 @@ make doctor
       `make doctor` on its own; every Required line is green (Docker comes
       from the docker-in-docker feature).
 - [ ] `make up` completes inside the codespace. Note how long it takes.
-- [ ] Steps 1 to 4 and `extras/git` run as written from the codespace
-      terminal (step 2 with the prebuilt curl).
+- [ ] Steps 1 to 3, `extras/kubectl` and `extras/git` run as written from
+      the codespace terminal (step 2 with the prebuilt curl).
 
 ## 3. Build curl yourself
 
@@ -73,7 +75,7 @@ make doctor
       up` the day before needs no downloads (kind's node image and the chart
       images are cached).
 - [ ] Jumping ahead works: on a fresh `make up`, `kubectl apply -f
-      steps/04-kubectl/workload.yaml` alone, then step 4's commands.
+      extras/kubectl/workload.yaml` alone, then that extra's commands.
 
 ## 5. Extra: a real model
 

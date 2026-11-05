@@ -8,8 +8,8 @@
 #   data-nats         the data service behind keyvalue (k8s/data-nats.yaml)
 #   workshop-sites    the toy sites' namespace and Services (k8s/sites.yaml)
 #   agent Service     the way in to the agent (k8s/agent-service.yaml)
-#   demo + kube-api   step 4: a namespace to read, and the token the kube-api
-#                     plugin uses to read it (k8s/kube.yaml)
+#   demo + kube-api   extras/kubectl: a namespace to read, and the token the
+#                     kube-api plugin uses to read it (k8s/kube.yaml)
 # then push the prebuilt components (or SRC=<dir>). 127.0.0.1:18180 reaches the
 # host pods through a small ingress (k8s/ingress.yaml) that kind maps to your
 # laptop and that picks the host group by Host header, so every step's curl
@@ -87,8 +87,8 @@ REGISTRY="localhost:$KIND_REGISTRY_PORT" "$ROOT/scripts/push.sh" "${SRC:-$ROOT/a
 K apply -f "$ROOT/k8s/data-nats.yaml" >/dev/null
 # The fixtures host group runs in workshop-sites, which must exist first.
 K apply -f "$ROOT/k8s/sites.yaml" >/dev/null
-# Step 4's identity. The host reads the kube-api plugin's token once, when it
-# starts, so the token controller must have filled it in before the chart.
+# extras/kubectl's identity. The host reads the kube-api plugin's token once,
+# when it starts, so the token controller must have filled it in before the chart.
 K apply -f "$ROOT/k8s/kube.yaml" >/dev/null
 for _ in $(seq 1 30); do
   [ -n "$(K -n wasmcloud get secret kube-api-token -o jsonpath='{.data.token}' 2>/dev/null)" ] && break
@@ -99,7 +99,7 @@ helm --kube-context "$CTX" upgrade --install wasmcloud "$ROOT/.upstream/charts/r
 K -n wasmcloud rollout status deploy/hostgroup-default --timeout 5m >/dev/null
 K -n workshop-sites rollout status deploy/hostgroup-fixtures --timeout 5m >/dev/null
 
-# The ingress image, and the busybox image of step 4's demo hello
+# The ingress image, and the busybox image of extras/kubectl's demo hello
 # Deployment, are loaded into the node so nothing pulls at the workshop.
 # Each is pulled by its pinned digest (scripts/env.sh), which Docker checks,
 # then tagged with the name the manifests use and loaded into the node.

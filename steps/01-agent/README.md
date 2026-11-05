@@ -3,7 +3,7 @@
 **Folder:** `steps/01-agent`
 
 Deploy an agent with `kubectl`, with no tools at all, and talk to it. The
-next three steps give it one tool each.
+next two steps give it one tool each, and the extras add more.
 
 ## Deploy
 
@@ -115,8 +115,8 @@ tool slots, each holding the placeholder.
 | each tool slot (placeholder) | nothing; it answers "not installed yet" |
 
 None of them has `localResources`, the part of a manifest entry that grants
-hosts and folders. Steps 2 to 4 fill the slots with real tools, each with its
-own grant.
+hosts and folders. Steps 2 and 3 and the extras fill the slots with real
+tools, each with its own grant.
 
 ## Look inside (optional)
 

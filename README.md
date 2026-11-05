@@ -6,8 +6,8 @@ an agent to your own cluster with **wasmCloud**, a CNCF project, give it
 tools one at a time, then try each tool's most famous escape and watch it
 fail.
 
-The tools are `curl`, `sqlite3` and `kubectl`, with `git` as extra credit.
-`curl`, `sqlite3` and `git` are classics from
+The tools are `curl` and `sqlite3`, with `kubectl` and `git` as extra
+credit. `curl`, `sqlite3` and `git` are classics from
 [GTFOBins](https://gtfobins.github.io/), the catalogue of everyday programs
 that break out of restricted shells. The model is a gullible stand-in that
 does whatever it reads (step 1 explains how it works). It never refuses, so
@@ -22,7 +22,7 @@ one:
 * **The grant**: the lines of the manifest that give each tool its folders
   (`volumeMounts`) and its hosts (`allowedHosts`).
 * **RBAC** (role-based access control, the Kubernetes API server's own
-  rules): what the identity behind `kubectl` may do (step 4).
+  rules): what the identity behind `kubectl` may do (`extras/kubectl`).
 
 Each tool starts with nothing and gets only its own grant.
 
@@ -63,7 +63,6 @@ cluster named `workshop-toolbox` and switches your kubectl context to it.
 | 1 | `steps/01-agent` | The agent with no tools: how it and its gullible model work, and that it can use only what its manifest gives it |
 | 2 | `steps/02-curl` | `curl` (prebuilt, or build your own) gets one host; its escapes (metadata service, other hosts, redirects, files) are refused |
 | 3 | `steps/03-sqlite` | `sqlite3`'s escapes (`.shell`, `ATTACH`, extensions) go nowhere |
-| 4 | `steps/04-kubectl` | Ordinary `kubectl` through a platform capability; RBAC still decides |
 
 Each step README has the commands and the output to expect
 (`expected-output.txt`).
@@ -73,10 +72,11 @@ step with its one `kubectl apply`.
 
 ### Extra credit
 
-Not covered in the session. Each builds on step 4's cluster state.
+Not covered in the session. Each builds on step 3's cluster state.
 
 | Folder | What you'll see |
 | --- | --- |
+| `extras/kubectl` | Ordinary `kubectl` through a platform capability; RBAC still decides |
 | `extras/git` | A hostile repository names programs to run; native git runs them, the git tool can't |
 | `extras/real-model` | A real model (hosted, with an API key, or on your own machine) in the model slot; the answers vary, the grants don't |
 
@@ -126,7 +126,7 @@ registry.
       harness ──▶ model                             llm
         ├──▶ curl     allowedHosts only ─── HTTP ──▶ (.workshop-sites.svc)
         ├──▶ sqlite   /data, read only
-        ├──▶ kubectl  kube-api plugin ──▶ API server (RBAC: agent-reader)
+        ├──▶ kubectl  kube-api plugin ──▶ API server (RBAC: agent-reader, extras/kubectl)
         └──▶ git      /repo, read only (extras/git)
 ```
 
@@ -169,8 +169,8 @@ the workshop needs no internet.
   needs wasi-sdk (`WASI_SDK_PATH`, `CC_wasm32_wasip2`). `make push-build`
   pushes your build to the cluster's registry. A running workload keeps its
   old image until it is recreated.
-* `make prove` replays steps 1 to 4 and `extras/git` and rewrites each
-  `expected-output.txt`; `make verify` replays them and checks each result.
+* `make prove` replays steps 1 to 3, `extras/kubectl` and `extras/git` and
+  rewrites each `expected-output.txt`; `make verify` replays them and checks each result.
   `extras/real-model` needs a real model, so neither runs it.
 * `TESTING.md` is the pre-workshop test checklist.
 * `extras/real-model/` swaps the scripted model for `model-real` (an OpenAI

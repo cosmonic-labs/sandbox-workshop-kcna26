@@ -1,6 +1,11 @@
-# Step 4: Give the agent kubectl
+# Extra: Give the agent kubectl
 
-**Folder:** `steps/04-kubectl`
+**Folder:** `extras/kubectl`
+
+Extra credit: the session doesn't cover this one. It builds on step 3's
+cluster state. Its manifest is `steps/03-sqlite/workload.yaml` with two
+changes: the `kubectl` slot, which holds the placeholder in every step, gets
+the real kubectl tool, and `hostInterfaces` gets the kube-api capability.
 
 `kubectl` is the tool a platform team least wants an agent to have. Here the
 agent gets it, and two layers decide what it can do: the wasmCloud grant and
@@ -32,7 +37,7 @@ refused, because the capability carries one request and one answer.
 ## Deploy
 
 ```sh
-kubectl apply -f steps/04-kubectl/workload.yaml \
+kubectl apply -f extras/kubectl/workload.yaml \
   && sleep 2 && kubectl wait --for=condition=Ready \
   workloaddeployment/toolbox-agent
 ```
@@ -204,7 +209,7 @@ RBAC was the only thing refusing the secrets. Widen the Role to read them,
 with nothing else changed:
 
 ```sh
-kubectl apply -f steps/04-kubectl/control-secrets-role.yaml
+kubectl apply -f extras/kubectl/control-secrets-role.yaml
 curl -s -H 'Host: agent.localhost' \
   http://127.0.0.1:18180/ \
   -d 'kubectl get secrets'
