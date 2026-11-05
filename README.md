@@ -8,9 +8,20 @@ project, then try each tool's most famous escape and watch it fail.
 The tools are `curl`, `sqlite3`, `git` and `kubectl`. The first three are classics from
 [GTFOBins](https://gtfobins.github.io/), the catalogue of everyday programs
 that break out of restricted shells. The model is a gullible stand-in that
-does whatever it reads. It never refuses, so the only thing that stops an
-escape is the sandbox around each tool. **The grant is the boundary, not the
-command.**
+does whatever it reads. It never refuses, so every refusal you see comes from
+another layer, and each step names which one:
+
+* **Imports**: what a component can ask the host for at all. None of these
+  tools imports a way to start a process, and none imports sockets.
+* **The tool's own code**: this git offers no `push`, and this sqlite3's
+  small shell answers `.shell` itself and has no extension loading compiled
+  in.
+* **The grant**: the lines of the manifest that give each tool its folders
+  (`volumeMounts`) and its hosts (`allowedHosts`).
+* **RBAC** (role-based access control, the Kubernetes API server's own
+  rules): what the identity behind `kubectl` may do (step 6).
+
+Each tool starts with nothing and gets only its own grant.
 
 ## Requirements
 
@@ -51,7 +62,7 @@ cluster named `workshop-toolbox` and switches your kubectl context to it.
 | 3 | `steps/03-curl` | `curl`'s escapes (metadata service, other hosts, redirects, files) refused |
 | 4 | `steps/04-sqlite` | `sqlite3`'s escapes (`.shell`, `ATTACH`, extensions) go nowhere |
 | 5 | `steps/05-git` | A hostile repository names programs to run; native git runs them, the tool can't |
-| 6 | `steps/06-kubectl` | `kubectl` through a platform capability; RBAC still decides |
+| 6 | `steps/06-kubectl` | Ordinary `kubectl` through a platform capability; RBAC still decides |
 
 Steps 1 to 4 tell the whole story; 5 and 6 are for if time allows. Each step
 README has the commands and the output to expect (`expected-output.txt`).

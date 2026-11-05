@@ -126,7 +126,7 @@ curl -s -H 'Host: agent.localhost' \
 The page you saved in item 6 reads back. The tool doesn't check paths itself:
 the filesystem it is given holds only that one folder.
 
-**The grant is the only thing stopping it.** `make prove` also runs a control
+**For hosts, the grant is what stops it.** `make prove` also runs a control
 with `allowedHosts` widened to `*`, and the same request to the collector then
 goes through (`control-checks.txt`). The tool didn't change; only its grant did.
 
