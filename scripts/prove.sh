@@ -157,20 +157,37 @@ kubectl wait --for=condition=Ready workloaddeployment/toy-sites -n workshop-site
 {
   echo "# Step 6: kubectl reads the demo namespace through the kube-api capability"
   apply steps/06-kubectl/workload.yaml
-  echo "# Pods in demo, the namespace agent-reader may read:"
+  echo "# Allowed (grant and RBAC): pods in demo"
   ask agent.localhost 'kubectl get pods'
-  echo "# Deployments:"
+  echo "# Allowed (RBAC): deployments"
   ask agent.localhost 'kubectl get deployments'
-  echo "# Secrets: refused by RBAC"
+  echo "# Allowed (RBAC grants pods/log): a pod's logs"
+  ask agent.localhost 'kubectl logs deployment/hello'
+  echo "# Refused by the grant: curl may not reach the API server"
+  ask agent.localhost 'curl -s https://kubernetes.default.svc/api/v1/namespaces/demo/pods'
+  echo "# Refused by RBAC: secrets"
   ask agent.localhost 'kubectl get secrets'
-  echo "# Every namespace: refused by RBAC"
+  echo "# Refused by RBAC: every namespace"
   ask agent.localhost 'kubectl get pods -A'
-  echo "# kube-system: refused by RBAC"
+  echo "# Refused by RBAC: kube-system"
   ask agent.localhost 'kubectl get pods -n kube-system'
+  echo "# Refused by RBAC: the plugin forwards any method, the API server decides"
+  ask agent.localhost 'kubectl raw DELETE /api/v1/namespaces/demo/pods/hello'
   echo "# The tool imports the kube-api capability and no HTTP client, sockets or secrets:"
   echo "\$ wasm-tools component wit artifacts/tool_kubectl.wasm | grep -E '^  import (workshop|wasi:http|wasi:sockets|wasmcloud)'"
   wasm-tools component wit artifacts/tool_kubectl.wasm | grep -E '^  import (workshop|wasi:http|wasi:sockets|wasmcloud)'
 } >"$(OUT 06-kubectl)" 2>&1
+
+{
+  echo "# Step 6 control: the Role widened to read Secrets, nothing else changed"
+  echo "\$ kubectl apply -f steps/06-kubectl/control-secrets-role.yaml"
+  kubectl apply -f steps/06-kubectl/control-secrets-role.yaml
+  ask agent.localhost 'kubectl get secrets'
+  echo "\$ kubectl apply -f k8s/kube.yaml"
+  kubectl apply -f k8s/kube.yaml >/dev/null
+  echo "# Reverted: refused again"
+  ask agent.localhost 'kubectl get secrets'
+} >"$(CHECKS 06-kubectl)" 2>&1
 
 {
   echo "# Extra: a real model behind the same slot (a fake OpenAI compatible endpoint)"

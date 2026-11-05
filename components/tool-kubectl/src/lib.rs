@@ -70,7 +70,7 @@ const UNSUPPORTED: &[&str] = &["exec", "port-forward", "attach", "cp", "proxy", 
 async fn run(cmd: &str) -> Result<String, Error> {
     let args: Vec<&str> = cmd.split_whitespace().collect();
     let Some((&verb, rest)) = args.split_first() else {
-        return Err(Error::InvalidArgument("usage: get <resource> [name] [-n ns | -A] | logs <pod> [-n ns]".into()));
+        return Err(Error::InvalidArgument("usage: get <resource> [name] [-n ns | -A] | logs <pod>|deployment/<name> [-n ns]".into()));
     };
     if UNSUPPORTED.contains(&verb) {
         return Err(Error::AccessDenied(format!(
@@ -105,8 +105,8 @@ async fn run(cmd: &str) -> Result<String, Error> {
     let result = match verb {
         "get" => get(client, &pos, &ns, all).await,
         "logs" => match pos.first() {
-            Some(pod) => Api::<Pod>::namespaced(client, &ns).logs(pod, &LogParams::default()).await,
-            None => return Err(Error::InvalidArgument("logs needs a pod name".into())),
+            Some(target) => logs(client, target, &ns).await,
+            None => return Err(Error::InvalidArgument("logs needs a pod name or deployment/<name>".into())),
         },
         other => return Err(Error::InvalidArgument(format!("unknown command \"{other}\""))),
     };
@@ -119,6 +119,37 @@ async fn run(cmd: &str) -> Result<String, Error> {
         }
         Err(kube::Error::Api(s)) => Err(Error::Other(Some(format!("Error from server ({}): {}", s.reason, s.message)))),
         Err(e) => Err(Error::Other(Some(e.to_string()))),
+    }
+}
+
+/// `logs <pod>`, or `logs deployment/<name>`, which reads the first of the
+/// deployment's pods by name, as kubectl picks one pod for you.
+async fn logs(client: Client, target: &str, ns: &str) -> kube::Result<String> {
+    let pods = Api::<Pod>::namespaced(client.clone(), ns);
+    let Some(name) = target.strip_prefix("deployment/").or_else(|| target.strip_prefix("deploy/")) else {
+        return pods.logs(target, &LogParams::default()).await;
+    };
+    let deploy = Api::<Deployment>::namespaced(client, ns).get(name).await?;
+    let selector = deploy
+        .spec
+        .selector
+        .match_labels
+        .unwrap_or_default()
+        .iter()
+        .map(|(k, v)| format!("{k}={v}"))
+        .collect::<Vec<_>>()
+        .join(",");
+    let mut names: Vec<String> = pods
+        .list(&ListParams::default().labels(&selector))
+        .await?
+        .items
+        .into_iter()
+        .filter_map(|p| p.metadata.name)
+        .collect();
+    names.sort();
+    match names.first() {
+        Some(pod) => pods.logs(pod, &LogParams::default()).await,
+        None => Ok(format!("error: deployment/{name} has no pods\n")),
     }
 }
 

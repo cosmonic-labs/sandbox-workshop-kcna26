@@ -1,12 +1,15 @@
 # Step 6's cluster side: a namespace with something to look at, and the
 # identity the kube-api plugin uses to look.
 #
-# The plugin (k8s/values.yaml, default host group) holds the token of the
-# agent-reader service account and adds it to every request it sends to the
-# API server. RBAC on agent-reader is the whole of what kubectl may read:
-# pods, their logs, Services, ConfigMaps, Deployments and WorkloadDeployments
-# in the demo namespace. No Secrets, no exec, no port-forward, nothing in any
-# other namespace.
+# The plugin (k8s/values.yaml, default host group) holds the token of a
+# read-only identity, the agent-reader service account, shared by any workload
+# on this host group that declares the plugin. It adds that token to every
+# request it forwards, whatever the method and path, so RBAC on agent-reader
+# is the whole of what those workloads may do: read pods, their logs,
+# Services, Deployments and WorkloadDeployments in the demo namespace. No
+# Secrets, no ConfigMaps, no writes, no exec, nothing in any other namespace.
+# Pod logs are allowed because step 6 reads one; logs can carry sensitive data,
+# so grant pods/log only where that is acceptable.
 #
 # scripts/up.sh applies this before the chart, because the host reads the
 # token once, when it starts.
@@ -48,14 +51,14 @@ metadata:
   namespace: demo
 rules:
   - apiGroups: [""]
-    resources: [pods, pods/log, services, configmaps]
-    verbs: [get, list, watch]
+    resources: [pods, pods/log, services]
+    verbs: [get, list]
   - apiGroups: [apps]
     resources: [deployments]
-    verbs: [get, list, watch]
+    verbs: [get, list]
   - apiGroups: [runtime.wasmcloud.dev]
     resources: [workloaddeployments]
-    verbs: [get, list, watch]
+    verbs: [get, list]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding

@@ -4,8 +4,10 @@
 # kubectl gets no allowedHosts, no volumes and no token. Its only way to the
 # cluster is the workshop:toolbox/kube-api interface, declared below under
 # hostInterfaces and served by the kube-api plugin the platform installed on
-# the default host group (k8s/values.yaml). The plugin holds agent-reader's
-# token; RBAC on agent-reader (k8s/kube.yaml) decides what kubectl may read.
+# the default host group (k8s/values.yaml). The plugin holds the token of a
+# read-only identity, agent-reader, shared by any workload on this host group
+# that declares the plugin. It forwards any method and path; RBAC on
+# agent-reader (k8s/kube.yaml) decides what kubectl may do.
 
 apiVersion: runtime.wasmcloud.dev/v1alpha1
 kind: WorkloadDeployment

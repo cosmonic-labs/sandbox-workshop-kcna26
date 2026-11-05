@@ -91,15 +91,19 @@ runtime:
         - name: kube-ca
           mountPath: /etc/kube-ca
           readOnly: true
-      # Outgoing HTTPS from this host group (components and plugins) also
-      # trusts the cluster CA.
+      # Outgoing HTTPS from this host group also trusts the cluster CA. This is
+      # host-group wide: every component and plugin here trusts it, not only
+      # the kube-api plugin.
       httpClientCaPaths:
         - /etc/kube-ca/ca.crt
       # Step 6's kube-api host component plugin. The platform installs it on
       # the host group; a workload uses it only by declaring
-      # workshop:toolbox/kube-api in hostInterfaces. It holds agent-reader's
-      # token (the service-account-token Secret kube-api-token, k8s/kube.yaml,
-      # read through its `token` label) and may reach only the API server.
+      # workshop:toolbox/kube-api in hostInterfaces. It holds the token of a
+      # read-only identity (agent-reader; the service-account-token Secret
+      # kube-api-token, k8s/kube.yaml, read through its `token` label), shared
+      # by any workload on this host group that declares the plugin. It
+      # forwards any method and path, may reach only the API server, and RBAC
+      # on agent-reader decides the rest.
       plugins:
         - id: kube-api
           image: workshop-toolbox-registry:5000/workshop/kube-api:0.4.0

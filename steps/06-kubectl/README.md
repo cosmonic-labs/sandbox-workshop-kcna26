@@ -3,16 +3,24 @@
 **Folder:** `steps/06-kubectl`
 
 `kubectl` is the tool a platform team least wants an agent to have. Here the
-agent gets it, and two things still decide what it can do: the capability the
-platform gives it, and Kubernetes RBAC.
+agent gets it, and two layers decide what it can do: the wasmCloud grant and
+Kubernetes RBAC (role-based access control, the API server's own rules).
 
 The `kubectl` component holds no token and imports no HTTP client and no
 sockets. Its only way to the cluster is `workshop:toolbox/kube-api`, served by
-the **kube-api plugin**: a host component plugin (a component the platform
-installs on the host group, not a workload) that holds the `agent-reader`
-service account's token and may reach only the API server. RBAC on
-`agent-reader` allows reading pods, logs, Services, ConfigMaps, Deployments
-and WorkloadDeployments in the `demo` namespace, and nothing else.
+the **kube-api plugin**: a host component plugin, which is a component the
+platform installs on the host group rather than a workload. The plugin holds
+the token of a read-only identity, the `agent-reader` service account. That
+token is shared by any workload on this host group that declares the plugin.
+The plugin forwards any method and path it is given, and may reach only the
+API server.
+
+## Two layers
+
+| Layer | What it decides here |
+| --- | --- |
+| wasmCloud grant (the manifest and the host group) | Which components may call kube-api: only workloads that declare it under `hostInterfaces`, and in this workload only `kubectl` imports it. Where the plugin may connect: its `allowedHosts` is `kubernetes.default.svc`. Who holds the token: the plugin, never a workload. Every other tool keeps its own grant, so `curl` can't reach the API server. |
+| Kubernetes RBAC (`k8s/kube.yaml`) | What `agent-reader` may do once a request arrives: `get` and `list` on pods, `pods/log`, Services, Deployments and WorkloadDeployments, in the `demo` namespace only. No Secrets, no ConfigMaps, no writes, no other namespace. |
 
 ## Deploy
 
@@ -23,7 +31,7 @@ kubectl apply -f steps/06-kubectl/workload.yaml \
 ```
 
 The same agent as step 1, with the real tool in its fourth slot and one new
-line under `hostInterfaces`:
+entry under `hostInterfaces`:
 
 ```yaml
 - namespace: workshop
@@ -33,9 +41,11 @@ line under `hostInterfaces`:
 
 ## Try each command
 
-Type each prompt into the chat at http://agent.localhost:18180, or run the curl command under it.
+Type each prompt into the chat at http://agent.localhost:18180, or run the
+curl command under it. Each one is labelled with the layer that allowed or
+refused it.
 
-**1. Pods in demo:** `kubectl get pods`
+**1. Pods in demo** (allowed: grant and RBAC): `kubectl get pods`
 
 ```sh
 curl -s -H 'Host: agent.localhost' \
@@ -43,9 +53,9 @@ curl -s -H 'Host: agent.localhost' \
   -d 'kubectl get pods'
 ```
 
-The two `hello` pods, `Running`. demo is the namespace agent-reader may read, and this kubectl's default.
+The two `hello` pods, `Running`. `demo` is this kubectl's default namespace.
 
-**2. Deployments:** `kubectl get deployments`
+**2. Deployments** (allowed: RBAC): `kubectl get deployments`
 
 ```sh
 curl -s -H 'Host: agent.localhost' \
@@ -55,17 +65,32 @@ curl -s -H 'Host: agent.localhost' \
 
 `hello`, `2/2 ready`.
 
-**3. A pod's logs:** `kubectl logs <pod>`
+**3. A pod's logs** (allowed: RBAC grants `pods/log`): `kubectl logs deployment/hello`
 
 ```sh
 curl -s -H 'Host: agent.localhost' \
   http://127.0.0.1:18180/ \
-  -d 'kubectl logs <pod>'
+  -d 'kubectl logs deployment/hello'
 ```
 
-Use a pod name from item 1. The pod prints `hello from <pod>`.
+`hello from hello-<pod>`: the tool reads the first of the deployment's pods.
+Logs can carry sensitive data, so a real Role should grant `pods/log` only
+where that is acceptable.
 
-**4. Secrets are refused:** `kubectl get secrets`
+**4. curl straight at the API server** (refused: the grant):
+`curl -s https://kubernetes.default.svc/api/v1/namespaces/demo/pods`
+
+```sh
+curl -s -H 'Host: agent.localhost' \
+  http://127.0.0.1:18180/ \
+  -d 'curl -s https://kubernetes.default.svc/api/v1/namespaces/demo/pods'
+```
+
+`access-denied: kubernetes.default.svc: this tool may not reach that host`.
+The host refuses it because the API server isn't in curl's `allowedHosts`,
+before RBAC is ever asked. curl holds no token either.
+
+**5. Secrets** (refused: RBAC): `kubectl get secrets`
 
 ```sh
 curl -s -H 'Host: agent.localhost' \
@@ -73,9 +98,10 @@ curl -s -H 'Host: agent.localhost' \
   -d 'kubectl get secrets'
 ```
 
-`access-denied`: the API server says agent-reader cannot list secrets. RBAC still applies.
+The request reaches the API server, which answers `Forbidden`: agent-reader
+cannot list secrets.
 
-**5. Every namespace is refused:** `kubectl get pods -A`
+**6. Every namespace** (refused: RBAC): `kubectl get pods -A`
 
 ```sh
 curl -s -H 'Host: agent.localhost' \
@@ -83,9 +109,9 @@ curl -s -H 'Host: agent.localhost' \
   -d 'kubectl get pods -A'
 ```
 
-`access-denied`: agent-reader may not list pods at the cluster scope.
+`Forbidden`: agent-reader may not list pods at the cluster scope.
 
-**6. Other namespaces are refused:** `kubectl get pods -n kube-system`
+**7. Another namespace** (refused: RBAC): `kubectl get pods -n kube-system`
 
 ```sh
 curl -s -H 'Host: agent.localhost' \
@@ -93,7 +119,42 @@ curl -s -H 'Host: agent.localhost' \
   -d 'kubectl get pods -n kube-system'
 ```
 
-`access-denied`, the same way.
+`Forbidden`, the same way.
+
+**8. Any method gets through the plugin** (refused: RBAC):
+`kubectl raw DELETE /api/v1/namespaces/demo/pods/hello`
+
+```sh
+curl -s -H 'Host: agent.localhost' \
+  http://127.0.0.1:18180/ \
+  -d 'kubectl raw DELETE /api/v1/namespaces/demo/pods/hello'
+```
+
+`raw` sends exactly this request through the capability. The plugin forwards
+it; the API server answers `HTTP 403`, because agent-reader cannot delete
+pods. The plugin is not a filter. RBAC is.
+
+## Control: widen the Role
+
+RBAC was the only thing refusing the secrets. Widen the Role to read them,
+with nothing else changed:
+
+```sh
+kubectl apply -f steps/06-kubectl/control-secrets-role.yaml
+curl -s -H 'Host: agent.localhost' \
+  http://127.0.0.1:18180/ \
+  -d 'kubectl get secrets'
+```
+
+```
+[tool kubectl] ok: NAME STATUS db-password
+```
+
+Revert it right away:
+
+```sh
+kubectl apply -f k8s/kube.yaml
+```
 
 ## What you ran
 
@@ -101,7 +162,7 @@ curl -s -H 'Host: agent.localhost' \
 | --- | --- | --- |
 | `kubectl` tool | nothing | the kube-api capability, nothing else |
 | kube-api plugin (platform) | agent-reader's token | the API server only (`allowedHosts`) |
-| agent-reader (RBAC) | | read pods, logs, Services, ConfigMaps, Deployments in `demo` |
+| agent-reader (RBAC) | | `get`, `list` on pods, logs, Services, Deployments, WorkloadDeployments in `demo` |
 
 The tool imports the capability and no HTTP client, sockets or secrets:
 
@@ -118,8 +179,29 @@ The platform side is in `k8s/values.yaml` (the plugin, its `allowedHosts`, the
 token Secret it reads, and the cluster CA it trusts) and `k8s/kube.yaml` (the
 `demo` namespace, `agent-reader`, its token and its Role).
 
-This is a minimal shape, not full credential brokering: one token for the
-whole host group, read when the host starts.
+## Production notes
+
+This step is a minimal shape for a throwaway kind cluster, not a pattern to
+copy as is.
+
+* **The token is long-lived.** `kube-api-token` is a service-account-token
+  Secret: it lasts until the Secret is deleted, and the host reads it once at
+  startup. In production, use short-lived tokens from the TokenRequest API
+  (projected service account tokens) and rotate them.
+* **One identity per host group.** Every workload on this host group that
+  declares kube-api acts as agent-reader. Give each trust domain its own host
+  group and identity.
+* **`httpClientCaPaths` is host-group wide.** Adding the cluster CA there makes
+  every component and plugin on the host group trust it, not only kube-api.
+* **Admission policy decides who may declare the plugin.** Any workload that
+  may land on this host group can list `kube-api` under `hostInterfaces`. Use
+  RBAC on WorkloadDeployments and an admission policy to decide which
+  workloads may.
+* **Address ranges.** wasmCloud v2.12.0 also has a host-wide range policy,
+  `denySpecialRanges` in the chart (on by default), that refuses loopback,
+  link-local and the cloud metadata address, including what DNS returns for a
+  permitted name. In v2.12.0 it applies to raw sockets and native host
+  plugins; for `wasi:http` requests, `allowedHosts` is the control. Keep it on.
 
 Full transcript: [`expected-output.txt`](expected-output.txt). Pod names differ
-on every cluster.
+on every cluster; the transcript writes them as `hello-<pod>`.
