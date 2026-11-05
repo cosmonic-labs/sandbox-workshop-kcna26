@@ -117,7 +117,7 @@ registry.
   host pod, group "default"                       host pod, group "fixtures"
     workload toolbox-agent                          toy sites: api, collector
       harness ──▶ model
-        ├──▶ sign-in  github-api plugin ──▶ github.com (device flow)
+        ├──▶ sign-in  github-api plugin ──▶ github.com (OAuth, no scopes)
         ├──▶ curl     allowedHosts only ──▶ api.workshop-sites.svc, /data for -o
         ├──▶ sqlite   /data, read only
         └──▶ gh       github-api plugin ──▶ api.github.com (GET, allowlisted paths)
@@ -158,6 +158,13 @@ the workshop needs no internet.
   replaced workload's token stays in the plugin's memory, unused, until the
   host restarts. A real platform would keep tokens in a secrets store and
   drop them when the workload is deleted.
+* GitHub sign-in's browser flow comes back to a fixed address,
+  `http://agent.localhost:18180/github/callback`. A cluster made on another
+  port (`HOST_HTTP`) sends that port's address instead, which an OAuth app
+  set up for 18180 refuses; use `make github-sign-in` there. The
+  authorization code passes through the agent harness on its way to the
+  plugin: it works once and only with the plugin's PKCE verifier and client
+  secret, and the harness never sees a token.
 * The chart's NetworkPolicies are off in `k8s/values.yaml` because kindnet on
   kind v0.33.0 dropped their DNS replies. Keep them on in a real cluster.
 
@@ -171,15 +178,28 @@ the workshop needs no internet.
   `make verify` replays them and checks each result. Step 4 calls GitHub (7 requests a run): its live answers are masked in the
   transcript and checked for shape, and verify skips them (SKIP) when
   GitHub's unauthenticated limit of 60 an hour is used up.
-* **GitHub sign-in** (step 4) needs a GitHub OAuth app with the device flow
-  enabled. Create one in GitHub under Settings, Developer settings, OAuth
-  Apps, New OAuth App. Any name, homepage URL and callback URL will do (the
-  device flow uses neither URL). Tick **Enable Device Flow**. Scopes are not
+* **GitHub sign-in** (step 4) needs a GitHub OAuth app. Create one in
+  GitHub under Settings, Developer settings, OAuth Apps, New OAuth App. Any
+  name and homepage URL will do, but the **Authorization callback URL** must
+  be exactly `http://agent.localhost:18180/github/callback`: GitHub sends the
+  browser back there, and refuses any other address. Tick **Enable Device
+  Flow** too, for `make github-sign-in` (the Codespaces path). Scopes are not
   part of the app: they are asked for at sign-in, and the plugin asks for
-  none. Put the app's Client ID (public, not a secret; no client secret is
-  needed) in `k8s/values.yaml` under the `github-api` plugin's `client-id`,
-  then run `make up` again. Until then, sign-in says it isn't set up and step
-  4 works signed out.
+  none. Then, in `k8s/values.yaml` under the `github-api` plugin's `config`,
+  set `client-id` to the app's Client ID and `client-secret` to a client
+  secret generated on the app's page (Generate a new client secret), and run
+  `make up` again (or the `helm upgrade` in `scripts/up.sh`). Until both are
+  set, sign-in says it isn't set up and step 4 works signed out.
+* The client secret is committed on purpose, as GitHub's CLI commits its own
+  (`cli/cli`, `internal/authflow/flow.go`). It identifies the app and gets
+  no token without a person approving, and PKCE binds each code to the
+  plugin that asked for it. Generate a new secret after the event and delete
+  the old one; anyone running an older clone then gets "GitHub would not
+  trade the code" until they pull.
+* The browser flow is the main sign-in because the device flow allows only
+  50 sign-ins an hour for the whole OAuth app, which one room of attendees
+  would use up. Signed out, GitHub allows 60 API requests an hour per IP
+  address (one conference Wi-Fi); signed in, 5,000 per person.
 * After rebuilding `artifacts/github_api.wasm`, copy the digest
   `scripts/push.sh` prints into `k8s/values.yaml`: the host refuses a plugin
   whose digest differs.
