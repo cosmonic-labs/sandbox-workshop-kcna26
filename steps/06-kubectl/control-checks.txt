@@ -1,0 +1,17 @@
+# Step 6 control: the Role widened to read Secrets, nothing else changed
+$ kubectl apply -f steps/06-kubectl/control-secrets-role.yaml
+role.rbac.authorization.k8s.io/read-only configured
+$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'kubectl get secrets'
+[user] kubectl get secrets
+[model] call kubectl({"arguments":"get secrets"})
+[tool kubectl] ok: NAME STATUS db-password
+[model] Done. Here is what each step returned: kubectl: NAME STATUS db-password
+
+$ kubectl apply -f k8s/kube.yaml
+# Reverted: refused again
+$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'kubectl get secrets'
+[user] kubectl get secrets
+[model] call kubectl({"arguments":"get secrets"})
+[tool kubectl] error: {"access-denied":"Error from server (Forbidden): secrets is forbidden: User \"system:serviceaccount:wasmcloud:agent-reader\" cannot list resource \"secrets\" in API group \"\" in the namespace \"demo\""}
+[model] Done. Here is what each step returned: kubectl: ERROR: {"access-denied":"Error from server (Forbidden): secrets is forbidden: User \"system:serviceaccount:wasmcloud:age
+

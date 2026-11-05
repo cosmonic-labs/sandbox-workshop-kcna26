@@ -1,38 +1,67 @@
-# Step 4: sqlite over the database in its read-only folder
+# Step 4: sqlite over the databases in its read-only folder
 $ kubectl apply -f steps/04-sqlite/workload.yaml && sleep 2 && kubectl wait --for=condition=Ready workloaddeployment/toolbox-agent
 
+# A valid database on the host pod's disk that no workload is granted:
+$ kubectl -n wasmcloud exec deploy/hostgroup-default -- ls /workshop/private-data
+payroll.db
 # Ordinary SQL works:
-$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'sqlite select title, speaker from talks where track = 'Security' order by title'
+$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d "sqlite select title, speaker from talks where track = 'Security' order by title"
 [user] sqlite select title, speaker from talks where track = 'Security' order by title
 [model] call sqlite({"sql":"select title, speaker from talks where track = 'Security' order by title"})
 [tool sqlite] ok: Least Privilege for Multi-Tenant Clusters | C. Okafor Sandboxing Agents and the Code They Write | A. Rivera Secrets Without Tears | I. Costa Supply Chain Attacks in the Wild | F. Haddad
 [model] Done. Here is what each step returned: sqlite: Least Privilege for Multi-Tenant Clusters | C. Okafor Sandboxing Agents and the Code They Write | A. Rivera Secrets With
 
-# Dot-commands work:
+# A dot-command, turned into SQL by the tool's shell:
 $ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'sqlite .tables'
 [user] sqlite .tables
 [model] call sqlite({"sql":".tables"})
 [tool sqlite] ok: talks
 [model] Done. Here is what each step returned: sqlite: talks
 
-# .shell cannot exist: there is no process to start
+# ATTACH a database inside the grant: works
+$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d "sqlite attach 'file:/data/rooms.db?immutable=1' as r; select name, seats from r.rooms"
+[user] sqlite attach 'file:/data/rooms.db?immutable=1' as r; select name, seats from r.rooms
+[model] call sqlite({"sql":"attach 'file:/data/rooms.db?immutable=1' as r; select name, seats from r.rooms"})
+[tool sqlite] ok: Hall A | 900 Hall B | 600 Room 1 | 120 Room 2 | 120
+[model] Done. Here is what each step returned: sqlite: Hall A | 900 Hall B | 600 Room 1 | 120 Room 2 | 120
+
+# ATTACH a valid database on the host pod, outside the grant: refused
+$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d "sqlite attach 'file:/workshop/private-data/payroll.db?immutable=1' as p; select name, salary from p.salaries"
+[user] sqlite attach 'file:/workshop/private-data/payroll.db?immutable=1' as p; select name, salary from p.salaries
+[model] call sqlite({"sql":"attach 'file:/workshop/private-data/payroll.db?immutable=1' as p; select name, salary from p.salaries"})
+[tool sqlite] error: {"access-denied":"attach 'file:/workshop/private-data/payroll.db?immutable=1' as p; select name, salary from p.salaries: unable to open database: file:/workshop/private-data/payroll.db?immutable=1"}
+[model] Done. Here is what each step returned: sqlite: ERROR: {"access-denied":"attach 'file:/workshop/private-data/payroll.db?immutable=1' as p; select name, salary from p.sa
+
+# .shell: answered by the tool's own shell code
 $ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'sqlite .shell id'
 [user] sqlite .shell id
 [model] call sqlite({"sql":".shell id"})
 [tool sqlite] error: {"invalid-argument":".shell: there is no shell here. This sqlite3 runs as a component that can't start processes."}
 [model] Done. Here is what each step returned: sqlite: ERROR: {"invalid-argument":".shell: there is no shell here. This sqlite3 runs as a component that can't start processes.
 
-# ATTACH to a file outside the folder: refused
-$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'sqlite attach '/etc/passwd' as evil'
-[user] sqlite attach '/etc/passwd' as evil
-[model] call sqlite({"sql":"attach '/etc/passwd' as evil"})
-[tool sqlite] error: {"access-denied":"attach '/etc/passwd' as evil: unable to open database: /etc/passwd"}
-[model] Done. Here is what each step returned: sqlite: ERROR: {"access-denied":"attach '/etc/passwd' as evil: unable to open database: /etc/passwd"}
-
-# load_extension: not available
-$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'sqlite select load_extension('/tmp/evil')'
+# load_extension: not compiled in
+$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d "sqlite select load_extension('/tmp/evil')"
 [user] sqlite select load_extension('/tmp/evil')
 [model] call sqlite({"sql":"select load_extension('/tmp/evil')"})
 [tool sqlite] error: {"invalid-argument":"no such function: load_extension in select load_extension('/tmp/evil') at offset 7"}
 [model] Done. Here is what each step returned: sqlite: ERROR: {"invalid-argument":"no such function: load_extension in select load_extension('/tmp/evil') at offset 7"}
 
+# The imports: nothing that starts a process, no HTTP client, no sockets
+$ wasm-tools component wit artifacts/tool_sqlite.wasm | grep -E '^  import'
+  import wasi:io/poll@0.2.9;
+  import wasi:clocks/monotonic-clock@0.2.9;
+  import wasi:clocks/wall-clock@0.2.9;
+  import wasi:io/error@0.2.9;
+  import wasi:io/streams@0.2.9;
+  import wasi:cli/stdout@0.2.9;
+  import wasi:cli/stderr@0.2.9;
+  import wasi:cli/stdin@0.2.9;
+  import wasi:cli/environment@0.2.9;
+  import wasi:cli/exit@0.2.9;
+  import wasi:cli/terminal-input@0.2.9;
+  import wasi:cli/terminal-output@0.2.9;
+  import wasi:cli/terminal-stdin@0.2.9;
+  import wasi:cli/terminal-stdout@0.2.9;
+  import wasi:cli/terminal-stderr@0.2.9;
+  import wasi:filesystem/types@0.2.9;
+  import wasi:filesystem/preopens@0.2.9;

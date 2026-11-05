@@ -1,4 +1,4 @@
-# Step 1: run the agent and its three tools
+# Step 1: run the agent; three tools are ready and the kubectl slot waits
 $ kubectl apply -f steps/01-run-it/workload.yaml && sleep 2 && kubectl wait --for=condition=Ready workloaddeployment/toolbox-agent
 
 # sqlite reads the talks database:
@@ -22,7 +22,7 @@ $ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'fetch http://ap
 [tool curl] ok: {"service":"releases","version":"1.2","notes":"several bug fixes and performance improvements"}
 [model] Done. Here is what each step returned: curl: {"service":"releases","version":"1.2","notes":"several bug fixes and performance improvements"}
 
-# The agent harness's imports from this workshop: the model and three typed, labelled tool slots
+# The agent harness's imports from this workshop: the model and four typed, labelled tool slots
 $ wasm-tools component wit artifacts/agent.wasm | grep 'import .*workshop:toolbox'
   import workshop:toolbox/types@0.4.0;
   import model: workshop:toolbox/model@0.4.0;
@@ -33,7 +33,8 @@ $ wasm-tools component wit artifacts/agent.wasm | grep 'import .*workshop:toolbo
 # The harness imports no HTTP client, no filesystem and no sockets, so this prints nothing:
 $ wasm-tools component wit artifacts/agent.wasm | grep -E 'wasi:(http/client|filesystem|sockets)'
 # The tools are small. Look at the sizes:
-$ ls -l artifacts/tool_curl.wasm artifacts/tool_sqlite.wasm artifacts/tool_git.wasm
+$ ls -l artifacts/tool_curl.wasm artifacts/tool_sqlite.wasm artifacts/tool_git.wasm artifacts/tool_kubectl.wasm
 182276 artifacts/tool_curl.wasm
 2450652 artifacts/tool_git.wasm
+781444 artifacts/tool_kubectl.wasm
 1173947 artifacts/tool_sqlite.wasm

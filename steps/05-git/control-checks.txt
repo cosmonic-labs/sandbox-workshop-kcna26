@@ -1,0 +1,15 @@
+# Step 5, native positive control: the same repository under this machine's git.
+# Output depends on the local git version (git version 2.54.0 (Apple Git-157)).
+$ git -C .run/repo status
+warning: Empty last update token.
+fatal: the remote end hung up unexpectedly
+$ ls /tmp/gtfobins-git-*
+/tmp/gtfobins-git-filterprocess
+/tmp/gtfobins-git-fsmonitor
+$ git -C .run/repo diff HEAD~2 HEAD
+fatal: the remote end hung up unexpectedly
+$ ls /tmp/gtfobins-git-*
+/tmp/gtfobins-git-diffexternal
+/tmp/gtfobins-git-filterprocess
+/tmp/gtfobins-git-fsmonitor
+$ rm -f /tmp/gtfobins-git-*
