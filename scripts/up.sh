@@ -8,6 +8,7 @@
 #   data-nats         the data service behind keyvalue (k8s/data-nats.yaml)
 #   workshop-sites    the toy sites' namespace and Services (k8s/sites.yaml)
 #   agent Service     the way in to the agent (k8s/agent-service.yaml)
+#   guide             the steps as web pages (k8s/guide.yaml), on the fixtures group
 # then push the prebuilt components (or SRC=<dir>). 127.0.0.1:18180 reaches the
 # host pods through a small ingress (k8s/ingress.yaml) that kind maps to your
 # laptop and that picks the host group by Host header, so every step's curl
@@ -112,6 +113,11 @@ K -n workshop-data rollout status deploy/data-nats --timeout 3m >/dev/null
 K -n workshop-sites delete workloaddeployment toy-sites --ignore-not-found --wait=true >/dev/null
 K apply -f "$ROOT/steps/00-fixtures/toy-sites.yaml" >/dev/null
 K -n workshop-sites wait --for=condition=Ready workloaddeployment/toy-sites --timeout=180s >/dev/null || true
+# The workshop guide (k8s/guide.yaml), on the same host group, recreated
+# for the same reason.
+K -n workshop-sites delete workloaddeployment guide --ignore-not-found --wait=true >/dev/null
+K apply -f "$ROOT/k8s/guide.yaml" >/dev/null
+K -n workshop-sites wait --for=condition=Ready workloaddeployment/guide --timeout=180s >/dev/null || true
 for _ in $(seq 1 30); do
   curl -s -o /dev/null -m 2 "http://$HOST_HTTP/" && break; sleep 1
 done
@@ -122,3 +128,4 @@ echo
 echo "cluster   kubectl context $CTX"
 echo "registry  $REGISTRY_CONTAINER:5000 inside the cluster (127.0.0.1:$KIND_REGISTRY_PORT from here)"
 echo "ingress   http://$HOST_HTTP  (use curl with a Host: header)"
+echo "guide     http://guide.localhost:${HOST_HTTP##*:}  (the steps, in your browser)"

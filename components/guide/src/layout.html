@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:,">
+<title>{{title}}</title>
+<link rel="stylesheet" href="/guide.css">
+</head>
+<body>
+<a class="skip" href="#content">Skip to the content</a>
+<header class="bar">
+  <a class="brand" href="/" aria-label="Workshop guide, overview">
+    {{logo}}
+    <span class="rule" aria-hidden="true"></span>
+    <span class="name">Workshop guide</span>
+  </a>
+  <span class="event">KubeCon workshop</span>
+</header>
+<div class="layout">
+  <aside class="side">{{nav}}</aside>
+  <main id="content" tabindex="-1">
+    <article class="doc">
+{{content}}
+    </article>
+    {{pager}}
+  </main>
+</div>
+<p class="sr-only" id="announce" aria-live="polite"></p>
+<script>
+{{js}}
+</script>
+</body>
+</html>

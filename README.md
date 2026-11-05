@@ -7,6 +7,10 @@ tools one at a time, then try each tool's most famous escape and watch it
 fail. Then you give it a real job: triaging pull requests on GitHub, signed
 in with your own account if you like.
 
+On your own machine, after `make up`, read these steps in your browser at
+http://guide.localhost:18180, with a Copy button on every command. In
+Codespaces, read them here.
+
 The tools are `curl`, `sqlite3` and `gh` (GitHub's command line). `curl` and
 `sqlite3` are classics from [GTFOBins](https://gtfobins.github.io/), the
 catalogue of everyday programs that break out of restricted shells. The model is a gullible stand-in that
@@ -115,7 +119,7 @@ registry.
             ┌────────────────────────────────┴───────────────┐
             ▼                                                ▼
   host pod, group "default"                       host pod, group "fixtures"
-    workload toolbox-agent                          toy sites: api, collector
+    workload toolbox-agent                          toy sites: api, collector; the guide
       harness ──▶ model
         ├──▶ sign-in  github-api plugin ──▶ github.com (OAuth, no scopes)
         ├──▶ curl     allowedHosts only ──▶ api.workshop-sites.svc, /data for -o
@@ -203,6 +207,12 @@ the workshop needs no internet.
 * After rebuilding `artifacts/github_api.wasm`, copy the digest
   `scripts/push.sh` prints into `k8s/values.yaml`: the host refuses a plugin
   whose digest differs.
+* The guide at http://guide.localhost:18180 (`components/guide`) is this
+  README and each step's README rendered when the component is built, so
+  after editing a README run `make guide` (it rebuilds
+  `artifacts/guide.wasm` and its line in `SHA256SUMS`), then `make up`.
+  `make doctor` and `make verify` say when the guide is older than the
+  READMEs.
 * `TESTING.md` is the pre-workshop test checklist.
 * The tool interfaces are in `wit/toolbox.wit`; the harness's tool table is
   `components/agent/src/tools.rs`.

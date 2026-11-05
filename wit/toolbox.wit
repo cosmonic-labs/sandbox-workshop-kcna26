@@ -396,3 +396,11 @@ world toy-sites {
   import wasmcloud:keyvalue/atomics@0.2.0;
   export wasi:http/handler@0.3.0;
 }
+
+/// Not part of the toolbox: the workshop guide, the step READMEs as web
+/// pages (components/guide). It serves HTTP and imports no files and no
+/// network.
+@since(version = 0.4.0)
+world guide {
+  export wasi:http/handler@0.3.0;
+}

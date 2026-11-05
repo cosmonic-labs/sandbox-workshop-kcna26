@@ -448,6 +448,32 @@ case "$got" in
   *) fail facts 'a callback with a state this workload never made is refused' '302 .../?github=expired' "$got" ;;
 esac
 
+# The guide (k8s/guide.yaml), at guide.localhost on the same ingress: the
+# overview lists every step, each step's page answers with a Copy button on
+# its code, and it was built from the READMEs in this checkout.
+GUIDE() { curl -s -m 10 -w '\n%{http_code}' -H 'Host: guide.localhost' "$URL$1"; }
+page=$(GUIDE /)
+CHECKED=$((CHECKED + 1))
+[ "${page##*$'\n'}" = 200 ] || fail guide 'the overview answers' 200 "${page##*$'\n'}"
+for d in steps/0[1-9]*/; do
+  CHECKED=$((CHECKED + 1))
+  case "$page" in
+    *"<nav class=\"steps\""*"href=\"/$d\""*) ;;
+    *) fail guide "the overview's step list links to /$d" "href=\"/$d\"" absent ;;
+  esac
+  step=$(GUIDE "/$d")
+  CHECKED=$((CHECKED + 1))
+  case "${step##*$'\n'}:$step" in
+    200:*'<button type="button" class="copy">Copy</button>'*) ;;
+    *) fail guide "/$d answers with a Copy button" '200 and a Copy button' "${step##*$'\n'}" ;;
+  esac
+done
+CHECKED=$((CHECKED + 1))
+built=$(curl -s -m 10 -H 'Host: guide.localhost' "$URL/sources")
+here=$(cksum README.md steps/*/README.md)
+[ "$built" = "$here" ] || fail guide 'the guide was built from these READMEs (stale: make guide && make up)' \
+  "$(echo "$here" | tr '\n' ' ')" "$(echo "$built" | tr '\n' ' ')"
+
 
 if [ "$FAILS" -gt 0 ]; then
   trap - EXIT
