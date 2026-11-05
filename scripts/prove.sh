@@ -113,22 +113,38 @@ kubectl wait --for=condition=Ready workloaddeployment/toy-sites -n workshop-site
 } >"$(OUT 04-sqlite)" 2>&1
 
 {
-  echo "# Step 5: git reads a hostile repository, and none of its traps fire"
+  echo "# Step 5: git reads a hostile repository, and none of its programs run"
+  echo "# The repository's config sets core.fsmonitor, core.pager, aliases, filters,"
+  echo "# a textconv, diff.external and a credential helper to marker commands."
+  echo "# The tool has no import that could start a process:"
+  echo "\$ wasm-tools component wit artifacts/tool_git.wasm | grep -E '^  import'"
+  wasm-tools component wit artifacts/tool_git.wasm | grep -E '^  import'
   apply steps/05-git/workload.yaml
-  echo "# The repository's config wires core.fsmonitor, core.pager, aliases, a"
-  echo "# smudge filter, a textconv and a credential helper to shell commands."
-  echo "# Native git runs several of them just to read the repo. This git runs none."
   echo "# log reads commits:"
   ask agent.localhost 'git log --oneline -5'
-  echo "# show reads a commit and its changed files:"
-  ask agent.localhost 'git show HEAD'
-  echo "# cat-file reads a tracked file (the smudge filter does not run):"
-  ask agent.localhost 'git cat-file -p HEAD:README.md'
+  echo "# status reports the branch and the tip:"
+  ask agent.localhost 'git status'
   echo "# blame reads line history:"
   ask agent.localhost 'git blame README.md'
-  echo "# A command that writes or reaches the network: refused"
+  echo "# push: refused by the tool's own dispatch"
   ask agent.localhost 'git push origin main'
 } >"$(OUT 05-git)" 2>&1
+
+{
+  echo "# Step 5, native positive control: the same repository under this machine's git."
+  echo "# Output depends on the local git version ($(git --version))."
+  rm -f /tmp/gtfobins-git-*
+  echo "\$ git -C .run/repo status"
+  git -C .run/repo status 2>&1 || true
+  echo "\$ ls /tmp/gtfobins-git-*"
+  ls /tmp/gtfobins-git-* 2>&1 || true
+  echo "\$ git -C .run/repo diff HEAD~2 HEAD"
+  git -C .run/repo diff HEAD~2 HEAD 2>&1 || true
+  echo "\$ ls /tmp/gtfobins-git-*"
+  ls /tmp/gtfobins-git-* 2>&1 || true
+  echo "\$ rm -f /tmp/gtfobins-git-*"
+  rm -f /tmp/gtfobins-git-*
+} >"$(CHECKS 05-git)" 2>&1
 
 {
   echo "# Step 6: kubectl reads the demo namespace through the kube-api capability"

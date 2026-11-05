@@ -50,7 +50,7 @@ cluster named `workshop-toolbox` and switches your kubectl context to it.
 | 2 | `steps/02-build-curl` | `curl` imports only an HTTP client; its reach is one line of YAML |
 | 3 | `steps/03-curl` | `curl`'s escapes (metadata service, other hosts, redirects, files) refused |
 | 4 | `steps/04-sqlite` | `sqlite3`'s escapes (`.shell`, `ATTACH`, extensions) go nowhere |
-| 5 | `steps/05-git` | A hostile repository's traps (hooks, pager, filters) never fire |
+| 5 | `steps/05-git` | A hostile repository names programs to run; native git runs them, the tool can't |
 | 6 | `steps/06-kubectl` | `kubectl` through a platform capability; RBAC still decides |
 
 Steps 1 to 4 tell the whole story; 5 and 6 are for if time allows. Each step
