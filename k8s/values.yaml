@@ -83,16 +83,31 @@ runtime:
       # (github-auth). The platform installs it on the host group; a workload
       # uses it only by declaring both under hostInterfaces. It builds every
       # URL itself, sends only GET, only to api.github.com and only for the
-      # read paths the gh tool needs, and refuses everything else. Sign-in is
-      # GitHub's device flow, run by the plugin from start to finish with no
-      # scopes; the token stays in the plugin's memory, keyed by the calling
-      # workload's id (the host's wasmcloud:host/identity), and is gone when
-      # the host restarts.
+      # read paths the gh tool needs, and refuses everything else. Sign-in has
+      # no scopes and two flows, both run by the plugin from start to finish:
+      # the browser flow (GitHub's OAuth web application flow with PKCE), and
+      # the code flow (GitHub's device flow) for Codespaces and terminals. The
+      # token stays in the plugin's memory, keyed by the calling workload's id
+      # (the host's wasmcloud:host/identity), and is gone when the host
+      # restarts.
       #
-      # client-id names the GitHub OAuth app (device flow enabled) that
-      # sign-in uses. A client id is public, not a secret. Until it is set,
-      # sign-in reports that it isn't set up and everything else works
-      # signed out. Change it, then `make up` (or helm upgrade) to apply.
+      # client-id and client-secret name the GitHub OAuth app sign-in uses.
+      # Its callback URL must be exactly
+      # http://agent.localhost:18180/github/callback, and Enable Device Flow
+      # must be ticked for the code flow. Until both are set, sign-in reports
+      # that it isn't set up and everything else works signed out. Change
+      # them, then `make up` (or helm upgrade) to apply.
+      #
+      # The client secret is in the repo on purpose. GitHub's own CLI does the
+      # same: cli/cli commits its OAuth app's secret in
+      # internal/authflow/flow.go, with the comment "This value is safe to be
+      # embedded in version control". An app that every participant runs on
+      # their own laptop can't keep a secret anyway. What the secret does is
+      # identify the app; on its own it gets no token. A token still needs a
+      # person to approve on github.com, and the code GitHub sends back is
+      # bound by PKCE to a verifier that never leaves the plugin. The app asks
+      # for no scopes, so even an approved token reads only public data. The
+      # secret will be rotated after the event.
       #
       # Pinned by digest: the host refuses a plugin whose image digest
       # differs. scripts/push.sh gives each prebuilt .wasm a reproducible
@@ -101,13 +116,14 @@ runtime:
       plugins:
         - id: github-api
           image: workshop-toolbox-registry:5000/workshop/github-api:0.4.0
-          digest: sha256:26c2843b874929ca104874ae5da36b4cdd09c404481bd60d4f56e6b5a950d073
+          digest: sha256:862bbe462731b44ae23695ec7488b49c6bdd527f33a55998e6653b9edd67f3f0
           pullPolicy: ifNotPresent
           allowedHosts:
             - github.com
             - api.github.com
           config:
             client-id: Ov23liN4pgXbvHJYd83G
+            client-secret: REPLACE-WITH-GITHUB-OAUTH-APP-CLIENT-SECRET
     # The toy sites (steps/00-fixtures) get a host group of their own, in
     # their own namespace, so the Services in k8s/sites.yaml can select its
     # pods. Workloads land here only by asking: hostSelector hostgroup: fixtures.

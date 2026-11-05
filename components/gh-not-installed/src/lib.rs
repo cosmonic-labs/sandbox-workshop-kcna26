@@ -13,7 +13,7 @@ wit_bindgen::generate!({
     generate_all,
 });
 
-use exports::workshop::toolbox::github_auth::{self, DevicePrompt, SignInStatus};
+use exports::workshop::toolbox::github_auth::{self, DevicePrompt, SignInStatus, WebError};
 use exports::workshop::toolbox::gh;
 
 struct NotInstalled;
@@ -24,11 +24,21 @@ impl gh::Guest for NotInstalled {
     }
 }
 
+/// Why sign-in answers no before step 4.
+const NOT_THIS_STEP: &str = "GitHub sign-in isn't part of this step: step 4's manifest declares \
+                             the github-auth capability that provides it";
+
 impl github_auth::Guest for NotInstalled {
     async fn start() -> Result<DevicePrompt, String> {
-        Err("GitHub sign-in isn't part of this step: step 4's manifest declares the \
-             github-auth capability that provides it"
-            .into())
+        Err(NOT_THIS_STEP.into())
+    }
+
+    async fn begin_web(_: String) -> Result<String, WebError> {
+        Err(WebError::NotSetUp(NOT_THIS_STEP.into()))
+    }
+
+    async fn complete_web(_: String, _: String) -> Result<String, WebError> {
+        Err(WebError::NotSetUp(NOT_THIS_STEP.into()))
     }
 
     async fn status() -> Result<SignInStatus, String> {

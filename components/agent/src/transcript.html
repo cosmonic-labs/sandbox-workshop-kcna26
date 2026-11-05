@@ -76,12 +76,14 @@
     border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer;
   }
   .btn:hover { background: var(--hover); }
+  a.btn { display: inline-block; text-decoration: none; }
   .btn:disabled { opacity: 0.55; cursor: default; }
   .tools { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; justify-content: flex-end; }
 
   /* GitHub sign-in (step 4): a button, then the code to enter, then who. */
   .gh { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; font-size: 0.8rem; color: var(--muted); }
   .gh a { color: var(--brand-ink); font-weight: 600; }
+  .gh a.btn { color: var(--ink); }
   .gh code {
     font-size: 0.9rem; font-weight: 700; color: var(--strong); background: var(--sunken);
     padding: 0.1rem 0.45rem; border-radius: 0.35rem; letter-spacing: 0.05em;
@@ -462,10 +464,22 @@
     }
   }
 
-  // GitHub sign-in. The harness passes each call to the github-api plugin,
-  // which runs GitHub's device flow and keeps the token; this page only sees
-  // the code to enter, where to enter it, and the login once signed in.
+  // GitHub sign-in. "Sign in with GitHub" is a plain link to /github/login:
+  // the harness asks the github-api plugin for GitHub's address and the
+  // browser goes there, approves, and comes back through /github/callback,
+  // where the plugin trades GitHub's single-use code for a token it keeps.
+  // This page only ever sees the signed-in login. A sign-in begun from a
+  // terminal (make github-sign-in, the code flow) shows here while it waits.
   let ghTimer = null;
+  const ghReasons = {
+    'denied': 'GitHub sign-in was cancelled on github.com.',
+    'expired': 'That sign-in expired or was already used. Sign in again.',
+    'not-set-up': 'GitHub sign-in is not set up on this cluster (see the README). Everything works signed out.',
+    'failed': 'GitHub sign-in did not complete. Try again.',
+  };
+  const ghParams = new URLSearchParams(location.search);
+  let ghNote = ghReasons[ghParams.get('github')] || '';
+  if (ghParams.has('github')) history.replaceState(null, '', location.pathname);
   async function gh(path, method) {
     try {
       const res = await fetch(path, { method: method || 'GET', cache: 'no-store' });
@@ -497,9 +511,13 @@
         ghButton('Cancel', async () => ghShow(await gh('/github/sign-out', 'POST'))));
       ghTimer = setTimeout(async () => ghShow(await gh('/github/status')), 5000);
     } else {
-      if (s.state === 'error') box.append(el('span', 'why', s.error));
-      box.append(ghButton('Sign in with GitHub', async () => ghShow(await gh('/github/sign-in', 'POST'))));
+      const why = s.state === 'error' ? s.error : ghNote;
+      if (why) box.append(el('span', 'why', why));
+      const a = el('a', 'btn', 'Sign in with GitHub');
+      a.href = '/github/login';
+      box.append(a);
     }
+    ghNote = '';
   }
   gh('/github/status').then((s) => ghShow(s.state === 'error' ? { state: 'signed-out' } : s));
 

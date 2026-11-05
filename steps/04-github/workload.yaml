@@ -7,8 +7,8 @@
 # (k8s/values.yaml). The plugin sends only GET, only to api.github.com, only
 # for the read paths gh needs, and refuses everything else. The harness
 # imports github-auth from the same plugin for the chat page's "Sign in with
-# GitHub": the plugin runs GitHub's device flow and keeps the token in its
-# own memory, for this workload only. Nothing in the workload ever holds it.
+# GitHub": the plugin runs the sign-in and keeps the token in its own
+# memory, for this workload only. Nothing in the workload ever holds it.
 #
 # Each tool reaches only what this manifest grants it:
 #   curl    the hosts in its allowedHosts (api.workshop-sites.svc), and the
