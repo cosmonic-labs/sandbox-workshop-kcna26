@@ -11,6 +11,7 @@
 #   make fixtures-db rebuild fixtures/*.db from their .sql (maintainers; needs sqlite3)
 #   make check-fixtures-db  the committed .db files match their checksums and sources
 #   make prove       replay every step on the cluster, rewrite steps/*/expected-output.txt
+#   make verify      replay every step, change nothing, check each result is what it should be
 #   make down        changes nothing; make clean deletes the cluster and the registry
 #
 #   No Docker? Open the repo in GitHub Codespaces (see README.md).
@@ -18,7 +19,7 @@
 SHELL := /bin/bash
 .DEFAULT_GOAL := help
 
-.PHONY: help tools doctor up push-build build build-all kubectl fixtures-db check-fixtures-db prove down clean
+.PHONY: help tools doctor up push-build build build-all kubectl fixtures-db check-fixtures-db prove verify down clean
 
 help:
 	@sed -n 's/^#   //p' $(firstword $(MAKEFILE_LIST))
@@ -60,6 +61,9 @@ check-fixtures-db:
 
 prove:
 	@./scripts/prove.sh
+
+verify:
+	@./scripts/prove.sh --verify
 
 down:
 	@./scripts/down.sh

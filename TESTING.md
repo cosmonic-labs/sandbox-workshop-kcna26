@@ -31,8 +31,16 @@ make doctor
       matches the result line under it.
 - [ ] `make prove`: ends with `proofs written:` and the step files. `git diff
       steps` shows nothing: the transcripts are deterministic (pod names are
-      written as `hello-<pod>`; step 5's native control in
-      `control-checks.txt` depends on the local git version).
+      written as `hello-<pod>` and kubectl's ages as `<age>`; step 5's native
+      control in `control-checks.txt` depends on the local git version).
+- [ ] `make verify`: replays every step without writing anything and ends
+      with `verify: all N checks passed`. It checks each result, not the
+      exact text: allowed calls return what they should, each refusal has the
+      expected error and the refusing layer's message (the grant, the tool's
+      own code, or RBAC), the native git control runs the repository's
+      programs while the git tool leaves no marker on the host pod, and both
+      controls revert. A mismatch prints `FAIL`, what was wanted and what came
+      back, and exits nonzero.
 - [ ] Every `$ curl ...` line in `steps/*/expected-output.txt` pastes into a
       shell and runs as written.
 - [ ] `make clean`: the cluster and the registry container are gone; your
