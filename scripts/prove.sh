@@ -7,7 +7,7 @@
 # steps/<step>/control-checks.txt.
 #
 # Pod names in the demo namespace are random, so they are written as
-# hello-<pod>, and kubectl's ages as <age>. Everything else is deterministic:
+# hello-<pod>, kubectl's ages as <age> and describe's timestamps as <time>. Everything else is deterministic:
 # a second run on a fresh cluster should leave `git diff steps` empty.
 #
 #   scripts/prove.sh            replay and rewrite the transcripts (make prove)
@@ -61,10 +61,11 @@ shell_quote() {
     *) printf "'%s'" "$1" ;;
   esac
 }
-# Random pod names, and kubectl's ages (45s, 12m, 5h12m, 2d3h, "3 (39s ago)"),
-# as placeholders.
+# Random pod names, kubectl's ages (45s, 12m, 5h12m, 2d3h, "3 (39s ago)") and
+# describe's timestamps (Thu, 05 Nov 2026 01:40:17 +0000), as placeholders.
 normalize() {
   sed -E -e 's/hello-[a-z0-9]{6,10}-[a-z0-9]{5}/hello-<pod>/g' \
+    -e 's/[A-Z][a-z]{2}, [0-9]{2} [A-Z][a-z]{2} [0-9]{4} [0-9]{2}:[0-9]{2}:[0-9]{2} [+-][0-9]{4}/<time>/g' \
     -e '/^\[tool kubectl\]|^\[model\] Done/ s/(^| |\()[0-9]+[smhdy]([0-9]+[smhd])?( |\)|$)/\1<age>\3/g'
 }
 
@@ -260,6 +261,8 @@ kubectl wait --for=condition=Ready workloaddeployment/toy-sites -n workshop-site
   ask agent.localhost 'kubectl get deployments'
   echo "# Allowed (RBAC grants pods/log): a pod's logs"
   ask agent.localhost 'kubectl logs deployment/hello'
+  echo "# Allowed (RBAC): describe, as kubectl prints it (the reply is cut at 300 characters)"
+  ask agent.localhost 'kubectl describe deployment hello'
   echo "# Refused by the grant: curl may not reach the API server"
   ask agent.localhost 'curl -s https://kubernetes.default.svc/api/v1/namespaces/demo/pods'
   echo "# Refused by RBAC: secrets"
@@ -272,6 +275,8 @@ kubectl wait --for=condition=Ready workloaddeployment/toy-sites -n workshop-site
   ask agent.localhost 'kubectl delete --raw /api/v1/namespaces/demo/pods/hello'
   echo "# RBAC answers a question too: may agent-reader list secrets?"
   ask agent.localhost 'kubectl auth can-i list secrets'
+  echo "# And may it list pods?"
+  ask agent.localhost 'kubectl auth can-i list pods'
   echo "# The tool imports the kube-api capability and no HTTP client, sockets or secrets:"
   echo "\$ wasm-tools component wit artifacts/tool_kubectl.wasm | grep -E '^  import (workshop|wasi:http|wasi:sockets|wasmcloud)'"
   wasm-tools component wit artifacts/tool_kubectl.wasm | grep -E '^  import (workshop|wasi:http|wasi:sockets|wasmcloud)'
@@ -342,6 +347,12 @@ expect() { # file, prompt, ok|<variant>, text...
       *) fail "$file" "$prompt" "contains: $t" "$line"; return ;;
     esac
   done
+}
+one_call() { # file, prompt: the model makes exactly one tool call for the prompt
+  local n
+  CHECKED=$((CHECKED + 1))
+  n=$(reply "$1" "$2" | grep -c '^\[model\] call ' || true)
+  [ "$n" = 1 ] || fail "$1" "$2" "one tool call" "$n tool calls"
 }
 present() { # file, text, why
   CHECKED=$((CHECKED + 1))
@@ -422,12 +433,16 @@ f=$(OUT 06-kubectl)
 expect "$f" 'kubectl get pods' ok 'NAME READY STATUS RESTARTS AGE hello-<pod> 1/1 Running 0 <age>'
 expect "$f" 'kubectl get deployments' ok 'NAME READY UP-TO-DATE AVAILABLE AGE hello 2/2 2 2 <age>'
 expect "$f" 'kubectl logs deployment/hello' ok 'hello from hello-<pod>'
+expect "$f" 'kubectl describe deployment hello' ok 'Name: hello Namespace: demo CreationTimestamp: <time> Labels: <none>' \
+  'Selector: app=hello Replicas: 2 desired | 2 updated | 2 total | 2 available | 0 unavailable StrategyType: RollingUpdate'
+one_call "$f" 'kubectl describe deployment hello'
 expect "$f" 'curl -s https://kubernetes.default.svc/api/v1/namespaces/demo/pods' access-denied "kubernetes.default.svc: $DENIED_HOST"
 expect "$f" 'kubectl get secrets' access-denied "$FORBIDDEN: secrets is forbidden" 'cannot list resource'
 expect "$f" 'kubectl get pods -A' access-denied "$FORBIDDEN: pods is forbidden" 'at the cluster scope'
 expect "$f" 'kubectl get pods -n kube-system' access-denied "$FORBIDDEN: pods is forbidden" 'kube-system'
 expect "$f" 'kubectl delete --raw /api/v1/namespaces/demo/pods/hello' access-denied "$FORBIDDEN: pods" 'cannot delete resource'
 expect "$f" 'kubectl auth can-i list secrets' ok '[tool kubectl] ok: no'
+expect "$f" 'kubectl auth can-i list pods' ok '[tool kubectl] ok: yes'
 present "$f" 'import workshop:toolbox/kube-api@0.4.0' 'kubectl imports the kube-api capability'
 absent "$f" '  import wasi:http' 'kubectl imports no HTTP client'
 f=$(CHECKS 06-kubectl)

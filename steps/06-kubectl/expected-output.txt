@@ -22,6 +22,13 @@ $ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'kubectl logs de
 [tool kubectl] ok: hello from hello-<pod>
 [model] Done. Here is what each step returned: kubectl: hello from hello-<pod>
 
+# Allowed (RBAC): describe, as kubectl prints it (the reply is cut at 300 characters)
+$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'kubectl describe deployment hello'
+[user] kubectl describe deployment hello
+[model] call kubectl({"arguments":"describe deployment hello"})
+[tool kubectl] ok: Name: hello Namespace: demo CreationTimestamp: <time> Labels: <none> Annotations: deployment.kubernetes.io/revision: 1 Selector: app=hello Replicas: 2 desired | 2 updated | 2 total | 2 available | 0 unavailable StrategyType: RollingUpdate MinReadySeconds: 0 RollingUpdateStra...
+[model] Done. Here is what each step returned: kubectl: Name: hello Namespace: demo CreationTimestamp: <time> Labels: <none> Annotations: deployment.ku
+
 # Refused by the grant: curl may not reach the API server
 $ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'curl -s https://kubernetes.default.svc/api/v1/namespaces/demo/pods'
 [user] curl -s https://kubernetes.default.svc/api/v1/namespaces/demo/pods
@@ -63,6 +70,13 @@ $ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'kubectl auth ca
 [model] call kubectl({"arguments":"auth can-i list secrets"})
 [tool kubectl] ok: no
 [model] Done. Here is what each step returned: kubectl: no
+
+# And may it list pods?
+$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'kubectl auth can-i list pods'
+[user] kubectl auth can-i list pods
+[model] call kubectl({"arguments":"auth can-i list pods"})
+[tool kubectl] ok: yes
+[model] Done. Here is what each step returned: kubectl: yes
 
 # The tool imports the kube-api capability and no HTTP client, sockets or secrets:
 $ wasm-tools component wit artifacts/tool_kubectl.wasm | grep -E '^  import (workshop|wasi:http|wasi:sockets|wasmcloud)'

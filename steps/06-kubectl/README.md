@@ -16,11 +16,11 @@ The plugin forwards any method and path it is given, and may reach only the
 API server.
 
 The tool takes ordinary kubectl command lines and answers as kubectl does:
-`get` with kubectl's columns and `-o json`, `yaml`, `name` or `wide`, `logs`,
-`auth can-i`, `version`, and `get --raw` and `delete --raw` for a request of
-your own. It only reads. Commands that need a stream or a connection upgrade
-(`exec`, `port-forward`, `logs -f`) are refused, because the capability
-carries one request and one answer.
+`get` with kubectl's columns and `-o json`, `yaml`, `name` or `wide`,
+`describe`, `logs`, `auth can-i`, `version`, and `get --raw` and
+`delete --raw` for a request of your own. It only reads. Commands that need
+a stream or a connection upgrade (`exec`, `port-forward`, `logs -f`) are
+refused, because the capability carries one request and one answer.
 
 ## Two layers
 
@@ -85,7 +85,23 @@ curl -s -H 'Host: agent.localhost' \
 Logs can carry sensitive data, so a real Role should grant `pods/log` only
 where that is acceptable.
 
-**4. curl straight at the API server** (refused: the grant):
+**4. Describe the deployment** (allowed: RBAC): `kubectl describe deployment hello`
+
+```sh
+curl -s -H 'Host: agent.localhost' \
+  http://127.0.0.1:18180/ \
+  -d 'kubectl describe deployment hello'
+```
+
+kubectl's description, field for field: `Name: hello`, `Replicas: 2 desired
+| 2 updated | 2 total | 2 available | 0 unavailable`, the pod template and
+the conditions. Its last line is `Events: <none>`: agent-reader may not
+list events, and real kubectl run as agent-reader prints the same. The
+reply in the chat is cut at 300 characters; the model reads all of it.
+`kubectl describe pods hello` describes every pod whose name starts with
+`hello`.
+
+**5. curl straight at the API server** (refused: the grant):
 `curl -s https://kubernetes.default.svc/api/v1/namespaces/demo/pods`
 
 ```sh
@@ -98,7 +114,7 @@ curl -s -H 'Host: agent.localhost' \
 The host refuses it because the API server isn't in curl's `allowedHosts`,
 before RBAC is ever asked. curl holds no token either.
 
-**5. Secrets** (refused: RBAC): `kubectl get secrets`
+**6. Secrets** (refused: RBAC): `kubectl get secrets`
 
 ```sh
 curl -s -H 'Host: agent.localhost' \
@@ -109,7 +125,7 @@ curl -s -H 'Host: agent.localhost' \
 The request reaches the API server, which answers `Forbidden`: agent-reader
 cannot list secrets.
 
-**6. Every namespace** (refused: RBAC): `kubectl get pods -A`
+**7. Every namespace** (refused: RBAC): `kubectl get pods -A`
 
 ```sh
 curl -s -H 'Host: agent.localhost' \
@@ -119,7 +135,7 @@ curl -s -H 'Host: agent.localhost' \
 
 `Forbidden`: agent-reader may not list pods at the cluster scope.
 
-**7. Another namespace** (refused: RBAC): `kubectl get pods -n kube-system`
+**8. Another namespace** (refused: RBAC): `kubectl get pods -n kube-system`
 
 ```sh
 curl -s -H 'Host: agent.localhost' \
@@ -129,7 +145,7 @@ curl -s -H 'Host: agent.localhost' \
 
 `Forbidden`, the same way.
 
-**8. Any method gets through the plugin** (refused: RBAC):
+**9. Any method gets through the plugin** (refused: RBAC):
 `kubectl delete --raw /api/v1/namespaces/demo/pods/hello`
 
 ```sh
@@ -144,7 +160,7 @@ own checks. The plugin forwards it, and the API server refuses it:
 "system:serviceaccount:wasmcloud:agent-reader" cannot delete resource "pods"`.
 The plugin is not a filter. RBAC is.
 
-**9. Ask RBAC first** (answered by RBAC): `kubectl auth can-i list secrets`
+**10. Ask RBAC first** (answered by RBAC): `kubectl auth can-i list secrets`
 
 ```sh
 curl -s -H 'Host: agent.localhost' \
@@ -153,7 +169,15 @@ curl -s -H 'Host: agent.localhost' \
 ```
 
 `no`. The tool asks the API server what agent-reader may do, without trying
-it. `kubectl auth can-i list pods` answers `yes`.
+it. The same question about pods:
+
+```sh
+curl -s -H 'Host: agent.localhost' \
+  http://127.0.0.1:18180/ \
+  -d 'kubectl auth can-i list pods'
+```
+
+`yes`.
 
 ## Control: widen the Role
 
