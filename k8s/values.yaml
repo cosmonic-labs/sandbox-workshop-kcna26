@@ -66,6 +66,13 @@ runtime:
           hostPath:
             path: /workshop/curl-data
             type: Directory
+        # Step 4: a database on the host pod's own filesystem that no workload
+        # is granted. It is not in hostPaths.allowed above, so no workload may
+        # even ask to mount it; native sqlite3 on this pod would open it.
+        - name: private-data
+          hostPath:
+            path: /workshop/private-data
+            type: Directory
         # Step 6: the cluster CA, so the kube-api plugin can trust the API
         # server's certificate. Every namespace has it in this ConfigMap.
         - name: kube-ca
@@ -78,6 +85,9 @@ runtime:
           mountPath: /workshop/repo
         - name: curl-data
           mountPath: /workshop/curl-data
+        - name: private-data
+          mountPath: /workshop/private-data
+          readOnly: true
         - name: kube-ca
           mountPath: /etc/kube-ca
           readOnly: true

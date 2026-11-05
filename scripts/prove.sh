@@ -98,18 +98,26 @@ kubectl wait --for=condition=Ready workloaddeployment/toy-sites -n workshop-site
 } >"$(CHECKS 03-curl)" 2>&1
 
 {
-  echo "# Step 4: sqlite over the database in its read-only folder"
+  echo "# Step 4: sqlite over the databases in its read-only folder"
   apply steps/04-sqlite/workload.yaml
+  echo "# A valid database on the host pod's disk that no workload is granted:"
+  echo "\$ kubectl -n wasmcloud exec deploy/hostgroup-default -- ls /workshop/private-data"
+  kubectl -n wasmcloud exec deploy/hostgroup-default -- ls /workshop/private-data
   echo "# Ordinary SQL works:"
   ask agent.localhost "sqlite select title, speaker from talks where track = 'Security' order by title"
-  echo "# Dot-commands work:"
+  echo "# A dot-command, turned into SQL by the tool's shell:"
   ask agent.localhost 'sqlite .tables'
-  echo "# .shell cannot exist: there is no process to start"
+  echo "# ATTACH a database inside the grant: works"
+  ask agent.localhost "sqlite attach 'file:/data/rooms.db?immutable=1' as r; select name, seats from r.rooms"
+  echo "# ATTACH a valid database on the host pod, outside the grant: refused"
+  ask agent.localhost "sqlite attach 'file:/workshop/private-data/payroll.db?immutable=1' as p; select name, salary from p.salaries"
+  echo "# .shell: answered by the tool's own shell code"
   ask agent.localhost 'sqlite .shell id'
-  echo "# ATTACH to a file outside the folder: refused"
-  ask agent.localhost "sqlite attach '/etc/passwd' as evil"
-  echo "# load_extension: not available"
+  echo "# load_extension: not compiled in"
   ask agent.localhost "sqlite select load_extension('/tmp/evil')"
+  echo "# The imports: nothing that starts a process, no HTTP client, no sockets"
+  echo "\$ wasm-tools component wit artifacts/tool_sqlite.wasm | grep -E '^  import'"
+  wasm-tools component wit artifacts/tool_sqlite.wasm | grep -E '^  import'
 } >"$(OUT 04-sqlite)" 2>&1
 
 {

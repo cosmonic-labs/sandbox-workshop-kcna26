@@ -13,7 +13,7 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
-DBS="talks"
+DBS="talks rooms payroll"
 
 if command -v sha256sum >/dev/null 2>&1; then SUM="sha256sum"; else SUM="shasum -a 256"; fi
 command -v sqlite3 >/dev/null 2>&1 || { echo "sqlite3 is needed for this maintainer step" >&2; exit 1; }

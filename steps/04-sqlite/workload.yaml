@@ -1,4 +1,5 @@
-# Step 4: try sqlite3's escapes. The same agent and grants as step 1.
+# Step 4: try sqlite3's escapes. The same agent and grants as step 1; the
+# sqlite folder holds two databases, main.db (the talks) and rooms.db.
 #
 # The agent harness (the component that runs the loop: ask the model, call a
 # tool, repeat) imports a model and four labelled tool slots: curl, sqlite,

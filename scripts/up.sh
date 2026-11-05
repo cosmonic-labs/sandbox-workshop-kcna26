@@ -22,11 +22,12 @@ source "$(dirname "$0")/env.sh"
 CTX="kind-$CLUSTER"
 K() { kubectl --context "$CTX" "$@"; }
 
-# The data the tools read (the talks database, the hostile repository, a
-# writable folder for curl) reaches the host pod through the kind node: a node
-# path, mounted into the host container by k8s/values.yaml, and allowed by its
-# hostPaths list. Build it before the cluster, because kind mounts these node
-# paths at creation time.
+# The data the tools read (the databases, the hostile repository, a writable
+# folder for curl) reaches the host pod through the kind node: a node path,
+# mounted into the host container by k8s/values.yaml, and allowed by its
+# hostPaths list. The private-data folder is on the host pod too, but no
+# workload is granted it (step 4). Build it before the cluster, because kind
+# mounts these node paths at creation time.
 "$ROOT/scripts/fixtures.sh"
 if ! kind get clusters 2>/dev/null | grep -qx "$CLUSTER"; then
   cat >"$RUN_DIR/kind-config.yaml" <<YAML
@@ -50,6 +51,9 @@ nodes:
         readOnly: true
       - hostPath: $RUN_DIR/curl-data
         containerPath: /workshop/curl-data
+      - hostPath: $RUN_DIR/private-data
+        containerPath: /workshop/private-data
+        readOnly: true
 YAML
   kind create cluster --name "$CLUSTER" --config "$RUN_DIR/kind-config.yaml"
 fi
