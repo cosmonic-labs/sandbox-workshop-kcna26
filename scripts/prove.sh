@@ -221,6 +221,8 @@ kubectl wait --for=condition=Ready workloaddeployment/toy-sites -n workshop-site
   ask agent.localhost 'kubectl describe deployment hello'
   echo "# Refused by the grant: curl may not reach the API server"
   ask agent.localhost 'curl -s https://kubernetes.default.svc/api/v1/namespaces/demo/pods'
+  echo "# Refused by the grant: the plugin's token file is outside curl's /data"
+  ask agent.localhost 'curl -s file:///etc/wasmcloud/host-plugin-secrets/kube-api-token/token'
   echo "# Refused by RBAC: secrets"
   ask agent.localhost 'kubectl get secrets'
   echo "# Refused by RBAC: every namespace"
@@ -409,6 +411,7 @@ expect "$f" 'kubectl describe deployment hello' ok 'Name: hello Namespace: demo 
   'Selector: app=hello Replicas: 2 desired | 2 updated | 2 total | 2 available | 0 unavailable StrategyType: RollingUpdate'
 calls "$f" 'kubectl describe deployment hello' 1
 expect "$f" 'curl -s https://kubernetes.default.svc/api/v1/namespaces/demo/pods' access-denied "kubernetes.default.svc: $DENIED_HOST"
+expect "$f" 'curl -s file:///etc/wasmcloud/host-plugin-secrets/kube-api-token/token' access-denied 'kube-api-token/token: No such file or directory' 'this tool sees only /data'
 expect "$f" 'kubectl get secrets' access-denied "$FORBIDDEN: secrets is forbidden" 'cannot list resource'
 expect "$f" 'kubectl get pods -A' access-denied "$FORBIDDEN: pods is forbidden" 'at the cluster scope'
 expect "$f" 'kubectl get pods -n kube-system' access-denied "$FORBIDDEN: pods is forbidden" 'kube-system'

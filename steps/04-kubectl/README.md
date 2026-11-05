@@ -114,7 +114,26 @@ curl -s -H 'Host: agent.localhost' \
 The host refuses it because the API server isn't in curl's `allowedHosts`,
 before RBAC is ever asked. curl holds no token either.
 
-**6. Secrets** (refused: RBAC): `kubectl get secrets`
+**6. The token itself** (refused: the grant):
+`curl -s file:///etc/wasmcloud/host-plugin-secrets/kube-api-token/token`
+
+```sh
+curl -s -H 'Host: agent.localhost' \
+  http://127.0.0.1:18180/ \
+  -d 'curl -s file:///etc/wasmcloud/host-plugin-secrets/kube-api-token/token'
+```
+
+`access-denied: /etc/wasmcloud/host-plugin-secrets/kube-api-token/token: No
+such file or directory (this tool sees only /data)`. In a typical pod the
+service account token is a file that any process can read, an agent's curl
+included, and a stolen token works from anywhere that can reach the API
+server. RBAC can't tell the thief from the owner. Here the file does exist
+in the host pod, where the kube-api plugin reads it, but curl's filesystem
+grant is `/data` alone, and kubectl never sees the token: it asks the plugin.
+This token is a long-lived Secret token, the kind you'd never hand a process;
+the platform holds it so no tool has to.
+
+**7. Secrets** (refused: RBAC): `kubectl get secrets`
 
 ```sh
 curl -s -H 'Host: agent.localhost' \
@@ -125,7 +144,7 @@ curl -s -H 'Host: agent.localhost' \
 The request reaches the API server, which answers `Forbidden`: agent-reader
 cannot list secrets.
 
-**7. Every namespace** (refused: RBAC): `kubectl get pods -A`
+**8. Every namespace** (refused: RBAC): `kubectl get pods -A`
 
 ```sh
 curl -s -H 'Host: agent.localhost' \
@@ -135,7 +154,7 @@ curl -s -H 'Host: agent.localhost' \
 
 `Forbidden`: agent-reader may not list pods at the cluster scope.
 
-**8. Another namespace** (refused: RBAC): `kubectl get pods -n kube-system`
+**9. Another namespace** (refused: RBAC): `kubectl get pods -n kube-system`
 
 ```sh
 curl -s -H 'Host: agent.localhost' \
@@ -145,7 +164,7 @@ curl -s -H 'Host: agent.localhost' \
 
 `Forbidden`, the same way.
 
-**9. Any method gets through the plugin** (refused: RBAC):
+**10. Any method gets through the plugin** (refused: RBAC):
 `kubectl delete --raw /api/v1/namespaces/demo/pods/hello`
 
 ```sh
@@ -160,7 +179,7 @@ own checks. The plugin forwards it, and the API server refuses it:
 "system:serviceaccount:wasmcloud:agent-reader" cannot delete resource "pods"`.
 The plugin is not a filter. RBAC is.
 
-**10. Ask RBAC first** (answered by RBAC): `kubectl auth can-i list secrets`
+**11. Ask RBAC first** (answered by RBAC): `kubectl auth can-i list secrets`
 
 ```sh
 curl -s -H 'Host: agent.localhost' \

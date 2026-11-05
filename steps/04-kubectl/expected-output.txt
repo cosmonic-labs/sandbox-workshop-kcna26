@@ -36,6 +36,13 @@ $ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'curl -s https:/
 [tool curl] error: {"access-denied":"kubernetes.default.svc: this tool may not reach that host (not in its allowedHosts)"}
 [model] Done. Here is what each step returned: curl: ERROR: {"access-denied":"kubernetes.default.svc: this tool may not reach that host (not in its allowedHosts)"}
 
+# Refused by the grant: the plugin's token file is outside curl's /data
+$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'curl -s file:///etc/wasmcloud/host-plugin-secrets/kube-api-token/token'
+[user] curl -s file:///etc/wasmcloud/host-plugin-secrets/kube-api-token/token
+[model] call curl({"arguments":"-s file:///etc/wasmcloud/host-plugin-secrets/kube-api-token/token"})
+[tool curl] error: {"access-denied":"/etc/wasmcloud/host-plugin-secrets/kube-api-token/token: No such file or directory (os error 44) (this tool sees only /data)"}
+[model] Done. Here is what each step returned: curl: ERROR: {"access-denied":"/etc/wasmcloud/host-plugin-secrets/kube-api-token/token: No such file or directory (os error 44
+
 # Refused by RBAC: secrets
 $ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'kubectl get secrets'
 [user] kubectl get secrets
