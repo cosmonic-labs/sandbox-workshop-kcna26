@@ -4,7 +4,7 @@
 #   make tools       download the pinned tools into .tools/ (checksums verified)
 #   make doctor      check this machine; changes nothing
 #   make up          kind cluster + the wasmCloud chart; pushes artifacts/; maps :18180 to the ingress NodePort
-#   make push-build  push your own build from target/ to the cluster's registry
+#   make push-build  push your curl build to the cluster's registry as tool-curl:mine (step 2)
 #   make build       build the curl tool (needs Rust 1.98.1 + wasm32-wasip2)
 #   make build-all   build every component, including sqlite and git (needs wasi-sdk)
 #   make kubectl     build the kubectl tool (its own crate: tokio_unstable stays scoped to it)
@@ -31,7 +31,7 @@ up:
 	@./scripts/up.sh
 
 push-build:
-	@source scripts/env.sh && REGISTRY="localhost:$$KIND_REGISTRY_PORT" ./scripts/push.sh
+	@source scripts/env.sh && REGISTRY="localhost:$$KIND_REGISTRY_PORT" ./scripts/push.sh --mine
 
 # Only curl, the tool step 2 asks you to personalize. It is pure Rust, so it
 # needs no C toolchain. sqlite and git ship prebuilt in artifacts/ because

@@ -1,5 +1,6 @@
-# Step 2: build curl, grant it one host. The same agent as step 1: curl's
-# reach is the allowedHosts line below.
+# Step 2: grant curl one host. The same agent as step 1, with the prebuilt
+# curl: its reach is the allowedHosts line below. Built your own curl? Use
+# workload-mine.yaml in this folder instead.
 #
 # The agent harness (the component that runs the loop: ask the model, call a
 # tool, repeat) imports a model and four labelled tool slots: curl, sqlite,

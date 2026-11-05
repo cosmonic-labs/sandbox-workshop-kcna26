@@ -41,9 +41,11 @@ make doctor
 
 ## 3. Build curl yourself
 
-- [ ] With Rust 1.98.1 and the `wasm32-wasip2` target: `make build && make
-      push-build`, then recreate the step 3 workload and confirm curl still
-      refuses the denied hosts.
+- [ ] With Rust 1.98.1 and the `wasm32-wasip2` target, follow step 2's
+      path A: change the save message, `make build && make push-build`
+      (prints `pushed localhost:15052/workshop/tool-curl:mine`), apply
+      `steps/02-build-curl/workload-mine.yaml`, and confirm the save prompt
+      answers with your message.
 
 ## 4. In the room
 

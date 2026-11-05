@@ -56,11 +56,15 @@ kubectl wait --for=condition=Ready workloaddeployment/toy-sites -n workshop-site
 
 {
   echo "# Step 2: the curl tool imports only an HTTP client; its reach is the grant"
+  echo "# Path B, the prebuilt curl. Path A (your build) runs the same commands on"
+  echo "# target/wasm32-wasip2/release/tool_curl.wasm and workload-mine.yaml."
+  echo "\$ wasm-tools component wit artifacts/tool_curl.wasm | grep -E 'import wasi:(http|sockets|filesystem)'"
+  wasm-tools component wit artifacts/tool_curl.wasm | grep -E 'import wasi:(http|sockets|filesystem)'
   apply steps/02-build-curl/workload.yaml
-  echo "\$ wasm-tools component wit artifacts/tool_curl.wasm | grep -E 'import|export'"
-  wasm-tools component wit artifacts/tool_curl.wasm | grep -E 'import|export'
   echo "# It reaches the one host its manifest grants:"
   ask agent.localhost 'fetch http://api.workshop-sites.svc/data'
+  echo "# It saves into its one folder:"
+  ask agent.localhost 'save http://api.workshop-sites.svc/data to page.html'
 } >"$(OUT 02-build-curl)" 2>&1
 
 {
