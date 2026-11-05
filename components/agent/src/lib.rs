@@ -54,6 +54,12 @@ impl Guest for Agent {
                 .get("accept")
                 .iter()
                 .any(|v| String::from_utf8_lossy(v).contains("text/html"));
+        // A page on another site can make a browser POST here. Browsers name
+        // that page in Origin; refuse when it is not this agent's own address.
+        // curl sends no Origin, and the chat page's own POST matches Host.
+        if matches!(req.get_method(), Method::Post) && !same_origin(&req) {
+            return http::text_response(403, "cross-origin request refused\n".to_string());
+        }
         let body = http::request_body(req).await;
         let mut prompt = String::from_utf8_lossy(&body).trim().to_string();
         if prompt.is_empty() {
@@ -141,6 +147,22 @@ async fn run(prompt: &str) -> String {
     }
     out.push_str(&format!("[agent] stopped after {MAX_STEPS} steps\n"));
     out
+}
+
+/// True when the request has no Origin header, or its Origin names the same
+/// host and port the request was sent to (the Host header).
+fn same_origin(req: &Request) -> bool {
+    let headers = req.get_headers();
+    let first = |name: &str| {
+        headers.get(name).first().map(|v| String::from_utf8_lossy(v).trim().to_ascii_lowercase())
+    };
+    let Some(origin) = first("origin") else { return true };
+    let host = first("host").or_else(|| req.get_authority().map(|a| a.to_ascii_lowercase()));
+    let origin_host = origin
+        .strip_prefix("http://")
+        .or_else(|| origin.strip_prefix("https://"))
+        .unwrap_or("");
+    matches!(host, Some(h) if !h.is_empty() && h == origin_host)
 }
 
 fn one_line(s: &str) -> String {
