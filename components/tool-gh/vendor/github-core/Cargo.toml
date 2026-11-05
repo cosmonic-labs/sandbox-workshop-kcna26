@@ -1,0 +1,11 @@
+[package]
+name = "github-core"
+description = "Vendored from cosmonic-labs/agent-tools: read-only pull request triage over GitHub's REST API, behind an Http trait. See ../NOTICE."
+version = "0.1.0"
+edition = "2021"
+publish = false
+license = "Apache-2.0"
+
+[dependencies]
+tool-common = { path = "../tool-common" }
+serde_json.workspace = true

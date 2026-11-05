@@ -1,6 +1,6 @@
-/// The workshop's own interfaces: four tools, the Kubernetes API capability
-/// behind one of them, the model, and the worlds that say what each component
-/// may touch.
+/// The workshop's own interfaces: five tools, the Kubernetes and GitHub API
+/// capabilities behind two of them, the model, and the worlds that say what
+/// each component may touch.
 ///
 /// The tools follow typed-tool conventions. Each function takes
 /// one record whose fields are the tool's arguments, each interface has its
@@ -176,6 +176,75 @@ interface kube-api {
   send: async func(method: string, path-and-query: string, body: list<u8>) -> result<response, string>;
 }
 
+/// gh: read pull requests on GitHub from a command line, like GitHub's own
+/// `gh`. Requests go through the github-api capability; this tool holds no
+/// token, reaches nothing else, and only reads.
+@since(version = 0.4.0)
+interface gh {
+  /// Why a gh call failed.
+  ///
+  /// Payload strings are diagnostic. Their wording is not stable, and
+  /// programs should not parse them.
+  variant error {
+    /// The arguments are malformed, such as an unknown command or flag.
+    /// The payload says which and why.
+    invalid-argument(string),
+    /// The github-api plugin refused the request (a method, host or path it
+    /// does not allow), or this tool does not offer the command at all,
+    /// such as one that writes. The payload names what was refused.
+    access-denied(string),
+    /// The request did not reach GitHub, or GitHub refused it for its rate
+    /// limit. The payload says what happened.
+    network(string),
+    /// Any other failure, such as GitHub answering that a pull request does
+    /// not exist. Treat it as a generic failure.
+    other(option<string>),
+  }
+
+  /// Arguments for `run`.
+  record run-args {
+    /// What you would type after `gh`, such as
+    /// `pr list -R wasmCloud/wasmCloud` or `pr view 4321`.
+    arguments: string,
+  }
+
+  /// Run gh with these arguments and return what it prints.
+  run: async func(args: run-args) -> result<string, error>;
+}
+
+/// GitHub's REST API, as a capability. A host component plugin serves it: it
+/// sends each request to api.github.com and nowhere else, only for the read
+/// paths it allows, and adds the signed-in user's token when there is one. A
+/// caller never sees the token.
+@since(version = 0.4.0)
+interface github-api {
+  /// What GitHub answered.
+  record response {
+    /// HTTP status, such as 200 or 404.
+    status: u16,
+    /// The headers a caller needs to pace itself: GitHub's x-ratelimit-*
+    /// headers and retry-after, lower case. No others.
+    headers: list<tuple<string, string>>,
+    /// The response body, usually JSON.
+    body: list<u8>,
+  }
+
+  /// Why a request got no answer from GitHub.
+  variant send-error {
+    /// The plugin refused to send it: a method other than GET, or a path it
+    /// does not allow. The payload names the rule.
+    refused(string),
+    /// It was allowed, but did not complete: GitHub could not be reached, or
+    /// the answer was too large. The payload says what happened.
+    failed(string),
+  }
+
+  /// Send one request to api.github.com. `method` is GET (anything else is
+  /// refused); `path-and-query` is relative to the API, such as
+  /// `/repos/wasmCloud/wasmCloud/pulls?state=open`.
+  send: async func(method: string, path-and-query: string) -> result<response, send-error>;
+}
+
 // ---------------------------------------------------------------------------
 // The model.
 // ---------------------------------------------------------------------------
@@ -299,6 +368,14 @@ world git-tool {
 world kubectl-tool {
   import kube-api;
   export kubectl;
+}
+
+/// The gh tool: no outgoing HTTP, no sockets, no files, no token. Its only
+/// way to GitHub is the github-api capability.
+@since(version = 0.4.0)
+world gh-tool {
+  import github-api;
+  export gh;
 }
 
 /// The kube-api host component plugin, installed on the host group by the

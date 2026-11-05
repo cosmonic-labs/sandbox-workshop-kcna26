@@ -353,6 +353,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "github-core"
+version = "0.1.0"
+dependencies = [
+ "serde_json",
+ "tool-common",
+]
+
+[[package]]
 name = "gix"
 version = "0.90.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1720,9 +1728,26 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fd3ca314f692efd6c868f8408f53fe444634a845f96c028b97d35f6a1f79f0ee"
 
 [[package]]
+name = "tool-common"
+version = "0.1.0"
+dependencies = [
+ "serde_json",
+]
+
+[[package]]
 name = "tool-curl"
 version = "0.1.0"
 dependencies = [
+ "wit-bindgen",
+]
+
+[[package]]
+name = "tool-gh"
+version = "0.1.0"
+dependencies = [
+ "github-core",
+ "serde_json",
+ "tool-common",
  "wit-bindgen",
 ]
 

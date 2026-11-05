@@ -1,0 +1,10 @@
+[package]
+name = "tool-common"
+description = "Vendored from cosmonic-labs/agent-tools: argument parsing, output bounds, the Http trait and the call error types. See ../NOTICE."
+version = "0.1.0"
+edition = "2021"
+publish = false
+license = "Apache-2.0"
+
+[dependencies]
+serde_json.workspace = true

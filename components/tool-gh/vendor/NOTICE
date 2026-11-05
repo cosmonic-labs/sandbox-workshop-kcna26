@@ -1,0 +1,13 @@
+The code in this folder comes from agent-tools
+(https://github.com/cosmonic-labs/agent-tools, commit aef5ffc):
+
+  github-core   crates/github-core   the GitHub tool's requests, status and
+                                     rate-limit mapping, and formatting
+  tool-common   crates/tool-common   argument parsing, output bounds, the
+                                     Http trait and the call error types
+
+agent-tools
+Copyright 2026 Cosmonic, Inc.
+
+Licensed under the Apache License, Version 2.0 (see LICENSE in this folder).
+Each file says whether it was modified for this workshop and how.
