@@ -31,5 +31,12 @@ cp "$ROOT/fixtures/talks.db" "$RUN_DIR/sqlite-data/main.db"
 cp "$ROOT/fixtures/rooms.db" "$RUN_DIR/sqlite-data/rooms.db"
 cp "$ROOT/fixtures/payroll.db" "$RUN_DIR/private-data/payroll.db"
 
-bash "$ROOT/fixtures/make-hostile-repo.sh" "$RUN_DIR/repo" >/dev/null
+# kind bind-mounts .run/repo itself, so a running cluster loses the mount if
+# the folder is deleted and made again. Build the repository next to it, then
+# replace only what is inside.
+bash "$ROOT/fixtures/make-hostile-repo.sh" "$RUN_DIR/repo.new" >/dev/null
+mkdir -p "$RUN_DIR/repo"
+find "$RUN_DIR/repo" -mindepth 1 -maxdepth 1 -exec rm -rf {} +
+cp -R "$RUN_DIR/repo.new/." "$RUN_DIR/repo/"
+rm -rf "$RUN_DIR/repo.new"
 echo "fixtures   databases and hostile repository in $RUN_DIR"
