@@ -8,7 +8,9 @@
 //! until the model answers in text. The response is the whole transcript so
 //! you can watch every step. A browser that opens the root with no prompt
 //! gets a page (`transcript.html`) that sends prompts the same way and draws
-//! the transcript as a timeline; curl gets the same text as ever.
+//! the transcript as a timeline; curl gets the same text as ever. The page
+//! asks for JSON (`Accept: application/json`) and so gets each tool result in
+//! full, where the text transcript cuts each to one line of 300 characters.
 //!
 //! The harness itself holds no capabilities. Its world imports the model,
 //! three labelled tool slots (curl, sqlite and gh) and GitHub sign-in, and
@@ -74,6 +76,13 @@ impl Guest for Agent {
                 .get("accept")
                 .iter()
                 .any(|v| String::from_utf8_lossy(v).contains("text/html"));
+        // The chat page asks for JSON, which carries each tool result in full.
+        // curl (and anything else) gets the plain-text transcript.
+        let wants_json = req
+            .get_headers()
+            .get("accept")
+            .iter()
+            .any(|v| String::from_utf8_lossy(v).contains("application/json"));
         // A page on another site can make a browser POST here. Browsers name
         // that page in Origin; refuse when it is not this agent's own address.
         // curl sends no Origin, and the chat page's own POST matches Host.
@@ -106,12 +115,16 @@ impl Guest for Agent {
         if prompt.is_empty() && wants_page {
             return http::html_response(200, PAGE);
         }
-        let transcript = if prompt.is_empty() {
-            "send a prompt as the request body, e.g. curl -d 'hello' ...\n".to_string()
+        if prompt.is_empty() {
+            let usage = "send a prompt as the request body, e.g. curl -d 'hello' ...\n";
+            return http::text_response(200, usage.to_string());
+        }
+        let steps = run(&prompt).await;
+        if wants_json {
+            http::json_response(200, as_json(&steps))
         } else {
-            run(&prompt).await
-        };
-        http::text_response(200, transcript)
+            http::text_response(200, as_text(&steps))
+        }
     }
 }
 
@@ -211,8 +224,83 @@ async fn github(path: &str, method: &Method) -> Option<String> {
     Some(v.to_string())
 }
 
-async fn run(prompt: &str) -> String {
+/// One step of a run. The same steps are written two ways: as the plain-text
+/// transcript curl gets (each tool result on one line, cut at 300
+/// characters), or as JSON for the chat page, which shows each result in
+/// full up to `MAX_PAGE_RESULT` bytes. The model reads every result whole
+/// either way.
+enum Step {
+    User(String),
+    Call { tool: String, args: String },
+    Result { tool: String, ok: bool, text: String },
+    Answer(String),
+    ModelError(String),
+    Note(String),
+}
+
+/// The most of one tool result the chat page gets. A diff from `gh pr diff`
+/// is a few KB; anything past this is cut and marked as cut.
+const MAX_PAGE_RESULT: usize = 64 * 1024;
+
+/// The transcript as curl has always seen it: one line per step.
+fn as_text(steps: &[Step]) -> String {
     let mut out = String::new();
+    for step in steps {
+        let line = match step {
+            Step::User(p) => format!("[user] {p}"),
+            Step::Call { tool, args } => format!("[model] call {tool}({args})"),
+            Step::Result { tool, ok: true, text } => format!("[tool {tool}] ok: {}", one_line(text)),
+            Step::Result { tool, ok: false, text } => {
+                format!("[tool {tool}] error: {}", one_line(text))
+            }
+            Step::Answer(t) => format!("[model] {t}"),
+            Step::ModelError(e) => format!("[model] error: {e}"),
+            Step::Note(n) => format!("[agent] {n}"),
+        };
+        out.push_str(&line);
+        out.push('\n');
+    }
+    out
+}
+
+/// The transcript for the chat page: `{"steps":[...]}`, each tool result in
+/// full (up to `MAX_PAGE_RESULT` bytes, with `truncated` set past that).
+fn as_json(steps: &[Step]) -> String {
+    use serde_json::json;
+    let steps: Vec<serde_json::Value> = steps
+        .iter()
+        .map(|step| match step {
+            Step::User(p) => json!({ "kind": "user", "text": p }),
+            Step::Call { tool, args } => json!({ "kind": "call", "tool": tool, "args": args }),
+            Step::Result { tool, ok, text } => {
+                let (shown, truncated) = clip(text, MAX_PAGE_RESULT);
+                json!({
+                    "kind": "result", "tool": tool, "ok": ok, "text": shown,
+                    "truncated": truncated, "bytes": text.len(),
+                })
+            }
+            Step::Answer(t) => json!({ "kind": "answer", "text": t }),
+            Step::ModelError(e) => json!({ "kind": "model-error", "text": e }),
+            Step::Note(n) => json!({ "kind": "note", "text": n }),
+        })
+        .collect();
+    json!({ "steps": steps }).to_string()
+}
+
+/// At most `max` bytes of `s`, cut at a character boundary; true when cut.
+fn clip(s: &str, max: usize) -> (&str, bool) {
+    if s.len() <= max {
+        return (s, false);
+    }
+    let mut end = max;
+    while !s.is_char_boundary(end) {
+        end -= 1;
+    }
+    (&s[..end], true)
+}
+
+async fn run(prompt: &str) -> Vec<Step> {
+    let mut out = Vec::new();
     // Every function in the table is offered to the model. A slot that has
     // no real tool yet answers with a "not installed" error when called.
     let defs: Vec<ToolDef> = TOOLS
@@ -229,29 +317,29 @@ async fn run(prompt: &str) -> String {
         content: prompt.into(),
         tool_name: None,
     }];
-    out.push_str(&format!("[user] {prompt}\n"));
+    out.push(Step::User(prompt.into()));
 
     for _ in 0..MAX_STEPS {
         match model::complete(messages.clone(), defs.clone()).await {
             Ok(Completion::Text(text)) => {
-                out.push_str(&format!("[model] {text}\n"));
+                out.push(Step::Answer(text));
                 return out;
             }
             Ok(Completion::Call(call)) => {
-                out.push_str(&format!("[model] call {}({})\n", call.name, call.arguments));
+                out.push(Step::Call { tool: call.name.clone(), args: call.arguments.clone() });
                 if !TOOLS.iter().any(|t| t.name == call.name) {
-                    out.push_str(&format!("[agent] no tool named '{}'\n", call.name));
+                    out.push(Step::Note(format!("no tool named '{}'", call.name)));
                     return out;
                 }
                 let args: serde_json::Value =
                     serde_json::from_str(&call.arguments).unwrap_or_default();
                 let result = match tools::call(&call.name, &Args(args.clone())).await {
                     Ok(ok) => {
-                        out.push_str(&format!("[tool {}] ok: {}\n", call.name, one_line(&ok)));
+                        out.push(Step::Result { tool: call.name.clone(), ok: true, text: ok.clone() });
                         ok
                     }
                     Err(err) => {
-                        out.push_str(&format!("[tool {}] error: {}\n", call.name, one_line(&err)));
+                        out.push(Step::Result { tool: call.name.clone(), ok: false, text: err.clone() });
                         format!("ERROR: {err}")
                     }
                 };
@@ -268,12 +356,12 @@ async fn run(prompt: &str) -> String {
                 });
             }
             Err(e) => {
-                out.push_str(&format!("[model] error: {e}\n"));
+                out.push(Step::ModelError(e.to_string()));
                 return out;
             }
         }
     }
-    out.push_str(&format!("[agent] stopped after {MAX_STEPS} steps\n"));
+    out.push(Step::Note(format!("stopped after {MAX_STEPS} steps")));
     out
 }
 

@@ -22,6 +22,8 @@
     --rule: #d9e1e2; --label: #5b6b79; --mint-ink: #0f6e5c;
     --pill-bg: #e6f7f1; --pill-line: #9fddcb; --pill-ink: #007a55;
     --shadow: 0 1px 2px rgba(37, 55, 70, .08), 0 8px 24px -14px rgba(37, 55, 70, .45);
+    --add-ink: #0b5e3c; --add-bg: #dff4e9; --del-ink: #9b1c13; --del-bg: #fbe4e2;
+    --hunk-bg: #e3eaeb; --file-bg: #dfe7ea;
     color-scheme: light dark;
   }
   @media (prefers-color-scheme: dark) {
@@ -34,6 +36,8 @@
       --rule: #233b4d; --label: #8fa0ad; --mint-ink: #9fddcb;
       --pill-bg: #0b1720; --pill-line: #233b4d; --pill-ink: #00c389;
       --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 10px 28px -14px rgba(0, 0, 0, .8);
+      --add-ink: #8ff0c4; --add-bg: #10382c; --del-ink: #ffb3ab; --del-bg: #3d1b22;
+      --hunk-bg: #182e3e; --file-bg: #1b3243;
     }
   }
   * { box-sizing: border-box; }
@@ -130,11 +134,45 @@
   }
   .tool[open] .tprev { display: none; }
   .tbody { border-top: 1px solid var(--line-soft); padding: 0.5rem 0.75rem 0.7rem; display: grid; gap: 0.5rem; }
+  .tbody > div { min-width: 0; }
   .tlabel { display: block; color: var(--muted); font-size: 0.75rem; font-weight: 600; margin-bottom: 0.15rem; }
   .tbody pre {
     margin: 0; padding: 0.45rem 0.6rem; background: var(--sunken); border-radius: 0.35rem;
     white-space: pre-wrap; overflow-wrap: anywhere; max-height: 16rem; overflow-y: auto; font-size: 0.8rem;
   }
+
+  /* A long result shows its first lines until "Show all". */
+  .tbody pre.clamp { max-height: none; }
+  .tbody pre.clamp.folded { max-height: calc(6 * 1.55em + 0.9rem); overflow: hidden; }
+  .more-btn {
+    margin-top: 0.35rem; font: inherit; font-size: 0.75rem; font-weight: 600; cursor: pointer;
+    padding: 0.15rem 0.6rem; border-radius: 0.4rem; border: 1px solid var(--line);
+    background: var(--surface); color: var(--ink);
+  }
+  .more-btn:hover { background: var(--hover); }
+  .tnote { margin: 0.3rem 0 0; color: var(--muted); font-size: 0.75rem; }
+
+  /* A diff from gh pr diff: the files, then each patch, as a code review shows it.
+     The +, - and @@ marks stay in the text, so color is never the only cue. */
+  .tbody pre.diff {
+    white-space: pre; overflow-wrap: normal; overflow: auto; max-height: none;
+    padding: 0.35rem 0; font-size: 0.78rem; line-height: 1.5;
+  }
+  .diff code { display: block; min-width: max-content; }
+  .diff .l { display: block; padding: 0 0.7rem; }
+  .diff .d-head { color: var(--strong); font-weight: 700; }
+  .diff .d-sum { color: var(--ink); }
+  .diff .d-sum .a { color: var(--add-ink); }
+  .diff .d-sum .r { color: var(--del-ink); }
+  .diff .d-file {
+    color: var(--strong); font-weight: 700; background: var(--file-bg);
+    border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); margin-top: 0.35rem;
+    padding-top: 0.15rem; padding-bottom: 0.15rem;
+  }
+  .diff .d-hunk { color: var(--muted); background: var(--hunk-bg); }
+  .diff .d-add { color: var(--add-ink); background: var(--add-bg); }
+  .diff .d-del { color: var(--del-ink); background: var(--del-bg); }
+  .diff .d-meta { color: var(--muted); font-style: italic; }
 
   /* Refused by the host: red, and the reason always in view. */
   .refused { border-color: var(--danger); box-shadow: inset 0.3rem 0 0 var(--danger); background: var(--danger-bg); }
@@ -353,6 +391,87 @@
     return steps;
   }
 
+  // The page asks for JSON, which carries each tool result in full; turn it
+  // into the same steps parse() makes from the text transcript.
+  function fromJson(list) {
+    return list.map((s) => {
+      if (s.kind === 'call') return { kind: 'call', tool: s.tool, text: s.args };
+      if (s.kind === 'result') {
+        return { kind: 'tool', tool: s.tool, ok: s.ok, text: s.text, truncated: s.truncated, bytes: s.bytes };
+      }
+      return { kind: s.kind, text: s.text };
+    });
+  }
+
+  // gh pr diff answers "N files changed in owner/repo#N (page N):", a line
+  // per file, then each file's patch after a blank line and "--- <file>".
+  const DIFF_HEAD = /^\d+ files? changed in \S+#\d+/;
+  const isDiff = (tool, res) => tool === 'gh' && res && res.ok && DIFF_HEAD.test(res.text);
+
+  // Each line goes in as text (textContent), never as HTML: a pull request's
+  // content can't add markup to this page.
+  function diffView(text) {
+    const pre = el('pre', 'diff');
+    pre.tabIndex = 0;
+    pre.setAttribute('aria-label', 'Diff');
+    const code = el('code');
+    const lines = text.replace(/\n+$/, '').split('\n');
+    let inPatch = false;
+    lines.forEach((line, i) => {
+      let cls = 'd-ctx';
+      if (i === 0) cls = 'd-head';
+      else if (line.startsWith('--- ') && lines[i - 1] === '') { cls = 'd-file'; inPatch = true; }
+      else if (line.startsWith('[')) cls = 'd-meta';
+      else if (!inPatch) cls = 'd-sum';
+      else if (line.startsWith('@@')) cls = 'd-hunk';
+      else if (line.startsWith('+')) cls = 'd-add';
+      else if (line.startsWith('-')) cls = 'd-del';
+      else if (line.startsWith('\\') || line.startsWith('(')) cls = 'd-meta';
+      const span = el('span', 'l ' + cls);
+      const m = cls === 'd-sum' && line.match(/^(.*)\((\+\d+) (-\d+)\)$/);
+      if (m) {
+        span.append(document.createTextNode(m[1] + '('), el('span', 'a', m[2]),
+          document.createTextNode(' '), el('span', 'r', m[3]), document.createTextNode(')'));
+      } else {
+        span.textContent = line || ' ';
+      }
+      code.append(span);
+    });
+    pre.append(code);
+    return pre;
+  }
+
+  // A result in full. Past six lines it shows the first six and a button
+  // to show the rest; a diff shows whole.
+  function resultSection(label, tool, res) {
+    const d = el('div');
+    d.append(el('span', 'tlabel', label));
+    if (isDiff(tool, res)) {
+      d.append(diffView(res.text));
+    } else {
+      const pre = el('pre', 'clamp', res.text);
+      d.append(pre);
+      const lines = res.text.split('\n').length;
+      if (lines > 6 || res.text.length > 600) {
+        pre.classList.add('folded');
+        const b = el('button', 'more-btn', 'Show all');
+        b.type = 'button';
+        b.setAttribute('aria-expanded', 'false');
+        b.addEventListener('click', () => {
+          const folded = pre.classList.toggle('folded');
+          b.textContent = folded ? 'Show all' : 'Show less';
+          b.setAttribute('aria-expanded', String(!folded));
+        });
+        d.append(b);
+      }
+    }
+    if (res.truncated) {
+      d.append(el('p', 'tnote', 'Truncated: the page shows the first 64 KiB of ' +
+        Number(res.bytes).toLocaleString() + ' bytes. The model read all of it.'));
+    }
+    return d;
+  }
+
   const section = (label, text) => {
     const d = el('div');
     d.append(el('span', 'tlabel', label), el('pre', '', text));
@@ -384,15 +503,17 @@
       el('span', 'tprev mono', preview));
     const body = el('div', 'tbody');
     if (args !== null) body.append(section('Arguments', args || '(none)'));
-    if (res) body.append(section(res.ok ? 'Result' : 'Host said', res.text));
+    if (res) body.append(resultSection(res.ok ? 'Result' : 'Host said', name, res));
     d.append(sum, body);
+    // A diff is the point of asking for one: it opens on arrival.
+    if (isDiff(name, res)) d.open = true;
     return d;
   }
 
   function renderRun(run, i) {
     const art = el('article', 'turn');
     art.setAttribute('aria-label', 'Run ' + (i + 1));
-    const steps = parse(run.text);
+    const steps = run.steps ? fromJson(run.steps) : parse(run.text);
     for (let k = 0; k < steps.length; k++) {
       const s = steps[k];
       switch (s.kind) {
@@ -445,12 +566,22 @@
     $('send').disabled = true;
     $('status').textContent = 'Waiting for the agent...';
     try {
-      const res = await fetch('/', { method: 'POST', body: prompt, cache: 'no-store' });
-      const text = await res.text();
-      runs.push({
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-        host: location.hostname, text: res.ok ? text : '[agent] HTTP ' + res.status + ': ' + text,
+      // JSON carries every tool result in full; curl's text cuts each to a line.
+      const res = await fetch('/', {
+        method: 'POST', body: prompt, cache: 'no-store', headers: { Accept: 'application/json' },
       });
+      const text = await res.text();
+      const run = {
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+        host: location.hostname,
+      };
+      let steps = null;
+      if (res.ok && (res.headers.get('content-type') || '').includes('json')) {
+        try { steps = JSON.parse(text).steps; } catch (e) { steps = null; }
+      }
+      if (Array.isArray(steps)) run.steps = steps;
+      else run.text = res.ok ? text : '[agent] HTTP ' + res.status + ': ' + text;
+      runs.push(run);
       save();
       renderAll();
       $('status').textContent = '';

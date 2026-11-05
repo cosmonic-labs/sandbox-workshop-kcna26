@@ -171,8 +171,10 @@ curl -s -H 'Host: agent.localhost' \
 [tool gh] ok: 2 files changed in wasmCloud/wasmCloud#5885 (page 1): modified crates/wash/src/cli/host.rs (+61 -1) ...
 ```
 
-Each changed file, then each file's patch. The reply in the chat is cut at
-300 characters; the model reads all of it.
+Each changed file, then each file's patch. curl's transcript cuts each tool
+result to one line of 300 characters; the model reads all of it. The chat
+page shows the whole result, and draws a diff as one: each file's header,
+added lines in green with their `+`, removed lines in red with their `-`.
 
 **6. curl straight at GitHub** (refused: the grant):
 `curl -s https://api.github.com/repos/wasmCloud/wasmCloud/pulls`
