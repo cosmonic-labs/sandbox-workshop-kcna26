@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
-# Replay every step (steps/01-agent to steps/04-kubectl) and the extras on
-# the kind cluster (make up) and write each one's transcript
+# Replay every step (steps/01-agent to steps/04-kubectl) and the git extra
+# (extras/git) on the kind cluster (make up) and write each one's transcript
 # to <folder>/expected-output.txt. Resets the demo state first so the outputs
 # are repeatable. The commands echoed with "$" are the ones the READMEs ask
 # attendees to run, quoted so they paste into a shell. Extra checks that no
 # README asks for (the controls) go to <folder>/control-checks.txt.
+# extras/real-model is not replayed: it needs a real model, and a real model's
+# answers differ from run to run.
 #
 # Pod names in the demo namespace are random, so they are written as
 # hello-<pod>, kubectl's ages as <age> and describe's timestamps as <time>. Everything else is deterministic:
@@ -36,11 +38,9 @@ if [ "$MODE" = verify ]; then
   mkdir -p "$SCRATCH/steps" "$SCRATCH/extras"
   OUT() { echo "$SCRATCH/$1.expected-output.txt"; }
   CHECKS() { echo "$SCRATCH/$1.control-checks.txt"; }
-  EXTRA="$SCRATCH/extras/real-model.expected-output.txt"
 else
   OUT() { echo "$1/expected-output.txt"; }
   CHECKS() { echo "$1/control-checks.txt"; }
-  EXTRA=extras/real-model/expected-output.txt
 fi
 # A fact checked after the replay (verify mode), such as a counter's value.
 fact() { echo "$1=$2" >>"$FACTS"; }
@@ -285,16 +285,9 @@ kubectl wait --for=condition=Ready workloaddeployment/toy-sites -n workshop-site
   rm -f /tmp/gtfobins-git-*
 } >"$(CHECKS extras/git)" 2>&1
 
-{
-  echo "# Extra: a real model behind the same slot (a fake OpenAI compatible endpoint)"
-  apply extras/real-model/workload.yaml
-  echo "# The model asks for a tool, the agent runs it, the model answers:"
-  ask agent.localhost 'what talks are there?'
-} >"$EXTRA" 2>&1
-
 if [ "$MODE" = write ]; then
   echo "proofs written:"
-  ls steps/*/expected-output.txt steps/*/control-checks.txt extras/*/expected-output.txt extras/*/control-checks.txt
+  ls steps/*/expected-output.txt steps/*/control-checks.txt extras/git/expected-output.txt extras/git/control-checks.txt
   exit 0
 fi
 
@@ -445,8 +438,6 @@ absent "$f" '/tmp/gtfobins-git-' 'the component runs leave no marker'
 want_fact host-markers 0 'no marker file on the host pod after the git tool read the repository'
 f=$(CHECKS extras/git)
 present "$f" '/tmp/gtfobins-git-fsmonitor' 'native git ran core.fsmonitor on status (the positive control)'
-
-expect "$EXTRA" 'what talks are there?' ok 'Sandboxing Agents and the Code They Write'
 
 if [ "$FAILS" -gt 0 ]; then
   trap - EXIT

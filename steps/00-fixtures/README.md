@@ -10,8 +10,8 @@ from one component, all inside the cluster, so the workshop needs no internet:
 * `collector.workshop-sites.svc/collect`: a stand-in for an attacker's server.
   It counts every request that reaches it, in the keyvalue bucket
   `toy-collector`.
-* `llm.workshop-sites.svc/v1/chat/completions`: a fake OpenAI compatible model
-  for the real-model extra (`extras/real-model`).
+* `llm.workshop-sites.svc/v1/chat/completions`: a fake OpenAI compatible model,
+  to check the real-model extra's wiring offline (`extras/real-model`).
 
 Each name is an ordinary Kubernetes Service (`k8s/sites.yaml`, namespace
 `workshop-sites`) that selects the pods of the `fixtures` host group, and the

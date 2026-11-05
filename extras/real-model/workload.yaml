@@ -1,14 +1,16 @@
-# Extra: swap in a real model.
+# Extra: a real model, hosted. steps/04-kubectl/workload.yaml with one
+# change: the model slot holds model-real instead of the scripted model.
+# Nothing is rebuilt, and every tool keeps exactly the grant it had in step 4.
 #
-# The model slot is a label like any tool slot, so swapping the model is a
-# manifest change, from model-scripted to model-real. Nothing is rebuilt. The
-# tools are unchanged.
+# model-real speaks the OpenAI chat completions API. As written it calls
+# OpenAI; any OpenAI compatible service works if you change LLM_URL,
+# LLM_MODEL and allowedHosts together. It reads LLM_API_KEY from the Secret
+# llm-api-key (environment.secretFrom), which you create first:
 #
-# model-real speaks the OpenAI chat completions API. LLM_URL points at the fake
-# endpoint in the toy sites, so this still runs offline. For a hosted model, or
-# the workshop's shared endpoint, change LLM_URL and allowedHosts and pass
-# LLM_API_KEY from a Secret (environment.secretFrom). Only model-real may reach
-# the model's host; no tool gets that grant.
+#   kubectl create secret generic llm-api-key --from-literal=LLM_API_KEY=<your key>
+#
+# Only model-real may reach the model's host; no tool gets that grant, and
+# no tool sees the key.
 
 apiVersion: runtime.wasmcloud.dev/v1alpha1
 kind: WorkloadDeployment
@@ -16,11 +18,15 @@ metadata:
   name: toolbox-agent
 spec:
   replicas: 1
+  # The way in: the Service named toolbox-agent, which the platform created
+  # with no selector (k8s/agent-service.yaml). The operator keeps it pointed
+  # at the host pods that run this workload.
   kubernetes:
     service:
       name: toolbox-agent
   template:
     spec:
+      # The default host group; the toy sites have one of their own.
       hostSelector:
         hostgroup: default
       hostInterfaces:
@@ -29,18 +35,28 @@ spec:
           interfaces: [handler]
           config:
             host: agent.localhost
+        # The Kubernetes API, as a capability: the host links it to the
+        # kube-api plugin. kubectl imports it; nothing else here does.
+        - namespace: workshop
+          package: toolbox
+          interfaces: [kube-api]
       components:
         - name: agent
           image: workshop-toolbox-registry:5000/workshop/agent:0.4.0
+        # The model slot holds model-real. It alone may reach the model's
+        # host, and it reads LLM_API_KEY from the Secret llm-api-key.
         - name: model
           image: workshop-toolbox-registry:5000/workshop/model-real:0.4.0
           localResources:
             allowedHosts:
-              - llm.workshop-sites.svc
+              - api.openai.com
             environment:
               config:
-                LLM_URL: http://llm.workshop-sites.svc/v1/chat/completions
-                LLM_MODEL: fake-model
+                LLM_URL: https://api.openai.com/v1/chat/completions
+                LLM_MODEL: gpt-4o-mini
+              secretFrom:
+                - name: llm-api-key
+        # curl may reach only api.workshop-sites.svc, and writes with -o only into /data.
         - name: curl
           image: workshop-toolbox-registry:5000/workshop/tool-curl:0.4.0
           localResources:
@@ -49,6 +65,7 @@ spec:
             volumeMounts:
               - name: curl-data
                 mountPath: /data
+        # sqlite reads the databases in /data (talks, rooms), mounted read only.
         - name: sqlite
           image: workshop-toolbox-registry:5000/workshop/tool-sqlite:0.4.0
           localResources:
@@ -56,16 +73,13 @@ spec:
               - name: sqlite-data
                 mountPath: /data
                 readOnly: true
+        # git is the extra in extras/git: the placeholder, no grants.
         - name: git
-          image: workshop-toolbox-registry:5000/workshop/tool-git:0.4.0
-          localResources:
-            volumeMounts:
-              - name: repo
-                mountPath: /repo
-                readOnly: true
-        # The kubectl slot: step 4 installs the real tool.
-        - name: kubectl
           image: workshop-toolbox-registry:5000/workshop/not-installed:0.4.0
+        # kubectl: no grants of its own. It reaches the cluster only through
+        # the kube-api capability above.
+        - name: kubectl
+          image: workshop-toolbox-registry:5000/workshop/tool-kubectl:0.4.0
       volumes:
         - name: curl-data
           hostPath:
@@ -73,6 +87,3 @@ spec:
         - name: sqlite-data
           hostPath:
             path: /workshop/sqlite-data
-        - name: repo
-          hostPath:
-            path: /workshop/repo

@@ -78,7 +78,7 @@ Not covered in the session. Each builds on step 4's cluster state.
 | Folder | What you'll see |
 | --- | --- |
 | `extras/git` | A hostile repository names programs to run; native git runs them, the git tool can't |
-| `extras/real-model` | A model that speaks the OpenAI API in the model slot; the grants don't change |
+| `extras/real-model` | A real model (hosted, with an API key, or on your own machine) in the model slot; the answers vary, the grants don't |
 
 ## Chat in the browser, or use curl
 
@@ -169,10 +169,11 @@ the workshop needs no internet.
   needs wasi-sdk (`WASI_SDK_PATH`, `CC_wasm32_wasip2`). `make push-build`
   pushes your build to the cluster's registry. A running workload keeps its
   old image until it is recreated.
-* `make prove` replays steps 1 to 4 and the extras and rewrites each
+* `make prove` replays steps 1 to 4 and `extras/git` and rewrites each
   `expected-output.txt`; `make verify` replays them and checks each result.
+  `extras/real-model` needs a real model, so neither runs it.
 * `TESTING.md` is the pre-workshop test checklist.
 * `extras/real-model/` swaps the scripted model for `model-real` (an OpenAI
-  compatible endpoint) in the same slot, with no rebuild.
+  compatible endpoint, hosted or local) in the same slot, with no rebuild.
 * The tool interfaces are in `wit/toolbox.wit`; the harness's tool table is
   `components/agent/src/tools.rs`.

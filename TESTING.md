@@ -34,7 +34,8 @@ make doctor
       deterministic (pod names are written as `hello-<pod>` and kubectl's
       ages as `<age>`; the git extra's native control in
       `extras/git/control-checks.txt` depends on the local git version).
-- [ ] `make verify`: replays steps 1 to 4 and the extras without writing anything and ends
+      `extras/real-model` is not replayed: it needs a real model.
+- [ ] `make verify`: replays steps 1 to 4 and `extras/git` without writing anything and ends
       with `verify: all N checks passed`. It checks each result, not the
       exact text: allowed calls return what they should, each refusal has the
       expected error and the refusing layer's message (the grant, the tool's
@@ -73,3 +74,13 @@ make doctor
       images are cached).
 - [ ] Jumping ahead works: on a fresh `make up`, `kubectl apply -f
       steps/04-kubectl/workload.yaml` alone, then step 4's commands.
+
+## 5. Extra: a real model
+
+- [ ] With an API key, or a local model server such as Ollama with
+      `qwen3:4b`, follow `extras/real-model/README.md`. Both manifests come
+      up Ready; the model calls a tool and answers from its result, and the
+      metadata prompt shows the same `access-denied` line as step 2. The
+      wording differs from run to run.
+- [ ] The offline check in that README (the fake endpoint) answers with
+      `(fake-llm) the tool said: ...`.
