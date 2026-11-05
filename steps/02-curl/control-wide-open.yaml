@@ -1,0 +1,64 @@
+# Control for step 2, run by make prove only: the same agent with curl's
+# allowedHosts widened to "*", to show the grant is the only thing stopping it.
+#
+# The agent harness (the component that runs the loop: ask the model, call a
+# tool, repeat) imports a model and three labelled tool slots: curl, sqlite
+# and gh. The host links each label to the workload component of the same
+# name, so every slot must be filled. A slot with no real tool yet holds a
+# placeholder (not-installed, or gh-not-installed for gh), which answers that
+# the tool isn't installed.
+#
+# This control differs from steps/02-curl/workload.yaml in one line, curl's
+# allowedHosts:
+#   curl    ANY host ("*"), and the folder mounted at /data for -o
+#   sqlite, gh   placeholders, no grants
+# The harness and the model get nothing: no allowedHosts, no volumes.
+
+apiVersion: runtime.wasmcloud.dev/v1alpha1
+kind: WorkloadDeployment
+metadata:
+  name: toolbox-agent
+spec:
+  replicas: 1
+  # The way in: the Service named toolbox-agent, which the platform created
+  # with no selector (k8s/agent-service.yaml). The operator keeps it pointed
+  # at the host pods that run this workload.
+  kubernetes:
+    service:
+      name: toolbox-agent
+  template:
+    spec:
+      # The default host group; the toy sites have one of their own.
+      hostSelector:
+        hostgroup: default
+      hostInterfaces:
+        - namespace: wasi
+          package: http
+          interfaces: [handler]
+          config:
+            host: agent.localhost
+      components:
+        - name: agent
+          image: workshop-toolbox-registry:5000/workshop/agent:0.4.0
+        - name: model
+          image: workshop-toolbox-registry:5000/workshop/model-scripted:0.4.0
+        # Control: curl may reach any host. It still writes with -o only into /data.
+        - name: curl
+          image: workshop-toolbox-registry:5000/workshop/tool-curl:0.4.0
+          localResources:
+            allowedHosts:  # control: widened to everything
+              - "*"
+            volumeMounts:
+              - name: curl-data
+                mountPath: /data
+        # sqlite arrives in step 3.
+        - name: sqlite
+          image: workshop-toolbox-registry:5000/workshop/not-installed:0.4.0
+        # gh arrives in step 4. Its placeholder also answers GitHub sign-in,
+        # which the harness imports, until step 4 declares the plugin.
+        - name: gh
+          image: workshop-toolbox-registry:5000/workshop/gh-not-installed:0.4.0
+      volumes:
+        - name: curl-data
+          hostPath:
+            path: /workshop/curl-data

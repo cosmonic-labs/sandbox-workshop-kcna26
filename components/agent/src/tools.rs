@@ -26,11 +26,11 @@
 //!   of a WIT variant, so the model can tell a denied request from a network
 //!   failure.
 //!
-//! Each of these four tools is a familiar command line program. Its one
+//! Each of these three tools is a familiar command line program. Its one
 //! argument is the command line you would type after the program's name, so a
 //! tool learns new tricks without a new row here.
 
-use crate::{curl, git, kubectl, sqlite};
+use crate::{curl, gh, sqlite};
 use serde_json::{Value, json};
 
 /// One function the model may call.
@@ -68,24 +68,14 @@ pub const TOOLS: &[Tool] = &[
             "SQL to run, such as select title from talks limit 5, or a dot-command such as .tables.",
         )],
     },
-    // workshop:toolbox/git.run
+    // workshop:toolbox/gh.run
     Tool {
-        name: "git",
-        description: "Run a read-only git command in this tool's repository and return what it \
-                      prints, such as log, show, diff, blame or ls-files.",
+        name: "gh",
+        description: "Read pull requests on GitHub with gh and return what it prints: pr list, \
+                      pr view, pr checks, pr diff, search prs. Only reads.",
         params: &[(
             "arguments",
-            "What you would type after git, such as log --oneline -5.",
-        )],
-    },
-    // workshop:toolbox/kubectl.run
-    Tool {
-        name: "kubectl",
-        description: "Read Kubernetes objects with kubectl and return what it prints. Only what \
-                      this tool's service account may read is visible.",
-        params: &[(
-            "arguments",
-            "What you would type after kubectl, such as get pods -n demo.",
+            "What you would type after gh, such as pr list -R wasmCloud/wasmCloud.",
         )],
     },
 ];
@@ -104,13 +94,9 @@ pub async fn call(name: &str, a: &Args) -> Result<String, String> {
             let args = sqlite::QueryArgs { sql: a.get("sql")? };
             sqlite::query(args).await.map_err(sqlite_error)
         }
-        "git" => {
-            let args = git::RunArgs { arguments: a.get("arguments")? };
-            git::run(args).await.map_err(git_error)
-        }
-        "kubectl" => {
-            let args = kubectl::RunArgs { arguments: a.get("arguments")? };
-            kubectl::run(args).await.map_err(kubectl_error)
+        "gh" => {
+            let args = gh::RunArgs { arguments: a.get("arguments")? };
+            gh::run(args).await.map_err(gh_error)
         }
         other => Err(variant("invalid-argument", Some(format!("no tool named '{other}'")))),
     }
@@ -143,18 +129,8 @@ fn sqlite_error(e: sqlite::Error) -> String {
     }
 }
 
-fn git_error(e: git::Error) -> String {
-    use git::Error::*;
-    match e {
-        InvalidArgument(m) => variant("invalid-argument", Some(m)),
-        AccessDenied(m) => variant("access-denied", Some(m)),
-        NotFound(m) => variant("not-found", Some(m)),
-        Other(m) => variant("other", m),
-    }
-}
-
-fn kubectl_error(e: kubectl::Error) -> String {
-    use kubectl::Error::*;
+fn gh_error(e: gh::Error) -> String {
+    use gh::Error::*;
     match e {
         InvalidArgument(m) => variant("invalid-argument", Some(m)),
         AccessDenied(m) => variant("access-denied", Some(m)),

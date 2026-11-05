@@ -19,10 +19,13 @@ gateway:
 networkPolicy:
   enabled: false
 runtime:
-  # The all-features host image carries host component plugins, which step 6's
-  # kube-api plugin needs. The default release image does not.
+  # The all-features host image is wash built with the host-component-plugins
+  # feature, which step 4's github-api plugin needs. The default release image
+  # (2.12.0) exits at startup when given a plugin image ("require a wash build
+  # with the `host-component-plugins` feature"). Pinned by digest: the
+  # multi-platform index of ghcr.io/wasmcloud/wash:2.12.0-all-features.
   image:
-    tag: 2.12.0-all-features
+    tag: 2.12.0-all-features@sha256:b899dfa82e191ac31521d1985e6af25f200932025ab2760c9910a39c70dfdd4a
   # The workshop registry is plain HTTP on the kind network. The chart's
   # ociCaPaths is the safer choice for a real registry: this flag turns off
   # TLS for every registry the host pulls from.
@@ -43,13 +46,11 @@ runtime:
       # in keyvalue, so that backend lives on the fixtures host group below.
       #
       # A hostPath volume must lie inside an allowed directory (since v2.11.0);
-      # the default list is empty. The three folders the tools read: the talks
-      # database (sqlite, read only), the hostile repository (git, read only)
-      # and a writable folder for curl's -o.
+      # the default list is empty. The two folders the tools use: the
+      # databases (sqlite, read only) and a writable folder for curl's -o.
       hostPaths:
         allowed:
           - /workshop/sqlite-data
-          - /workshop/repo
           - /workshop/curl-data
       # Node paths (kind extraMounts, see scripts/up.sh) mounted into the host
       # container, so a Workload hostPath volume of these paths resolves.
@@ -58,66 +59,55 @@ runtime:
           hostPath:
             path: /workshop/sqlite-data
             type: Directory
-        - name: repo
-          hostPath:
-            path: /workshop/repo
-            type: Directory
         - name: curl-data
           hostPath:
             path: /workshop/curl-data
             type: Directory
-        # Step 4: a database on the host pod's own filesystem that no workload
+        # Step 3: a database on the host pod's own filesystem that no workload
         # is granted. It is not in hostPaths.allowed above, so no workload may
         # even ask to mount it; native sqlite3 on this pod would open it.
         - name: private-data
           hostPath:
             path: /workshop/private-data
             type: Directory
-        # Step 6: the cluster CA, so the kube-api plugin can trust the API
-        # server's certificate. Every namespace has it in this ConfigMap.
-        - name: kube-ca
-          configMap:
-            name: kube-root-ca.crt
       volumeMounts:
         - name: sqlite-data
           mountPath: /workshop/sqlite-data
-        - name: repo
-          mountPath: /workshop/repo
         - name: curl-data
           mountPath: /workshop/curl-data
         - name: private-data
           mountPath: /workshop/private-data
           readOnly: true
-        - name: kube-ca
-          mountPath: /etc/kube-ca
-          readOnly: true
-      # Outgoing HTTPS from this host group also trusts the cluster CA. This is
-      # host-group wide: every component and plugin here trusts it, not only
-      # the kube-api plugin.
-      httpClientCaPaths:
-        - /etc/kube-ca/ca.crt
-      # Step 6's kube-api host component plugin. The platform installs it on
-      # the host group; a workload uses it only by declaring
-      # workshop:toolbox/kube-api in hostInterfaces. It holds the token of a
-      # read-only identity (agent-reader; the service-account-token Secret
-      # kube-api-token, k8s/kube.yaml, read through its `token` label), shared
-      # by any workload on this host group that declares the plugin. It
-      # forwards any method and path, may reach only the API server, and RBAC
-      # on agent-reader decides the rest.
+      # Step 4's github-api host component plugin: GitHub reads for the gh
+      # tool (github-api) and GitHub sign-in for the agent harness
+      # (github-auth). The platform installs it on the host group; a workload
+      # uses it only by declaring both under hostInterfaces. It builds every
+      # URL itself, sends only GET, only to api.github.com and only for the
+      # read paths the gh tool needs, and refuses everything else. Sign-in is
+      # GitHub's device flow, run by the plugin from start to finish with no
+      # scopes; the token stays in the plugin's memory, keyed by the calling
+      # workload's id (the host's wasmcloud:host/identity), and is gone when
+      # the host restarts.
       #
-      # Pinned by digest: the host refuses a plugin whose image digest differs.
-      # scripts/push.sh gives each prebuilt .wasm a reproducible image digest
-      # and prints it; after rebuilding artifacts/kube_api.wasm, copy the new
-      # digest here.
+      # client-id names the GitHub OAuth app (device flow enabled) that
+      # sign-in uses. A client id is public, not a secret. Until it is set,
+      # sign-in reports that it isn't set up and everything else works
+      # signed out. Change it, then `make up` (or helm upgrade) to apply.
+      #
+      # Pinned by digest: the host refuses a plugin whose image digest
+      # differs. scripts/push.sh gives each prebuilt .wasm a reproducible
+      # image digest and prints it; after rebuilding artifacts/github_api.wasm,
+      # copy the new digest here.
       plugins:
-        - id: kube-api
-          image: workshop-toolbox-registry:5000/workshop/kube-api:0.4.0
-          digest: sha256:d09ee3932ad01a175bb3fe83bea969d2898b6abcad7ace1ad93272eb32f0d990
+        - id: github-api
+          image: workshop-toolbox-registry:5000/workshop/github-api:0.4.0
+          digest: sha256:26c2843b874929ca104874ae5da36b4cdd09c404481bd60d4f56e6b5a950d073
           pullPolicy: ifNotPresent
           allowedHosts:
-            - kubernetes.default.svc
-          secretFrom:
-            - kube-api-token
+            - github.com
+            - api.github.com
+          config:
+            client-id: Ov23liN4pgXbvHJYd83G
     # The toy sites (steps/00-fixtures) get a host group of their own, in
     # their own namespace, so the Services in k8s/sites.yaml can select its
     # pods. Workloads land here only by asking: hostSelector hostgroup: fixtures.

@@ -2,18 +2,15 @@
 resolver = "2"
 members = [
   "components/agent",
-  "components/kube-api",
+  "components/github-api",
   "components/model-scripted",
-  "components/model-real",
   "components/not-installed",
+  "components/gh-not-installed",
   "components/tool-curl",
-  "components/tool-git",
+  "components/tool-gh",
   "components/tool-sqlite",
   "components/toy-sites",
 ]
-# tool-kubectl builds on its own (`make kubectl`): its tokio_unstable flag
-# must not reach the other crates.
-exclude = ["components/tool-kubectl"]
 
 [workspace.package]
 edition = "2024"
@@ -24,15 +21,7 @@ publish = false
 # WASI 0.3: async exports and imports, and tasks spawned to write streams.
 # Same version and features as Desktop's p3 templates (wasip3 0.9.0 pins it).
 wit-bindgen = { version = "0.62.0", features = ["async-spawn", "inter-task-wakeup"] }
-serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-
-# The git tool's gitoxide needs two crates that don't build for
-# wasm32-wasip2 as published: memmap2's stub mmap, and filetime. These vendored
-# copies carry the fixes. Nothing else in the workspace uses them.
-[patch.crates-io]
-memmap2 = { path = "components/tool-git/vendor/memmap2" }
-filetime = { path = "components/tool-git/vendor/filetime" }
 
 [profile.release]
 lto = true

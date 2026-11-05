@@ -1,6 +1,6 @@
-/// The workshop's own interfaces: four tools, the Kubernetes API capability
-/// behind one of them, the model, and the worlds that say what each component
-/// may touch.
+/// The workshop's own interfaces: three tools, the GitHub capabilities behind
+/// gh and sign-in, the model, and the worlds that say what each component may
+/// touch.
 ///
 /// The tools follow typed-tool conventions. Each function takes
 /// one record whose fields are the tool's arguments, each interface has its
@@ -14,9 +14,9 @@ package workshop:toolbox@0.4.0;
 // The tools: familiar command line tools, each its own component.
 //
 // Each one takes what you would type after the program's name, so you can
-// teach it new tricks without changing this file. Each is famous for an
-// escape (sqlite3's .shell, curl reaching the cloud metadata service, git
-// running hooks); as components they have nothing to escape to. Every tool
+// teach it new tricks without changing this file. curl and sqlite3 are
+// famous for escapes (curl reaching the cloud metadata service, sqlite3's
+// .shell); as components they have nothing to escape to. Every tool
 // ships as its own component, so each one gets its own capabilities (a
 // folder, network hosts) from the workload manifest. The agent harness
 // imports the tools through labelled slots, and each interface defines its
@@ -90,90 +90,113 @@ interface sqlite {
   query: async func(args: query-args) -> result<string, error>;
 }
 
-/// git: read a repository in this component's folder. Only commands that
-/// read are available.
+/// gh: read pull requests on GitHub from a command line, like GitHub's own
+/// `gh`. Requests go through the github-api capability; this tool holds no
+/// token, reaches nothing else, and only reads.
 @since(version = 0.4.0)
-interface git {
-  /// Why a git call failed.
+interface gh {
+  /// Why a gh call failed.
   ///
   /// Payload strings are diagnostic. Their wording is not stable, and
   /// programs should not parse them.
   variant error {
-    /// The arguments are malformed, or name a command this tool does not
-    /// offer. The payload says which and why.
-    invalid-argument(string),
-    /// This tool may not do this: the path is outside its folder. The
-    /// payload names it.
-    access-denied(string),
-    /// No repository, revision or file exists by this name. The payload
-    /// names it.
-    not-found(string),
-    /// Any other failure. Treat it as a generic failure.
-    other(option<string>),
-  }
-
-  /// Arguments for `run`.
-  record run-args {
-    /// What you would type after `git`, such as `log --oneline -5` or
-    /// `show HEAD:README.md`.
-    arguments: string,
-  }
-
-  /// Run a read-only git command in the repository and return what it
-  /// prints.
-  run: async func(args: run-args) -> result<string, error>;
-}
-
-/// kubectl: read Kubernetes objects from a command line, as the service
-/// account the platform gave this workload. Requests go through the kube-api
-/// capability; this tool holds no token and reaches nothing else.
-@since(version = 0.4.0)
-interface kubectl {
-  /// Why a kubectl call failed.
-  ///
-  /// Payload strings are diagnostic. Their wording is not stable, and
-  /// programs should not parse them.
-  variant error {
-    /// The arguments are malformed, such as an unknown command or resource.
+    /// The arguments are malformed, such as an unknown command or flag.
     /// The payload says which and why.
     invalid-argument(string),
-    /// The API server refused the request (its RBAC), or this tool does not
-    /// offer the command at all. The payload names what was refused.
+    /// The github-api plugin refused the request (a method, host or path it
+    /// does not allow), or this tool does not offer the command at all,
+    /// such as one that writes. The payload names what was refused.
     access-denied(string),
-    /// The request did not reach the API server, or no answer came back.
-    /// The payload says what happened.
+    /// The request did not reach GitHub, or GitHub refused it for its rate
+    /// limit. The payload says what happened.
     network(string),
-    /// Any other failure. Treat it as a generic failure.
+    /// Any other failure, such as GitHub answering that a pull request does
+    /// not exist. Treat it as a generic failure.
     other(option<string>),
   }
 
   /// Arguments for `run`.
   record run-args {
-    /// What you would type after `kubectl`, such as `get pods -n demo`.
+    /// What you would type after `gh`, such as
+    /// `pr list -R wasmCloud/wasmCloud` or `pr view 4321`.
     arguments: string,
   }
 
-  /// Run kubectl with these arguments and return what it prints.
+  /// Run gh with these arguments and return what it prints.
   run: async func(args: run-args) -> result<string, error>;
 }
 
-/// The Kubernetes API, as a capability. A host component plugin serves it: it
-/// holds the service account token, adds it to each request, and reaches only
-/// the API server. A caller never sees the token.
+/// GitHub's REST API, as a capability. A host component plugin serves it: it
+/// sends each request to api.github.com and nowhere else, only for the read
+/// paths it allows, and adds the signed-in user's token when there is one. A
+/// caller never sees the token.
 @since(version = 0.4.0)
-interface kube-api {
-  /// What the API server answered.
+interface github-api {
+  /// What GitHub answered.
   record response {
-    /// HTTP status, such as 200 or 403.
+    /// HTTP status, such as 200 or 404.
     status: u16,
+    /// The headers a caller needs to pace itself: GitHub's x-ratelimit-*
+    /// headers and retry-after, lower case. No others.
+    headers: list<tuple<string, string>>,
     /// The response body, usually JSON.
     body: list<u8>,
   }
 
-  /// Send one request to the API server. `method` is GET, POST, and so on;
-  /// `path-and-query` is relative to the API server, such as
-  /// `/api/v1/namespaces/demo/pods`. The error is a failure to send it at all.
-  send: async func(method: string, path-and-query: string, body: list<u8>) -> result<response, string>;
+  /// Why a request got no answer from GitHub.
+  variant send-error {
+    /// The plugin refused to send it: a method other than GET, or a path it
+    /// does not allow. The payload names the rule.
+    refused(string),
+    /// It was allowed, but did not complete: GitHub could not be reached, or
+    /// the answer was too large. The payload says what happened.
+    failed(string),
+  }
+
+  /// Send one request to api.github.com. `method` is GET (anything else is
+  /// refused); `path-and-query` is relative to the API, such as
+  /// `/repos/wasmCloud/wasmCloud/pulls?state=open`.
+  send: async func(method: string, path-and-query: string) -> result<response, send-error>;
+}
+
+/// Signing in to GitHub, as a capability. The same plugin as github-api
+/// serves it and runs GitHub's device flow itself: it asks GitHub for a code,
+/// the person enters that code on github.com, and the plugin keeps the token
+/// it gets back, in its own memory, for the calling workload only. A caller
+/// sees the code, the address to enter it at and the signed-in login, never
+/// the token.
+@since(version = 0.4.0)
+interface github-auth {
+  /// What the person needs to finish signing in.
+  record device-prompt {
+    /// The code to enter, such as `WDJB-MJHT`.
+    user-code: string,
+    /// Where to enter it: https://github.com/login/device.
+    verification-uri: string,
+    /// Seconds until the code expires.
+    expires-in: u32,
+  }
+
+  /// Whether this workload is signed in.
+  variant sign-in-status {
+    /// Not signed in: requests go to GitHub without a token.
+    signed-out,
+    /// Waiting for the person to enter the code.
+    pending(device-prompt),
+    /// Signed in, as this GitHub login.
+    signed-in(string),
+  }
+
+  /// Start signing in: ask GitHub for a code, with no scopes. The error says
+  /// why it could not start, such as no OAuth app configured.
+  start: async func() -> result<device-prompt, string>;
+
+  /// Whether this workload is signed in, checking with GitHub when a code is
+  /// waiting. The error says why sign-in ended, such as an expired code.
+  status: async func() -> result<sign-in-status, string>;
+
+  /// Forget this workload's token.
+  sign-out: async func() -> result<_, string>;
 }
 
 // ---------------------------------------------------------------------------
@@ -224,9 +247,8 @@ interface types {
   }
 }
 
-/// A language model. Two implementations ship: model-scripted (offline,
-/// deterministic, and gullible on purpose) and model-real (an
-/// OpenAI compatible chat completions endpoint).
+/// A language model. The workshop ships one implementation, model-scripted:
+/// offline, deterministic, and gullible on purpose.
 @since(version = 0.3.0)
 interface model {
   use types.{message, tool-def, completion};
@@ -243,32 +265,27 @@ interface model {
 // wasmCloud's async keyvalue interface.
 // ---------------------------------------------------------------------------
 
-/// The agent harness. It answers HTTP and imports one model and one labelled
-/// slot per tool, and nothing else. Each label names the workload component
-/// that fills it, so the manifest, not the harness code, decides which
-/// component (and which capabilities) sits behind each slot.
+/// The agent harness. It answers HTTP and imports one model, one labelled
+/// slot per tool, and GitHub sign-in, and nothing else. Each label names the
+/// workload component that fills it, so the manifest, not the harness code,
+/// decides which component (and which capabilities) sits behind each slot.
+/// Sign-in is unlabelled: the github-api plugin serves it in a workload that
+/// declares it (step 4), and the gh slot's placeholder answers it before
+/// that. The harness never imports github-api, so it can't read GitHub
+/// itself.
 @since(version = 0.4.0)
 world agent {
   import model: model;
   import curl: curl;
   import sqlite: sqlite;
-  import git: git;
-  import kubectl: kubectl;
+  import gh: gh;
+  import github-auth;
   export wasi:http/handler@0.3.0;
 }
 
 /// The scripted model: no imports at all.
 @since(version = 0.3.0)
 world model-provider {
-  export model;
-}
-
-/// The real model: an OpenAI compatible endpoint over outgoing HTTP, which
-/// only reaches the hosts in this component's allowedHosts.
-@since(version = 0.3.0)
-world model-real {
-  import wasi:cli/environment@0.3.0;
-  import wasi:http/client@0.3.0;
   export model;
 }
 
@@ -287,46 +304,52 @@ world sqlite-tool {
   export sqlite;
 }
 
-/// The git tool: a repository in the folder its manifest mounts, read only.
+/// The gh tool: no outgoing HTTP, no sockets, no files, no token. Its only
+/// way to GitHub is the github-api capability.
 @since(version = 0.4.0)
-world git-tool {
-  export git;
+world gh-tool {
+  import github-api;
+  export gh;
 }
 
-/// The kubectl tool: no outgoing HTTP, no sockets, no token. Its only way to
-/// the cluster is the kube-api capability.
+/// The github-api host component plugin, installed on the host group by the
+/// platform: outgoing HTTP, which its own allowedHosts limit to github.com
+/// (the device flow) and api.github.com, its config (the OAuth app's public
+/// client id), and the host's answer to "which workload is calling", which
+/// keys each token to one workload.
 @since(version = 0.4.0)
-world kubectl-tool {
-  import kube-api;
-  export kubectl;
-}
-
-/// The kube-api host component plugin, installed on the host group by the
-/// platform, not by a workload: the service account token (its labelled
-/// `token` secret) and outgoing HTTP, which its own allowedHosts limit to the
-/// API server.
-@since(version = 0.4.0)
-world kube-api-plugin {
-  import token: wasmcloud:secrets/secret@2.1.0;
-  import wasmcloud:secrets/reveal@2.1.0;
+world github-api-plugin {
   import wasi:http/client@0.3.0;
-  export kube-api;
+  import wasi:config/store@0.2.0-rc.1;
+  import wasmcloud:host/identity@0.1.6;
+  export github-api;
+  export github-auth;
 }
 
-/// The placeholder that fills every slot until a step installs the real
-/// tool. One image, all four tool interfaces, every function returns an
-/// error saying the tool isn't installed yet.
+/// The placeholder that fills the curl and sqlite slots until a step installs
+/// the real tool. One image exports both interfaces, and every function
+/// returns an error saying the tool isn't installed yet.
 @since(version = 0.4.0)
 world not-installed {
   export curl;
   export sqlite;
-  export git;
-  export kubectl;
 }
 
-/// Test fixture, not part of the toolbox: the ordinary API page, the
-/// exfiltration collector and a fake OpenAI compatible endpoint, all served
-/// from one HTTP component on names that exist nowhere in DNS.
+/// The placeholder for the gh slot until step 4. It answers the gh tool's
+/// interface with "not installed yet", and GitHub sign-in with "not in this
+/// step", so the harness can start before any workload declares the
+/// github-api plugin. A separate image from not-installed: the harness's
+/// sign-in import is unlabelled, so only one component in a workload may
+/// export it.
+@since(version = 0.4.0)
+world gh-not-installed {
+  export gh;
+  export github-auth;
+}
+
+/// Test fixture, not part of the toolbox: the ordinary API page and the
+/// exfiltration collector, served from one HTTP component on the names of
+/// the Services in k8s/sites.yaml.
 @since(version = 0.3.0)
 world toy-sites {
   import wasmcloud:keyvalue/store@0.2.0;

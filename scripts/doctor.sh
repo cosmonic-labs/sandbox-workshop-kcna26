@@ -187,4 +187,4 @@ if [ "$FAILS" -gt 0 ]; then
   echo "${R}Not ready:${N} $FAILS required check(s) failed. Run each 'fix:' command above, then make doctor again."
   exit 1
 fi
-echo "${G}Ready.${N} Next: make up, then follow steps/01-run-it/README.md."
+echo "${G}Ready.${N} Next: make up, then follow steps/01-agent/README.md."

@@ -10,10 +10,17 @@
 //! gets a page (`transcript.html`) that sends prompts the same way and draws
 //! the transcript as a timeline; curl gets the same text as ever.
 //!
-//! The harness itself holds no capabilities. Its world imports the model and
-//! four labelled tool slots (curl, sqlite, git and kubectl) and nothing else
-//! from the host; whatever a tool can reach is decided by the manifest entry of the
-//! component filling that slot. `tools.rs` translates the model's JSON into
+//! The harness itself holds no capabilities. Its world imports the model,
+//! three labelled tool slots (curl, sqlite and gh) and GitHub sign-in, and
+//! nothing else from the host; whatever a tool can reach is
+//! decided by the manifest entry of the component filling that slot.
+//!
+//! Sign-in is the one thing the harness does besides the loop. The page's
+//! "Sign in with GitHub" control calls `/github/status`, `/github/sign-in` and
+//! `/github/sign-out` here, and the harness passes each to github-auth. The
+//! plugin behind it runs GitHub's device flow and keeps the token; the
+//! harness only ever sees the code to enter, where to enter it and the
+//! signed-in login. `tools.rs` translates the model's JSON into
 //! typed tool calls and builds the tool definitions the model sees: work a
 //! host could do from the WIT, done by hand here because upstream wasmCloud
 //! doesn't do it yet.
@@ -31,6 +38,7 @@ mod tools;
 use exports::wasi::http::handler::Guest;
 use tools::{Args, TOOLS};
 use wasi::http::types::{ErrorCode, Method, Request, Response};
+use workshop::toolbox::github_auth::{self, SignInStatus};
 use workshop::toolbox::types::{Completion, Message, ToolDef};
 
 /// Hard stop so a hijacked model cannot loop forever.
@@ -60,6 +68,13 @@ impl Guest for Agent {
         if matches!(req.get_method(), Method::Post) && !same_origin(&req) {
             return http::text_response(403, "cross-origin request refused\n".to_string());
         }
+        let path = req
+            .get_path_with_query()
+            .map(|p| p.split('?').next().unwrap_or("").to_string())
+            .unwrap_or_default();
+        if let Some(json) = github(&path, &req.get_method()).await {
+            return http::json_response(200, json);
+        }
         let body = http::request_body(req).await;
         let mut prompt = String::from_utf8_lossy(&body).trim().to_string();
         if prompt.is_empty() {
@@ -82,6 +97,34 @@ impl Guest for Agent {
 }
 
 export!(Agent);
+
+/// The sign-in control's three calls, passed to github-auth. The answer is
+/// JSON for the page: `state` is signed-out, pending (with the code to enter
+/// and where), signed-in (with the login) or error (with why). None of it is
+/// the token: github-auth never hands that out.
+async fn github(path: &str, method: &Method) -> Option<String> {
+    use serde_json::json;
+    let result = match (path, method) {
+        ("/github/status", Method::Get) => github_auth::status().await,
+        ("/github/sign-in", Method::Post) => github_auth::start().await.map(SignInStatus::Pending),
+        ("/github/sign-out", Method::Post) => {
+            github_auth::sign_out().await.map(|()| SignInStatus::SignedOut)
+        }
+        _ => return None,
+    };
+    let v = match result {
+        Ok(SignInStatus::SignedOut) => json!({ "state": "signed-out" }),
+        Ok(SignInStatus::Pending(p)) => json!({
+            "state": "pending",
+            "user_code": p.user_code,
+            "verification_uri": p.verification_uri,
+            "expires_in": p.expires_in,
+        }),
+        Ok(SignInStatus::SignedIn(login)) => json!({ "state": "signed-in", "login": login }),
+        Err(e) => json!({ "state": "error", "error": e }),
+    };
+    Some(v.to_string())
+}
 
 async fn run(prompt: &str) -> String {
     let mut out = String::new();

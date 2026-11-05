@@ -1,4 +1,4 @@
--- The database the sqlite tool reads in steps 1 and 4.
+-- The database the sqlite tool reads in step 3.
 --
 -- A small, invented conference schedule, so a query reads well on a slide and
 -- no real person's data is involved. This is the source of fixtures/talks.db,

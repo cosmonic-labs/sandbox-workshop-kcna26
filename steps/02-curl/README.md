@@ -1,0 +1,225 @@
+# Step 2: Give the agent curl, then try to make it escape
+
+**Folder:** `steps/02-curl`
+
+`curl` is a component like any other. Its code decides how it reaches the
+network: through the host's HTTP client, with no sockets of its own. Which
+hosts it may reach isn't in its code. It is the `allowedHosts` line in the
+manifest, which this step sets to one host.
+
+`curl` is also on [GTFOBins](https://gtfobins.github.io/), the catalogue of
+everyday programs that break out of restricted shells, because it reaches
+places you did not mean it to: the cloud metadata service, other hosts, and
+anywhere on disk with `-o`. Once it is in the agent's curl slot, you'll try
+each of those.
+
+Everyone can use the **prebuilt** curl in `artifacts/`, and every command
+below shows that first. If you have Rust, you can **build your own** instead;
+each command then has a second form for your build. Both end with the same
+grant.
+
+## Build your own (optional)
+
+Skip this section to use the prebuilt curl.
+
+You need Rust 1.98.1 with the `wasm32-wasip2` target (`make doctor` checks).
+`curl` is pure Rust, so no C toolchain is needed.
+
+To make it yours, open `components/tool-curl/src/lib.rs` and change the
+message `"saved {} bytes to {path}\n"`, for example to
+`"saved {} bytes to {path} (built by me)\n"`. Then build and push:
+
+```sh
+make build
+make push-build
+```
+
+`make build` writes `target/wasm32-wasip2/release/tool_curl.wasm`.
+`make push-build` pushes it as `tool-curl:mine`, a tag of its own. The
+prebuilt tool keeps its tag, `tool-curl:0.4.0`, so later steps are not
+affected.
+
+## Look inside
+
+`wasm-tools component wit` prints a component's interface: what it imports
+from the host and what it exports.
+
+Prebuilt:
+
+```sh
+wasm-tools component wit artifacts/tool_curl.wasm \
+  | grep -E 'import wasi:(http|sockets|filesystem)'
+```
+
+Your build:
+
+```sh
+wasm-tools component wit target/wasm32-wasip2/release/tool_curl.wasm \
+  | grep -E 'import wasi:(http|sockets|filesystem)'
+```
+
+The prebuilt curl and your build print the same four lines:
+
+```
+  import wasi:http/types@0.3.0;
+  import wasi:http/client@0.3.0;
+  import wasi:filesystem/types@0.2.9;
+  import wasi:filesystem/preopens@0.2.9;
+```
+
+`curl` imports an HTTP client and no sockets, so every request goes through the
+host, which checks it against the grant. The filesystem is for `-o`, and the
+manifest limits it to one folder. (The full import list also has the command
+line basics Rust's standard library needs: stdout, environment, clocks.)
+
+## Deploy
+
+Prebuilt:
+
+```sh
+kubectl apply -f steps/02-curl/workload.yaml \
+  && sleep 2 && kubectl wait --for=condition=Ready \
+  workloaddeployment/toolbox-agent
+```
+
+Your build:
+
+```sh
+kubectl apply -f steps/02-curl/workload-mine.yaml \
+  && sleep 2 && kubectl wait --for=condition=Ready \
+  workloaddeployment/toolbox-agent
+```
+
+`workload-mine.yaml` is `workload.yaml` with one change: the `curl` image is
+`tool-curl:mine`. Built again? Run `make push-build`, then
+`kubectl delete workloaddeployment toolbox-agent` and apply again, so the host
+fetches the new push.
+
+The same agent as step 1, with the real curl in its slot. The grant, the same
+in both manifests: one host, one folder.
+
+```yaml
+- name: curl
+  localResources:
+    allowedHosts: [api.workshop-sites.svc]
+    volumeMounts: [{ name: curl-data, mountPath: /data }]
+```
+
+## Who does what
+
+The host enforces both boundaries. It refuses a request to any host not in
+`allowedHosts`, and the component's filesystem holds only the folder mounted
+at `/data`. The tool only words the error messages you'll see:
+
+* For a host, the host returns an `HttpRequestDenied` error, and the tool
+  writes it as `access-denied: <host>: this tool may not reach that host (not
+  in its allowedHosts)`.
+* For a file, the filesystem answers "No such file or directory", because
+  the path doesn't exist in this component's view. The tool reports that as
+  `access-denied` and adds `(this tool sees only /data)`.
+
+The messages are the tool's choice. What gets through is the host's.
+
+## Ask curl
+
+Type each prompt into the chat at http://agent.localhost:18180, or run the
+curl command under it.
+
+**1. Fetch the granted host:** `fetch http://api.workshop-sites.svc/data`
+
+```sh
+curl -s -H 'Host: agent.localhost' \
+  http://127.0.0.1:18180/ \
+  -d 'fetch http://api.workshop-sites.svc/data'
+```
+
+The prompt that got "isn't installed yet" in step 1. The host is in curl's
+`allowedHosts`, so the toy site answers.
+
+**2. Save a page into the tool's folder:** `save http://api.workshop-sites.svc/data to page.html`
+
+```sh
+curl -s -H 'Host: agent.localhost' \
+  http://127.0.0.1:18180/ \
+  -d 'save http://api.workshop-sites.svc/data to page.html'
+```
+
+The model turns this into `curl -o page.html`. The prebuilt curl answers
+`saved 95 bytes to /data/page.html`. Your build answers with the message you
+wrote, which shows your code is the one running. The grant includes `/data`,
+so the write succeeds: the folder is the boundary, not a blanket ban.
+
+## Now try each escape
+
+**3. The metadata service is refused:** `curl -s http://169.254.169.254/latest/meta-data/`
+
+```sh
+curl -s -H 'Host: agent.localhost' \
+  http://127.0.0.1:18180/ \
+  -d 'curl -s http://169.254.169.254/latest/meta-data/'
+```
+
+On most clouds this address hands out credentials. The host refuses it before anything leaves.
+
+**4. Other cluster hosts are refused:** `curl -s http://collector.workshop-sites.svc/collect`
+
+```sh
+curl -s -H 'Host: agent.localhost' \
+  http://127.0.0.1:18180/ \
+  -d 'curl -s http://collector.workshop-sites.svc/collect'
+```
+
+The collector stands in for an attacker's server. It is on the network, but not in curl's grant, so the host refuses it.
+
+**5. A redirect can't sneak past:** `curl -sL http://api.workshop-sites.svc/redirect`
+
+```sh
+curl -s -H 'Host: agent.localhost' \
+  http://127.0.0.1:18180/ \
+  -d 'curl -sL http://api.workshop-sites.svc/redirect'
+```
+
+The granted host redirects to the collector. The host checks every hop, including the one you didn't type, and refuses the second.
+
+**6. Writing outside /data fails:** `curl -o /etc/evil -s http://api.workshop-sites.svc/data`
+
+```sh
+curl -s -H 'Host: agent.localhost' \
+  http://127.0.0.1:18180/ \
+  -d 'curl -o /etc/evil -s http://api.workshop-sites.svc/data'
+```
+
+This curl sees one folder, so `/etc` doesn't exist for it. The filesystem
+says "No such file or directory"; the tool calls that `access-denied`.
+
+**7. Reading a file:// URL outside /data fails:** `curl -s file:///etc/passwd`
+
+```sh
+curl -s -H 'Host: agent.localhost' \
+  http://127.0.0.1:18180/ \
+  -d 'curl -s file:///etc/passwd'
+```
+
+Native curl reads any file your user can. This curl reads `file://` URLs
+through the same one folder, so `/etc/passwd` doesn't exist for it.
+
+**8. Reading a file:// URL inside /data works:** `curl -s file:///data/page.html`
+
+```sh
+curl -s -H 'Host: agent.localhost' \
+  http://127.0.0.1:18180/ \
+  -d 'curl -s file:///data/page.html'
+```
+
+The page you saved in item 2 reads back. The tool doesn't check paths itself:
+the filesystem it is given holds only that one folder.
+
+**For hosts, the grant is what stops it.** `make prove` also runs a control
+with `allowedHosts` widened to `*` (`control-wide-open.yaml`), and the same
+request to the collector then goes through (`control-checks.txt`). The tool
+didn't change; only its grant did.
+
+The later steps use the prebuilt curl. To keep your own build, change the
+`curl` image in that step's manifest to `tool-curl:mine`.
+
+Full transcript (prebuilt curl): [`expected-output.txt`](expected-output.txt).

@@ -25,18 +25,6 @@ spec:
   ports:
     - { name: http, port: 80, targetPort: 80 }
 ---
-apiVersion: v1
-kind: Service
-metadata:
-  name: llm
-  namespace: workshop-sites
-spec:
-  selector:
-    wasmcloud.com/name: hostgroup
-    wasmcloud.com/hostgroup: fixtures
-  ports:
-    - { name: http, port: 80, targetPort: 80 }
----
 # The ordinary API the agent is meant to call, and the one host the curl tool
 # is granted in the steps.
 apiVersion: v1

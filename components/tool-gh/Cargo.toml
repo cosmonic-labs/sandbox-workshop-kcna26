@@ -1,0 +1,16 @@
+[package]
+name = "tool-gh"
+edition.workspace = true
+version.workspace = true
+publish.workspace = true
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+wit-bindgen.workspace = true
+serde_json.workspace = true
+# The GitHub logic, vendored from cosmonic-labs/agent-tools (Apache-2.0):
+# see vendor/NOTICE.
+github-core = { path = "vendor/github-core" }
+tool-common = { path = "vendor/tool-common" }

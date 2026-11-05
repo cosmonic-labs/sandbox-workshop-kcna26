@@ -5,8 +5,8 @@
 //! each label to the workload component of the same name. A slot with nothing
 //! behind it would stop the workload from starting, so until a step installs
 //! the real tool, the manifest fills the slot with this component. One image
-//! exports all four tool interfaces, so the same image can sit behind any
-//! slot. Every function returns its interface's `other` error saying the
+//! exports both the curl and the sqlite interfaces, so the same image can sit
+//! behind either slot (gh has a placeholder of its own, gh-not-installed). Every function returns its interface's `other` error saying the
 //! tool isn't installed yet, which the harness shows in its transcript.
 
 wit_bindgen::generate!({
@@ -15,7 +15,7 @@ wit_bindgen::generate!({
     generate_all,
 });
 
-use exports::workshop::toolbox::{curl, git, kubectl, sqlite};
+use exports::workshop::toolbox::{curl, sqlite};
 
 fn missing(tool: &str) -> Option<String> {
     Some(format!("the {tool} tool isn't installed yet"))
@@ -32,18 +32,6 @@ impl curl::Guest for NotInstalled {
 impl sqlite::Guest for NotInstalled {
     async fn query(_: sqlite::QueryArgs) -> Result<String, sqlite::Error> {
         Err(sqlite::Error::Other(missing("sqlite")))
-    }
-}
-
-impl git::Guest for NotInstalled {
-    async fn run(_: git::RunArgs) -> Result<String, git::Error> {
-        Err(git::Error::Other(missing("git")))
-    }
-}
-
-impl kubectl::Guest for NotInstalled {
-    async fn run(_: kubectl::RunArgs) -> Result<String, kubectl::Error> {
-        Err(kubectl::Error::Other(missing("kubectl")))
     }
 }
 

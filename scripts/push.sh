@@ -7,12 +7,12 @@
 #                            $REGISTRY/workshop/tool-curl:mine
 #
 # Your build gets its own tag, so it never replaces the prebuilt tool that
-# steps 1 and 3 to 6 use. steps/02-build-curl/workload-mine.yaml runs it.
+# every step uses. steps/02-curl/workload-mine.yaml runs it.
 #
 # The prebuilt files are checked against artifacts/SHA256SUMS before anything
 # is pushed. Each image is then given a manifest with fixed timestamps, so the
 # same .wasm always has the same image digest. That is what lets
-# k8s/values.yaml pin the kube-api plugin by digest.
+# k8s/values.yaml pin the github-api plugin by digest.
 set -euo pipefail
 source "$(dirname "$0")/env.sh"
 

@@ -2,15 +2,30 @@
 ## Multi-tenant sandboxing for agent harnesses and tools on wasmCloud
 
 A hands-on workshop for KubeCon + CloudNativeCon NA 2026. You `kubectl apply`
-an agent and four tools to your own cluster with **wasmCloud**, a CNCF
-project, then try each tool's most famous escape and watch it fail.
+an agent to your own cluster with **wasmCloud**, a CNCF project, give it
+tools one at a time, then try each tool's most famous escape and watch it
+fail. Then you give it a real job: triaging pull requests on GitHub, signed
+in with your own account if you like.
 
-The tools are `curl`, `sqlite3`, `git` and `kubectl`. The first three are classics from
-[GTFOBins](https://gtfobins.github.io/), the catalogue of everyday programs
-that break out of restricted shells. The model is a gullible stand-in that
-does whatever it reads. It never refuses, so the only thing that stops an
-escape is the sandbox around each tool. **The grant is the boundary, not the
-command.**
+The tools are `curl`, `sqlite3` and `gh` (GitHub's command line). `curl` and
+`sqlite3` are classics from [GTFOBins](https://gtfobins.github.io/), the
+catalogue of everyday programs that break out of restricted shells. The model is a gullible stand-in that
+does whatever it reads (step 1 explains how it works). It never refuses, so
+every refusal you see comes from another layer, and each step names which
+one:
+
+* **Imports**: what a component can ask the host for at all. None of these
+  tools imports a way to start a process, and none imports sockets.
+* **The tool's own code**: this sqlite3's small shell answers `.shell`
+  itself and has no extension loading compiled in, and this gh offers no
+  command that writes.
+* **The grant**: the lines of the manifest that give each tool its folders
+  (`volumeMounts`) and its hosts (`allowedHosts`).
+* **A platform plugin's own rules**: the GitHub capability behind `gh` sends
+  only reads, only to `api.github.com`, only for the paths `gh` needs, and
+  keeps your sign-in to itself (step 4).
+
+Each tool starts with nothing and gets only its own grant.
 
 ## Requirements
 
@@ -18,6 +33,7 @@ command.**
   containers, on macOS or Linux. On Windows, use WSL2.
 * Or nothing at all: GitHub Codespaces (see below).
 * About 1 GB of downloads. Do them before the conference: `make tools && make up`.
+* For step 4, the internet, and optionally a GitHub account to sign in with.
 * Optional, to build `curl` yourself in step 2: Rust 1.98.1 with the
   `wasm32-wasip2` target, and one `make build` beforehand to fetch the
   crates. Without it, step 2 uses the prebuilt image.
@@ -46,15 +62,13 @@ cluster named `workshop-toolbox` and switches your kubectl context to it.
 
 | Step | Folder | What you'll see |
 | --- | --- | --- |
-| 1 | `steps/01-run-it` | The agent and its tools deploy with `kubectl` and answer |
-| 2 | `steps/02-build-curl` | `curl` imports only an HTTP client; its reach is one line of YAML |
-| 3 | `steps/03-curl` | `curl`'s escapes (metadata service, other hosts, redirects, files) refused |
-| 4 | `steps/04-sqlite` | `sqlite3`'s escapes (`.shell`, `ATTACH`, extensions) go nowhere |
-| 5 | `steps/05-git` | A hostile repository names programs to run; native git runs them, the tool can't |
-| 6 | `steps/06-kubectl` | `kubectl` through a platform capability; RBAC still decides |
+| 1 | `steps/01-agent` | The agent with no tools: how it and its gullible model work, and that it can use only what its manifest gives it |
+| 2 | `steps/02-curl` | `curl` (prebuilt, or build your own) gets one host; its escapes (metadata service, other hosts, redirects, files) are refused |
+| 3 | `steps/03-sqlite` | `sqlite3`'s escapes (`.shell`, `ATTACH`, extensions) go nowhere |
+| 4 | `steps/04-github` | A real job: triage wasmCloud's pull requests with `gh`, signed in or not; the GitHub capability refuses writes, and the token never leaves the platform |
 
-Steps 1 to 4 tell the whole story; 5 and 6 are for if time allows. Each step
-README has the commands and the output to expect (`expected-output.txt`).
+Each step README has the commands and the output to expect
+(`expected-output.txt`).
 
 **Fell behind?** Every step's manifest is complete, so you can jump to any
 step with its one `kubectl apply`.
@@ -101,12 +115,12 @@ registry.
             ┌────────────────────────────────┴───────────────┐
             ▼                                                ▼
   host pod, group "default"                       host pod, group "fixtures"
-    workload toolbox-agent                          toy sites: api, collector,
-      harness ──▶ model                             llm
-        ├──▶ curl     allowedHosts only ─── HTTP ──▶ (.workshop-sites.svc)
+    workload toolbox-agent                          toy sites: api, collector
+      harness ──▶ model
+        ├──▶ sign-in  github-api plugin ──▶ github.com (device flow)
+        ├──▶ curl     allowedHosts only ──▶ api.workshop-sites.svc, /data for -o
         ├──▶ sqlite   /data, read only
-        ├──▶ git      /repo, read only
-        └──▶ kubectl  kube-api plugin ──▶ API server (RBAC: agent-reader)
+        └──▶ gh       github-api plugin ──▶ api.github.com (GET, allowlisted paths)
 ```
 
 * A **component** is a WebAssembly program that starts with no access to
@@ -139,6 +153,11 @@ the workshop needs no internet.
   with `maxConcurrency` above 1. The workshop's components aren't pooled (each
   request gets a fresh store) and the harness awaits each tool call before the
   next, so it can't happen here.
+* The github-api plugin keeps each sign-in in its memory, keyed by the
+  workload's id, and nothing clears the entry when a workload goes away: a
+  replaced workload's token stays in the plugin's memory, unused, until the
+  host restarts. A real platform would keep tokens in a secrets store and
+  drop them when the workload is deleted.
 * The chart's NetworkPolicies are off in `k8s/values.yaml` because kindnet on
   kind v0.33.0 dropped their DNS replies. Keep them on in a real cluster.
 
@@ -148,9 +167,22 @@ the workshop needs no internet.
   needs wasi-sdk (`WASI_SDK_PATH`, `CC_wasm32_wasip2`). `make push-build`
   pushes your build to the cluster's registry. A running workload keeps its
   old image until it is recreated.
-* `make prove` replays every step and rewrites each `expected-output.txt`.
+* `make prove` replays steps 1 to 4 and rewrites each `expected-output.txt`;
+  `make verify` replays them and checks each result. Step 4 calls GitHub (7 requests a run): its live answers are masked in the
+  transcript and checked for shape, and verify skips them (SKIP) when
+  GitHub's unauthenticated limit of 60 an hour is used up.
+* **GitHub sign-in** (step 4) needs a GitHub OAuth app with the device flow
+  enabled. Create one in GitHub under Settings, Developer settings, OAuth
+  Apps, New OAuth App. Any name, homepage URL and callback URL will do (the
+  device flow uses neither URL). Tick **Enable Device Flow**. Scopes are not
+  part of the app: they are asked for at sign-in, and the plugin asks for
+  none. Put the app's Client ID (public, not a secret; no client secret is
+  needed) in `k8s/values.yaml` under the `github-api` plugin's `client-id`,
+  then run `make up` again. Until then, sign-in says it isn't set up and step
+  4 works signed out.
+* After rebuilding `artifacts/github_api.wasm`, copy the digest
+  `scripts/push.sh` prints into `k8s/values.yaml`: the host refuses a plugin
+  whose digest differs.
 * `TESTING.md` is the pre-workshop test checklist.
-* `extras/real-model/` swaps the scripted model for `model-real` (an OpenAI
-  compatible endpoint) in the same slot, with no rebuild.
 * The tool interfaces are in `wit/toolbox.wit`; the harness's tool table is
   `components/agent/src/tools.rs`.

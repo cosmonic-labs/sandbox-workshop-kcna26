@@ -1,6 +1,6 @@
 //! SQLite's C code expects mmap, getpid, signals and process clocks. wasi-sdk
 //! ships emulations of them as separate libraries; link them for wasm only.
-//! The C compiler itself comes from CC_wasm32_wasip2 (set in the dev container).
+//! The C compiler itself comes from CC_wasm32_wasip2 (see make build-all).
 fn main() {
     println!("cargo:rerun-if-env-changed=WASI_SDK_PATH");
     if std::env::var("CARGO_CFG_TARGET_OS").as_deref() != Ok("wasi") {

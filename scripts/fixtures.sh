@@ -4,8 +4,7 @@
 #   .run/sqlite-data/main.db   the talks database, a copy of fixtures/talks.db
 #   .run/sqlite-data/rooms.db  a second database the sqlite tool may attach (fixtures/rooms.db)
 #   .run/private-data/payroll.db  a database on the host pod that no workload is
-#                              granted (fixtures/payroll.db), for step 4's ATTACH
-#   .run/repo                  the hostile git repository (fixtures/make-hostile-repo.sh)
+#                              granted (fixtures/payroll.db), for step 3's ATTACH
 #   .run/curl-data             an empty folder curl may write into with -o
 #
 # The databases are committed prebuilt (fixtures/*.db, built from the .sql
@@ -30,13 +29,4 @@ chmod 0777 "$RUN_DIR/curl-data"
 cp "$ROOT/fixtures/talks.db" "$RUN_DIR/sqlite-data/main.db"
 cp "$ROOT/fixtures/rooms.db" "$RUN_DIR/sqlite-data/rooms.db"
 cp "$ROOT/fixtures/payroll.db" "$RUN_DIR/private-data/payroll.db"
-
-# kind bind-mounts .run/repo itself, so a running cluster loses the mount if
-# the folder is deleted and made again. Build the repository next to it, then
-# replace only what is inside.
-bash "$ROOT/fixtures/make-hostile-repo.sh" "$RUN_DIR/repo.new" >/dev/null
-mkdir -p "$RUN_DIR/repo"
-find "$RUN_DIR/repo" -mindepth 1 -maxdepth 1 -exec rm -rf {} +
-cp -R "$RUN_DIR/repo.new/." "$RUN_DIR/repo/"
-rm -rf "$RUN_DIR/repo.new"
-echo "fixtures   databases and hostile repository in $RUN_DIR"
+echo "fixtures   databases in $RUN_DIR"

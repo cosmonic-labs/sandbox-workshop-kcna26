@@ -1,0 +1,53 @@
+# Step 1: run the agent with no tools.
+#
+# The agent harness (the component that runs the loop: ask the model, call a
+# tool, repeat) imports a model and three labelled tool slots: curl, sqlite
+# and gh. The host links each label to the workload component of the same
+# name, so every slot must be filled. Here every slot holds a placeholder
+# (not-installed, or gh-not-installed for gh), which answers that the tool
+# isn't installed. The model is the scripted one: it follows every
+# instruction it reads.
+#
+# Nothing in this workload has a grant: no allowedHosts, no volumes. Later
+# steps put real tools into the slots, each with its own grant: curl in step
+# 2, sqlite in step 3, gh in step 4.
+
+apiVersion: runtime.wasmcloud.dev/v1alpha1
+kind: WorkloadDeployment
+metadata:
+  name: toolbox-agent
+spec:
+  replicas: 1
+  # The way in: the Service named toolbox-agent, which the platform created
+  # with no selector (k8s/agent-service.yaml). The operator keeps it pointed
+  # at the host pods that run this workload.
+  kubernetes:
+    service:
+      name: toolbox-agent
+  template:
+    spec:
+      # The default host group; the toy sites have one of their own.
+      hostSelector:
+        hostgroup: default
+      hostInterfaces:
+        - namespace: wasi
+          package: http
+          interfaces: [handler]
+          config:
+            host: agent.localhost
+      components:
+        - name: agent
+          image: workshop-toolbox-registry:5000/workshop/agent:0.4.0
+        - name: model
+          image: workshop-toolbox-registry:5000/workshop/model-scripted:0.4.0
+        # Every tool slot holds the placeholder: it answers that the tool
+        # isn't installed, and it has no grants.
+        - name: curl
+          image: workshop-toolbox-registry:5000/workshop/not-installed:0.4.0
+        - name: sqlite
+          image: workshop-toolbox-registry:5000/workshop/not-installed:0.4.0
+        # The gh slot's placeholder is its own image: it also answers GitHub
+        # sign-in, which the harness imports, until step 4 declares the
+        # plugin that provides it.
+        - name: gh
+          image: workshop-toolbox-registry:5000/workshop/gh-not-installed:0.4.0

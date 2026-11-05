@@ -12,16 +12,19 @@
 //!   The tool's own command line, which it passes straight through:
 //!     curl <args>                    -> curl   {arguments: <args>}
 //!     sqlite <sql>  /  sql <sql>     -> sqlite {sql: <sql>}
-//!     git <args>                     -> git    {arguments: <args>}
-//!     kubectl <args>                 -> kubectl {arguments: <args>}
+//!     gh <args>                      -> gh     {arguments: <args>}
 //!     a line that starts with "."    -> sqlite {sql: <line>}   (a dot-command)
 //!
 //!   A plainer request, mapped to one of the tools:
 //!     fetch|get|summarize <url>      -> curl   {arguments: "-s <url>"}
 //!     save <url> to <file>           -> curl   {arguments: "-o <file> -s <url>"}
 //!     list the talks / what talks    -> sqlite {sql: "select ... from talks ..."}
-//!     show the log / recent commits  -> git    {arguments: "log --oneline -5"}
-//!     list the pods / what pods      -> kubectl {arguments: "get pods"}
+//!     triage the open PRs in <o/r>   -> gh     {arguments: "pr list -R <o/r> --limit 10"}
+//!
+//! One exception to reading everything: gh's results are real pull requests
+//! on GitHub, whose titles and descriptions say things like "get rid of" or
+//! "fetch the latest". The model reads them as data, not instructions, so a
+//! transcript doesn't depend on whatever was opened on GitHub today.
 //!
 //! It plans calls from the conversation in order and returns the first one it
 //! has not issued yet. When nothing is left it answers in text.
@@ -53,7 +56,10 @@ impl Guest for Scripted {
         // Tool errors are not read as instructions: an error that echoes a
         // command would otherwise be "obeyed" again.
         let readable = messages.iter().filter(|m| {
-            m.role == "user" || (m.role == "tool" && !m.content.starts_with("ERROR:"))
+            m.role == "user"
+                || (m.role == "tool"
+                    && !m.content.starts_with("ERROR:")
+                    && m.tool_name.as_deref() != Some("gh"))
         });
         for m in readable {
             for (name, args) in instructions(&strip_tags(&m.content)) {
@@ -83,16 +89,13 @@ fn instructions(text: &str) -> Vec<(String, Value)> {
     let mut out = Vec::new();
     for sentence in sentences(text) {
         let lower = sentence.to_lowercase();
-        // The tool's own command line, passed straight through. kubectl comes
-        // first: "kubectl get pods" also contains "get ".
-        if let Some(rest) = after(&sentence, "kubectl ") {
-            out.push(("kubectl".into(), json!({ "arguments": rest.trim() })));
+        // The tool's own command line, passed straight through.
+        if let Some(rest) = after_word(&sentence, "gh ") {
+            out.push(("gh".into(), json!({ "arguments": rest.trim() })));
         } else if let Some(rest) = after(&sentence, "curl ") {
             out.push(("curl".into(), json!({ "arguments": rest.trim() })));
         } else if let Some(rest) = after(&sentence, "sqlite ").or_else(|| after(&sentence, "sql ")) {
             out.push(("sqlite".into(), json!({ "sql": rest.trim() })));
-        } else if let Some(rest) = after(&sentence, "git ") {
-            out.push(("git".into(), json!({ "arguments": rest.trim() })));
         } else if sentence.trim_start().starts_with('.') {
             // A sqlite dot-command, such as .tables or .shell.
             out.push(("sqlite".into(), json!({ "sql": sentence.trim() })));
@@ -117,10 +120,15 @@ fn instructions(text: &str) -> Vec<(String, Value)> {
                 "sqlite".into(),
                 json!({ "sql": "select title, room from talks order by title limit 5" }),
             ));
-        } else if lower.contains("recent commit") || lower.contains("show the log") || lower.contains("git log") || lower.contains("latest commit") {
-            out.push(("git".into(), json!({ "arguments": "log --oneline -5" })));
-        } else if lower.contains("list the pods") || lower.contains("what pods") || lower.contains("which pods") {
-            out.push(("kubectl".into(), json!({ "arguments": "get pods" })));
+        } else if lower.contains("triage") || lower.contains("open prs") || lower.contains("open pull requests") {
+            // "triage the open PRs in wasmCloud/wasmCloud": the repository is
+            // the word with one slash in it, else gh's default.
+            let repo = sentence
+                .split_whitespace()
+                .map(trim_punct)
+                .find(|w| w.matches('/').count() == 1 && !w.contains(':'))
+                .unwrap_or("wasmCloud/wasmCloud");
+            out.push(("gh".into(), json!({ "arguments": format!("pr list -R {repo} --limit 10") })));
         }
     }
     out
@@ -140,7 +148,7 @@ fn answer(messages: &[Message], skipped: &[String]) -> String {
         .collect();
     let mut text = if results.is_empty() {
         "Hello! I am the workshop agent running a scripted model. Ask me to run curl, \
-         sqlite, git or kubectl, for example \"list the talks in sqlite\" or \
+         sqlite or gh, for example \"list the talks in sqlite\" or \
          \"curl -s http://api.workshop-sites.svc/data\"."
             .to_string()
     } else {
@@ -181,6 +189,20 @@ fn sentences(text: &str) -> Vec<String> {
         }
     }
     out
+}
+
+/// The text after `needle` (case-insensitive) where it starts a word: at the
+/// start of the sentence or after a space. "gh " is inside "through ".
+fn after_word<'a>(s: &'a str, needle: &str) -> Option<&'a str> {
+    let lower = s.to_lowercase();
+    let mut from = 0;
+    while let Some(i) = lower[from..].find(needle).map(|i| i + from) {
+        if i == 0 || lower.as_bytes()[i - 1] == b' ' {
+            return Some(&s[i + needle.len()..]);
+        }
+        from = i + 1;
+    }
+    None
 }
 
 /// The text after `needle` (case-insensitive), if present.
