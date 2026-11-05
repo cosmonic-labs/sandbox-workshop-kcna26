@@ -1062,6 +1062,7 @@ dependencies = [
  "http-body-util",
  "k8s-openapi",
  "kube",
+ "serde",
  "serde_json",
  "tokio",
  "tower",
