@@ -1,0 +1,178 @@
+  /* The guide's own rules. The palette above comes from the agent's chat page
+     (components/agent/src/transcript.html), copied in at build time. */
+  * { box-sizing: border-box; }
+  html { font-size: 18px; scroll-padding-top: 4.5rem; }
+  body {
+    margin: 0; min-height: 100vh; background: var(--bg); color: var(--ink);
+    font: 1rem/1.65 "Work Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  code, pre { font-family: "Roboto Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+  :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; border-radius: 0.2rem; }
+  main:focus { outline: none; }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .skip { position: absolute; left: 1rem; top: -3rem; z-index: 10; background: var(--surface); color: var(--strong);
+          padding: 0.4rem 0.8rem; border-radius: 0.4rem; border: 1px solid var(--line); }
+  .skip:focus { top: 0.6rem; }
+  a { color: var(--brand-ink); text-underline-offset: 0.15em; }
+  a:hover { text-decoration-thickness: 2px; }
+
+  /* Header: the wasmCloud mark, the guide, the event. */
+  .bar {
+    position: sticky; top: 0; z-index: 5; display: flex; align-items: center; justify-content: space-between;
+    gap: 1rem; padding: 0.65rem 1.25rem; border-bottom: 1px solid var(--rule); background: var(--bg);
+  }
+  .brand { display: flex; align-items: center; gap: 0.8rem; min-width: 0; text-decoration: none; }
+  .logo { height: 1.5rem; width: auto; display: block; flex: none; }
+  .logo .m { fill: #00bc8e; }
+  .logo .w { fill: var(--logo-word); }
+  .brand .rule { width: 1px; align-self: stretch; background: var(--line); }
+  .name {
+    font-family: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-weight: 700; font-size: 1.05rem; color: var(--strong); letter-spacing: -0.01em; white-space: nowrap;
+  }
+  .event {
+    font-size: 0.65rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; line-height: 1;
+    color: var(--pill-ink); background: var(--pill-bg); border: 1px solid var(--pill-line);
+    border-radius: 999px; padding: 0.35rem 0.75rem; white-space: nowrap;
+  }
+  .kicker {
+    font-size: 0.68rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--label);
+  }
+
+  .layout {
+    display: grid; grid-template-columns: 14.5rem minmax(0, 1fr); gap: 3rem;
+    max-width: 74rem; margin: 0 auto; padding: 0 1.25rem;
+  }
+  main { min-width: 0; max-width: 46rem; padding: 2rem 0 4rem; }
+
+  /* The step list at the side; the current page is marked. */
+  .side { position: sticky; top: 3.4rem; align-self: start; padding: 2rem 0 1rem; max-height: calc(100vh - 3.4rem); overflow-y: auto; }
+  .toc ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.15rem; position: relative; }
+  .toc ol a {
+    display: flex; align-items: center; gap: 0.7rem; padding: 0.45rem 0.6rem; border-radius: 0.55rem;
+    color: var(--ink); text-decoration: none; font-size: 0.88rem; line-height: 1.3;
+  }
+  .toc ol a:hover { background: var(--hover); }
+  .toc .num {
+    flex: none; width: 1.7rem; height: 1.7rem; border-radius: 999px; display: grid; place-items: center;
+    font-size: 0.78rem; font-weight: 700; border: 1.5px solid var(--line); color: var(--muted); background: var(--bg);
+  }
+  .toc a[aria-current="page"] { background: var(--sunken); color: var(--strong); font-weight: 600; }
+  .toc a[aria-current="page"] .num { background: var(--brand); border-color: var(--brand); color: var(--on-brand); }
+  .toc .also { list-style: none; margin: 1.2rem 0 0; padding: 1rem 0 0 0.6rem; border-top: 1px solid var(--rule); display: grid; gap: 0.4rem; font-size: 0.8rem; }
+  .toc .also a { color: var(--muted); }
+  .toc .also a:hover { color: var(--brand-ink); }
+  .toc .also a[aria-current="page"] { background: none; color: var(--strong); }
+
+  /* The README itself. */
+  .doc { overflow-wrap: break-word; }
+  .doc h1, .doc h2, .doc h3 {
+    font-family: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    color: var(--strong); letter-spacing: -0.015em; line-height: 1.25;
+  }
+  .doc h1 { font-size: 2rem; margin: 0 0 0.6rem; }
+  .doc h1 + h2 { border: 0; padding: 0; margin-top: 0; font-size: 1.15rem; font-weight: 500; color: var(--mint-ink); }
+  .doc h2 { font-size: 1.4rem; margin: 2.6rem 0 0.8rem; padding-top: 1.4rem; border-top: 1px solid var(--rule); }
+  .doc h3 { font-size: 1.1rem; margin: 1.8rem 0 0.5rem; }
+  .doc p, .doc ul, .doc ol { margin: 0 0 1rem; }
+  .doc ul, .doc ol { padding-left: 1.4rem; }
+  .doc li { margin: 0.3rem 0; }
+  .doc li > p { margin: 0 0 0.4rem; }
+  .doc strong { color: var(--strong); }
+  .doc :not(pre) > code, .doc a > code {
+    font-size: 0.86em; background: var(--sunken); color: var(--strong); padding: 0.08em 0.3em;
+    border-radius: 0.3rem; border: 1px solid var(--line-soft); overflow-wrap: anywhere;
+  }
+  /* A short name in code (a folder, a flag) stays on one line. */
+  .doc code.nw { white-space: nowrap; overflow-wrap: normal; }
+  .doc a > code { color: var(--brand-ink); }
+  .doc blockquote { margin: 0 0 1rem; padding: 0.2rem 1rem; border-left: 4px solid var(--brand); color: var(--muted); }
+
+  /* Tables scroll sideways on a phone instead of squeezing. */
+  .table { overflow-x: auto; margin: 0 0 1.2rem; border: 1px solid var(--line); border-radius: 0.6rem; }
+  .table table { border-collapse: collapse; width: 100%; font-size: 0.86rem; line-height: 1.5; }
+  .table th, .table td { text-align: left; vertical-align: top; padding: 0.55rem 0.75rem; border-bottom: 1px solid var(--line-soft); }
+  .table th { background: var(--sunken); color: var(--strong); font-weight: 700; white-space: nowrap; }
+  .table tr:last-child td { border-bottom: 0; }
+
+  /* Code: a label, a Copy button, and the text exactly as it is copied. */
+  .code { margin: 0 0 1.2rem; border: 1px solid var(--line); border-radius: 0.65rem; background: var(--sunken); overflow: hidden; }
+  .code-bar {
+    display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+    padding: 0.3rem 0.4rem 0.3rem 0.85rem; border-bottom: 1px solid var(--line-soft); background: var(--surface);
+  }
+  .code-label { font-size: 0.66rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--label); }
+  .copy {
+    font: inherit; font-size: 0.75rem; font-weight: 600; padding: 0.2rem 0.7rem; border-radius: 0.4rem; cursor: pointer;
+    border: 1px solid var(--line); background: var(--surface); color: var(--ink); min-width: 4.6rem;
+  }
+  .copy:hover { background: var(--hover); }
+  .copy.done { background: var(--pill-bg); border-color: var(--pill-line); color: var(--pill-ink); }
+  .code pre { margin: 0; padding: 0.75rem 0.95rem; overflow-x: auto; font-size: 0.8rem; line-height: 1.6; color: var(--strong); }
+  /* Output lines wrap: they are read, not pasted. Commands and diagrams don't. */
+  .code.out pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+  .code pre a { color: inherit; text-decoration: underline dotted var(--brand-ink); text-underline-offset: 0.2em; }
+  .code pre a:hover { color: var(--brand-ink); text-decoration-style: solid; }
+
+  /* "(allowed)" and "(refused: ...)" in step 4. */
+  .badge {
+    display: inline-block; font-size: 0.66rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+    line-height: 1; padding: 0.3rem 0.55rem; border-radius: 999px; vertical-align: 0.12em; border: 1px solid;
+  }
+  .badge.allowed { color: var(--pill-ink); background: var(--pill-bg); border-color: var(--pill-line); }
+  .badge.refused { color: var(--danger); background: var(--danger-bg); border-color: var(--danger); }
+
+  /* The home page's step list. */
+  .steps { margin: 1.6rem 0 0.4rem; }
+  .steps ol { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem; }
+  .steps li { margin: 0; }
+  .steps a {
+    height: 100%; display: flex; gap: 0.8rem; padding: 0.9rem 1rem; border: 1px solid var(--line); border-radius: 0.75rem;
+    background: var(--surface); color: var(--ink); text-decoration: none; box-shadow: var(--shadow);
+  }
+  .steps a:hover { border-color: var(--brand); }
+  .steps .num {
+    flex: none; width: 2rem; height: 2rem; border-radius: 999px; display: grid; place-items: center;
+    background: var(--brand); color: var(--on-brand); font-weight: 800; font-size: 0.95rem;
+  }
+  .steps .body { display: grid; align-content: start; gap: 0.25rem; min-width: 0; }
+  .steps .t { font-weight: 700; color: var(--strong); line-height: 1.3; }
+  .steps .s { font-size: 0.8rem; line-height: 1.5; color: var(--muted); }
+  .steps .self {
+    margin: 0.9rem 0 0; padding: 0.6rem 0.9rem; font-size: 0.8rem; color: var(--mint-ink);
+    border: 1px dashed var(--pill-line); border-radius: 0.6rem;
+  }
+
+  /* Previous and next. */
+  .pager { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-top: 3rem; padding-top: 1.5rem; border-top: 1px solid var(--rule); }
+  .pager a {
+    display: grid; gap: 0.2rem; padding: 0.8rem 1rem; border: 1px solid var(--line); border-radius: 0.7rem;
+    text-decoration: none; color: var(--strong); font-weight: 600; line-height: 1.35;
+  }
+  .pager a:hover { border-color: var(--brand); background: var(--hover); }
+  .pager .next { grid-column: 2; text-align: right; }
+
+  /* A phone or a narrow window: the step list becomes a row along the top. */
+  @media (max-width: 860px) {
+    html { font-size: 17px; scroll-padding-top: 7.5rem; }
+    .layout { display: block; padding: 0; }
+    .side {
+      position: sticky; top: 3.1rem; z-index: 4; max-height: none; overflow: visible; padding: 0;
+      background: var(--bg); border-bottom: 1px solid var(--rule);
+    }
+    .toc ol { display: flex; gap: 0.3rem; overflow-x: auto; padding: 0.5rem 1rem; scrollbar-width: none; }
+    .toc ol::-webkit-scrollbar { display: none; }
+    .toc ol li { flex: none; }
+    .toc ol a { padding: 0.3rem 0.65rem 0.3rem 0.35rem; border: 1px solid var(--line); border-radius: 999px; font-size: 0.8rem; white-space: nowrap; }
+    .toc ol a:not([aria-current]) .lbl { max-width: 9rem; overflow: hidden; text-overflow: ellipsis; }
+    .toc .num { width: 1.45rem; height: 1.45rem; font-size: 0.72rem; }
+    .toc .also { display: none; }
+    main { padding: 1.4rem 1rem 3rem; max-width: none; }
+    .steps ol { grid-template-columns: 1fr; }
+    .doc h1 { font-size: 1.6rem; }
+  }
+  @media (max-width: 520px) {
+    .event { display: none; }
+    .pager { grid-template-columns: 1fr; }
+    .pager .next { grid-column: 1; }
+  }

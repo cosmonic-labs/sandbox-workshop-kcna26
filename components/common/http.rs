@@ -25,6 +25,12 @@ pub fn html_response(status: u16, page: &str) -> Result<Response, ErrorCode> {
     typed_response(status, "text/html; charset=utf-8", true, page.to_string())
 }
 
+/// A stylesheet, for the guide's pages.
+#[allow(dead_code)]
+pub fn css_response(css: &str) -> Result<Response, ErrorCode> {
+    typed_response(200, "text/css; charset=utf-8", false, css.to_string())
+}
+
 /// A response with a JSON body.
 #[allow(dead_code)]
 pub fn json_response(status: u16, json: String) -> Result<Response, ErrorCode> {

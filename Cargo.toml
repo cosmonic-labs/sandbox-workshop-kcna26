@@ -3,6 +3,7 @@ resolver = "2"
 members = [
   "components/agent",
   "components/github-api",
+  "components/guide",
   "components/model-scripted",
   "components/not-installed",
   "components/gh-not-installed",
