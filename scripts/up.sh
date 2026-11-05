@@ -77,7 +77,7 @@ fi
 # with nothing to pull from.
 if ! docker ps --format '{{.Names}}' | grep -qx "$REGISTRY_CONTAINER"; then
   docker rm -f "$REGISTRY_CONTAINER" >/dev/null 2>&1 || true
-  docker run -d --restart unless-stopped --name "$REGISTRY_CONTAINER" -p "127.0.0.1:$KIND_REGISTRY_PORT:5000" registry:2 >/dev/null
+  docker run -d --restart unless-stopped --name "$REGISTRY_CONTAINER" -p "127.0.0.1:$KIND_REGISTRY_PORT:5000" "$REGISTRY_IMAGE" >/dev/null
   sleep 1
 fi
 docker network connect kind "$REGISTRY_CONTAINER" 2>/dev/null || true
@@ -100,9 +100,13 @@ K -n workshop-sites rollout status deploy/hostgroup-fixtures --timeout 5m >/dev/
 
 # The ingress image, and the busybox image of step 6's demo hello
 # Deployment, are loaded into the node so nothing pulls at the workshop.
-for img in docker.io/library/nginx:1.27.5-alpine busybox:1.36; do
-  docker image inspect "$img" >/dev/null 2>&1 || docker pull -q "$img" >/dev/null
-  kind load docker-image "$img" --name "$CLUSTER" >/dev/null 2>&1 || true
+# Each is pulled by its pinned digest (scripts/env.sh), which Docker checks,
+# then tagged with the name the manifests use and loaded into the node.
+for ref in $NODE_IMAGES; do
+  name="${ref%@*}"
+  docker image inspect "$ref" >/dev/null 2>&1 || docker pull -q "$ref" >/dev/null
+  docker tag "$ref" "$name"
+  kind load docker-image "$name" --name "$CLUSTER" >/dev/null
 done
 K apply -f "$ROOT/k8s/agent-service.yaml" >/dev/null
 K apply -f "$ROOT/k8s/ingress.yaml" >/dev/null

@@ -91,7 +91,9 @@ spec:
       automountServiceAccountToken: false
       containers:
         - name: hello
-          image: busybox:1.36
+          # scripts/up.sh loads this tag into the node from a pull by digest
+          # (NODE_IMAGES in scripts/env.sh), so IfNotPresent never pulls it.
+          image: docker.io/library/busybox:1.36
           imagePullPolicy: IfNotPresent
           command: ["sh", "-c", "echo hello from $(hostname); sleep 100000"]
 ---

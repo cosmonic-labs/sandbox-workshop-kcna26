@@ -53,6 +53,8 @@ spec:
       automountServiceAccountToken: false
       containers:
         - name: nginx
+          # scripts/up.sh loads this tag into the node from a pull by digest
+          # (NODE_IMAGES in scripts/env.sh), so IfNotPresent never pulls it.
           image: docker.io/library/nginx:1.27.5-alpine
           imagePullPolicy: IfNotPresent
           ports:

@@ -104,10 +104,16 @@ runtime:
       # by any workload on this host group that declares the plugin. It
       # forwards any method and path, may reach only the API server, and RBAC
       # on agent-reader decides the rest.
+      #
+      # Pinned by digest: the host refuses a plugin whose image digest differs.
+      # scripts/push.sh gives each prebuilt .wasm a reproducible image digest
+      # and prints it; after rebuilding artifacts/kube_api.wasm, copy the new
+      # digest here.
       plugins:
         - id: kube-api
           image: workshop-toolbox-registry:5000/workshop/kube-api:0.4.0
-          pullPolicy: always
+          digest: sha256:d09ee3932ad01a175bb3fe83bea969d2898b6abcad7ace1ad93272eb32f0d990
+          pullPolicy: ifNotPresent
           allowedHosts:
             - kubernetes.default.svc
           secretFrom:

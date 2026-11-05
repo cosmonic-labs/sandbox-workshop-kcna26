@@ -146,6 +146,8 @@ curl -s -H 'Host: agent.localhost' \
   -d 'kubectl get secrets'
 ```
 
+Abbreviated, the tool's line of the reply:
+
 ```
 [tool kubectl] ok: NAME STATUS db-password
 ```

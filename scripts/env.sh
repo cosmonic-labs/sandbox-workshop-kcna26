@@ -17,4 +17,10 @@ export DATA_NATS_URL="nats://127.0.0.1:14322"
 export HOST_HTTP="${HOST_HTTP:-127.0.0.1:18180}"   # agent and sites ingress
 export HOST_PROBE="${HOST_PROBE:-127.0.0.1:18181}"
 export TAG="${TAG:-0.4.0}"
+# Container images, pinned by digest (the multi-platform index digest).
+export REGISTRY_IMAGE="docker.io/library/registry:2@sha256:a3d8aaa63ed8681a604f1dea0aa03f100d5895b6a58ace528858a7b332415373"
+# up.sh pulls these by digest, tags them, and loads them into the kind node,
+# so the node never pulls them by tag (k8s/ingress.yaml, k8s/kube.yaml).
+export NODE_IMAGES="docker.io/library/nginx:1.27.5-alpine@sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10
+docker.io/library/busybox:1.36@sha256:73aaf090f3d85aa34ee199857f03fa3a95c8ede2ffd4cc2cdb5b94e566b11662"
 mkdir -p "$RUN_DIR"

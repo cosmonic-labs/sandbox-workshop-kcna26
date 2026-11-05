@@ -23,7 +23,7 @@ spec:
     spec:
       containers:
         - name: nats
-          image: docker.io/nats:2.12.8-alpine
+          image: docker.io/nats:2.12.8-alpine@sha256:6b2156f7491cdeddfa8b7ca15cd6fd59b9cabadec5019e933c65c01cf82b1c5f
           args: ["-js", "-sd", "/data"]
           ports:
             - { containerPort: 4222, name: client }
