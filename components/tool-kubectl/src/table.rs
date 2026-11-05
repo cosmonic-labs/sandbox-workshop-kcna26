@@ -18,7 +18,7 @@ pub fn now() -> i64 {
 
 /// `2026-11-05T01:40:18Z` (with or without fractional seconds) as Unix
 /// seconds. Kubernetes always writes UTC.
-fn parse_time(s: &str) -> Option<i64> {
+pub fn parse_time(s: &str) -> Option<i64> {
     let n = |r: std::ops::Range<usize>| s.get(r)?.parse::<i64>().ok();
     let (y, m, d) = (n(0..4)?, n(5..7)?, n(8..10)?);
     let (hh, mm, ss) = (n(11..13)?, n(14..16)?, n(17..19)?);

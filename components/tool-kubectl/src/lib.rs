@@ -12,16 +12,18 @@
 //! calls that networking code, and the component imports no sockets.
 //!
 //! The command line follows Go kubectl: the same flags in all their forms, the
-//! same table columns, `-o json|yaml|name|wide`, `get --raw`, `delete --raw`,
-//! `auth can-i` and the same error lines. The plugin always asks the API
-//! server for JSON, so the server's own table format isn't available: the
-//! tables are printed here, column for column as kubectl prints them.
+//! same table columns, `-o json|yaml|name|wide`, `describe` with kubectl's
+//! describers, `get --raw`, `delete --raw`, `auth can-i` and the same error
+//! lines. The plugin always asks the API server for JSON, so the server's own
+//! table format isn't available: the tables and descriptions are printed
+//! here, as kubectl prints them.
 
 mod bindings {
     #![allow(unsafe_code)]
     wit_bindgen::generate!({ path: "../../wit", world: "workshop:toolbox/kubectl-tool", generate_all });
 }
 
+mod describe;
 mod table;
 mod yaml;
 
@@ -104,6 +106,7 @@ const FLAGS: &[(&str, Option<char>, bool)] = &[
     ("previous", Some('p'), false),
     ("timestamps", None, false),
     ("follow", Some('f'), false),
+    ("show-events", None, false),
 ];
 
 /// Which flags each command accepts, besides `--namespace`, which all do. A
@@ -112,6 +115,7 @@ fn accepts(verb: &str, flag: &str) -> bool {
     let list: &[&str] = match verb {
         "get" => &["all-namespaces", "output", "selector", "raw", "watch"],
         "logs" => &["container", "tail", "since", "previous", "timestamps", "follow"],
+        "describe" => &["all-namespaces", "selector", "show-events"],
         "auth" => &["all-namespaces"],
         "delete" => &["raw"],
         _ => &[],
@@ -222,18 +226,13 @@ async fn run(line: &str) -> Result<String, Error> {
     let cmd = cmd.map_err(|e| usage(&verb, e))?;
     if verb.is_empty() {
         return Err(Error::InvalidArgument(
-            "usage: kubectl get|logs|auth can-i|version|api-versions [args] [-n ns | -A]".into(),
+            "usage: kubectl get|describe|logs|auth can-i|version|api-versions [args] [-n ns | -A]".into(),
         ));
     }
     if UNSUPPORTED.contains(&verb.as_str()) {
         return Err(Error::AccessDenied(format!(
             "\"{verb}\" is not available: this kubectl sends plain API requests through the kube-api capability, which has no streaming, upgrade or local credential"
         )));
-    }
-    if verb == "describe" {
-        return Err(Error::AccessDenied(
-            "\"describe\" is not implemented in this kubectl tool; \"get <type> <name> -o yaml\" prints the whole object".into(),
-        ));
     }
     if MUTATING.contains(&verb.as_str()) && !(verb == "delete" && cmd.flag("raw").is_some()) {
         return Err(Error::AccessDenied(format!(
@@ -268,6 +267,7 @@ async fn run(line: &str) -> Result<String, Error> {
     let client = Client::new(tower::service_fn(via_capability), ns.clone());
     let result = match verb.as_str() {
         "get" => get(&client, &cmd, args, &ns).await,
+        "describe" => describe_cmd(&client, &cmd, args, &ns).await,
         "logs" => logs(&client, &cmd, args, &ns).await,
         "auth" => auth(&client, &cmd, args, &ns).await,
         "version" => version(&client).await,
@@ -516,6 +516,203 @@ pub fn str_at<'a>(v: &'a Value, ptr: &str) -> &'a str {
 }
 
 // ---------------------------------------------------------------------------
+// describe
+// ---------------------------------------------------------------------------
+
+/// `describe TYPE [NAME_PREFIX]`, `describe TYPE NAME...` or `describe
+/// TYPE/NAME...`, in kubectl's order: fetch the objects (a name that isn't
+/// found, given as `TYPE NAME`, is tried as a prefix of every name), then
+/// describe each, with the requests its describer makes. Events are shown
+/// for a single object and left out for several, unless --show-events says
+/// otherwise; a refused events list prints as `Events: <none>`, and a
+/// refused replica set or endpoint slice list leaves that line out, as
+/// kubectl does.
+async fn describe_cmd(client: &Client, cmd: &Cmd, args: &[String], ns: &str) -> Out {
+    let Some(first) = args.first() else {
+        return Err(invalid(
+            "error: You must specify the type of resource to describe. Use \"kubectl api-resources\" for a complete list of supported resources.",
+        ));
+    };
+    let all = cmd.on("all-namespaces");
+    let mut wanted: Vec<(Kind, Vec<String>)> = Vec::new();
+    if first.contains('/') {
+        for a in args {
+            let Some((t, name)) = a.split_once('/') else {
+                return Err(invalid("error: there is no need to specify a resource type as a separate argument when passing arguments in resource/name form"));
+            };
+            let k = kind(t).ok_or_else(|| unknown_type(t))?;
+            match wanted.iter_mut().find(|(w, _)| w.ar.plural == k.ar.plural) {
+                Some((_, names)) => names.push(name.into()),
+                None => wanted.push((k, vec![name.into()])),
+            }
+        }
+    } else {
+        for t in first.split(',') {
+            wanted.push((kind(t).ok_or_else(|| unknown_type(t))?, args[1..].to_vec()));
+        }
+    }
+    let named = wanted.iter().any(|(_, names)| !names.is_empty());
+    if named && all {
+        return Err(invalid("error: a resource cannot be retrieved by name across all namespaces"));
+    }
+    if named && cmd.flag("selector").is_some() {
+        return Err(invalid("error: name cannot be provided when a selector is specified"));
+    }
+    let mut lp = ListParams::default();
+    if let Some(sel) = cmd.flag("selector") {
+        lp = lp.labels(sel);
+    }
+
+    // Fetch every object, carrying on past errors as kubectl does.
+    let mut infos: Vec<(&Kind, Value)> = Vec::new();
+    let mut errors: Vec<Fail> = Vec::new();
+    for (k, names) in &wanted {
+        if names.is_empty() {
+            let scope = (k.namespaced && !all).then_some(ns);
+            let req = Request::new(DynamicObject::url_path(&k.ar, scope));
+            match fetch(client, req.list(&lp)).await {
+                Ok(list) => infos.extend(list["items"].as_array().into_iter().flatten().map(|o| (k, o.clone()))),
+                Err(e) => errors.push(e),
+            }
+        } else {
+            for name in names {
+                let req = Request::new(DynamicObject::url_path(&k.ar, k.namespaced.then_some(ns)));
+                match fetch(client, req.get(name, &GetParams::default())).await {
+                    Ok(o) => infos.push((k, o)),
+                    Err(e) => errors.push(e),
+                }
+            }
+        }
+    }
+    let explicit = cmd.flag("show-events").map(|v| v != "false");
+    let show = explicit.unwrap_or(errors.is_empty() && infos.len() <= 1);
+
+    // `describe TYPE NAME` with no such NAME: describe every object of TYPE
+    // whose name starts with it, or fail with the original error.
+    let not_found = |e: &Fail| matches!(e, Fail::Kube(kube::Error::Api(s)) if s.code == 404);
+    if args.len() == 2 && !first.contains('/') && wanted.len() == 1 && errors.first().is_some_and(not_found) {
+        let k = &wanted[0].0;
+        let req = Request::new(DynamicObject::url_path(&k.ar, k.namespaced.then_some(ns)));
+        let list = fetch(client, req.list(&ListParams::default())).await?;
+        let mut out = String::new();
+        for o in list["items"].as_array().into_iter().flatten() {
+            if str_at(o, "/metadata/name").starts_with(args[1].as_str()) {
+                out.push_str(&describe_one(client, k, o, show).await?);
+                out.push('\n');
+            }
+        }
+        return if out.is_empty() { Err(errors.remove(0)) } else { Ok(out) };
+    }
+
+    let mut out = String::new();
+    for (k, o) in &infos {
+        match describe_one(client, k, o, show).await {
+            Ok(s) if out.is_empty() => out.push_str(&s),
+            Ok(s) => out.push_str(&format!("\n\n{s}")),
+            Err(e) => errors.push(e),
+        }
+    }
+    if errors.is_empty() {
+        if infos.is_empty() {
+            return Ok(if all { "No resources found\n".into() } else { format!("No resources found in {ns} namespace.\n") });
+        }
+        return Ok(out);
+    }
+    // kubectl prints what it could describe, then each distinct error.
+    let mut errors: Vec<Error> = errors
+        .into_iter()
+        .map(|e| match e {
+            Fail::Kube(e) => kube_error(e),
+            Fail::Tool(e) => e,
+        })
+        .collect();
+    let mut lines: Vec<String> = Vec::new();
+    for e in &errors {
+        let line = error_text(e);
+        if !lines.contains(&line) {
+            lines.push(line);
+        }
+    }
+    let text = format!("{out}{}", lines.join("\n"));
+    Err(Fail::Tool(match errors.remove(0) {
+        Error::AccessDenied(_) => Error::AccessDenied(text),
+        Error::InvalidArgument(_) => Error::InvalidArgument(text),
+        Error::Network(_) => Error::Network(text),
+        _ => Error::Other(Some(text)),
+    }))
+}
+
+fn error_text(e: &Error) -> String {
+    match e {
+        Error::AccessDenied(s) | Error::InvalidArgument(s) | Error::Network(s) | Error::Other(Some(s)) => s.clone(),
+        _ => String::new(),
+    }
+}
+
+/// One object through its describer, with the extra requests that describer
+/// makes. Like kubectl's, a failed extra request mostly leaves its section
+/// out; a ConfigMap's refused events, and a Namespace's refused quotas or
+/// limit ranges, fail the describe.
+async fn describe_one(client: &Client, k: &Kind, o: &Value, show_events: bool) -> Out {
+    let ns = str_at(o, "/metadata/namespace");
+    let name = str_at(o, "/metadata/name");
+    let list = |path: String, lp: ListParams| async move {
+        let items = fetch(client, Request::new(path).list(&lp)).await?;
+        Ok::<Vec<Value>, Fail>(items["items"].as_array().cloned().unwrap_or_default())
+    };
+    let mut x = describe::Extra::default();
+    if show_events && k.ar.kind != "Namespace" && k.ar.kind != "Secret" {
+        // The pod describer leaves the kind out of its selector.
+        let mut fields = format!("involvedObject.name={name},involvedObject.namespace={ns},involvedObject.uid={}", str_at(o, "/metadata/uid"));
+        if k.ar.kind != "Pod" {
+            fields.push_str(&format!(",involvedObject.kind={}", k.ar.kind));
+        }
+        let path = format!("/api/v1/namespaces/{ns}/events");
+        x.events = Some(match list(path, ListParams::default().fields(&fields).limit(500)).await {
+            Ok(items) => items,
+            Err(e) if k.ar.kind == "ConfigMap" => return Err(e),
+            Err(_) => Vec::new(),
+        });
+    }
+    match k.ar.kind.as_str() {
+        "Deployment" => {
+            let selector = describe::selector(o.pointer("/spec/selector").unwrap_or(&Value::Null));
+            let path = format!("/apis/apps/v1/namespaces/{ns}/replicasets");
+            if let Ok(items) = list(path, ListParams::default().labels(&selector).limit(500)).await {
+                let uid = str_at(o, "/metadata/uid");
+                let rev = str_at(o, "/metadata/annotations/deployment.kubernetes.io~1revision");
+                let (new, old): (Vec<Value>, Vec<Value>) = items
+                    .into_iter()
+                    .filter(|rs| {
+                        rs.pointer("/metadata/ownerReferences")
+                            .and_then(Value::as_array)
+                            .is_some_and(|refs| refs.iter().any(|r| r["controller"] == json!(true) && str_at(r, "/uid") == uid))
+                    })
+                    .partition(|rs| str_at(rs, "/metadata/annotations/deployment.kubernetes.io~1revision") == rev);
+                x.replica_sets = Some((old, new));
+            }
+        }
+        "Service" => {
+            let path = format!("/apis/discovery.k8s.io/v1/namespaces/{ns}/endpointslices");
+            let lp = ListParams::default().labels(&format!("kubernetes.io/service-name={name}"));
+            x.endpoint_slices = list(path, lp).await.unwrap_or_default();
+        }
+        "Namespace" => {
+            let quiet_404 = |r: Result<Vec<Value>, Fail>| match r {
+                Ok(items) => Ok(Some(items)),
+                Err(Fail::Kube(kube::Error::Api(s))) if s.code == 404 => Ok(None),
+                Err(e) => Err(e),
+            };
+            let lp = || ListParams::default().limit(500);
+            x.quotas = quiet_404(list(format!("/api/v1/namespaces/{name}/resourcequotas"), lp()).await)?;
+            x.limit_ranges = quiet_404(list(format!("/api/v1/namespaces/{name}/limitranges"), lp()).await)?;
+        }
+        _ => {}
+    }
+    Ok(describe::describe(&k.ar.kind, o, &x, table::now()))
+}
+
+// ---------------------------------------------------------------------------
 // logs
 // ---------------------------------------------------------------------------
 
@@ -735,6 +932,78 @@ mod tests {
         assert_eq!(duration_secs("1h30m"), Some(5400));
         assert_eq!(duration_secs("5"), None);
         assert_eq!(duration_secs("x"), None);
+    }
+}
+
+/// describe's request flow against canned API answers: the objects from a
+/// kind cluster, with events and replica sets refused as RBAC refuses them
+/// for agent-reader, against `kubectl --as=...:agent-reader describe`
+/// (v1.37.1, TZ=UTC).
+#[cfg(test)]
+mod describe_flow {
+    use super::*;
+
+    fn pods() -> Vec<Value> {
+        serde_json::from_str(include_str!("testdata/pods.json")).unwrap()
+    }
+
+    fn status(code: u16, reason: &str, message: String) -> (u16, String) {
+        let s = json!({ "kind": "Status", "apiVersion": "v1", "metadata": {}, "status": "Failure",
+            "message": message, "reason": reason, "code": code });
+        (code, s.to_string())
+    }
+
+    async fn api(req: http::Request<kube::client::Body>) -> Result<http::Response<Full<Bytes>>, Infallible> {
+        let path = req.uri().path().to_string();
+        let forbidden = |what: &str, group: &str| {
+            let m = format!(
+                "{what} is forbidden: User \"system:serviceaccount:wasmcloud:agent-reader\" cannot list resource \"{what}\" in API group \"{group}\" in the namespace \"demo\""
+            );
+            status(403, "Forbidden", m)
+        };
+        let (code, body) = match path.as_str() {
+            "/api/v1/namespaces/demo/pods" => (200, json!({ "kind": "PodList", "apiVersion": "v1", "metadata": {}, "items": pods() }).to_string()),
+            "/apis/apps/v1/namespaces/demo/deployments/hello" => (200, include_str!("testdata/deployment.json").to_string()),
+            "/api/v1/namespaces/demo/events" => forbidden("events", ""),
+            "/apis/apps/v1/namespaces/demo/replicasets" => forbidden("replicasets", "apps"),
+            p => match p.strip_prefix("/api/v1/namespaces/demo/pods/") {
+                Some(name) => match pods().into_iter().find(|o| str_at(o, "/metadata/name") == name) {
+                    Some(o) => (200, o.to_string()),
+                    None => status(404, "NotFound", format!("pods \"{name}\" not found")),
+                },
+                None => status(404, "NotFound", "the server could not find the requested resource".into()),
+            },
+        };
+        Ok(http::Response::builder().status(code).body(Full::new(Bytes::from(body))).unwrap())
+    }
+
+    fn describe(line: &str) -> String {
+        let rt = tokio::runtime::Builder::new_current_thread().build().unwrap();
+        let cmd = parse(line).unwrap();
+        let run = async {
+            // kube's client spawns its request buffer, so it needs the runtime.
+            let client = Client::new(tower::service_fn(api), "demo");
+            describe_cmd(&client, &cmd, &cmd.words[1..], "demo").await
+        };
+        match rt.block_on(run) {
+            Ok(s) => s,
+            Err(Fail::Kube(e)) => format!("{:?}", kube_error(e)),
+            Err(Fail::Tool(e)) => format!("{e:?}"),
+        }
+    }
+
+    #[test]
+    fn like_kubectl() {
+        let pod = str_at(&pods()[0], "/metadata/name").to_string();
+        // One object: events are asked for, refused, and print as <none>.
+        assert_eq!(describe(&format!("describe pod {pod}")), include_str!("testdata/describe-pod.txt"));
+        assert_eq!(describe("describe deployment hello"), include_str!("testdata/describe-deployment.txt"));
+        // Several: no events; a list joins them with a blank line, a prefix
+        // match ends each with one.
+        assert_eq!(describe("describe pods"), include_str!("testdata/describe-pods.txt"));
+        assert_eq!(describe("describe pods hello"), include_str!("testdata/describe-pods-prefix.txt"));
+        let missing = describe("describe pods nothere");
+        assert!(missing.contains("Error from server (NotFound): pods \\\"nothere\\\" not found"), "{missing}");
     }
 }
 

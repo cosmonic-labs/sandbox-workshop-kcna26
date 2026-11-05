@@ -1,0 +1,144 @@
+Name:             hostgroup-default-65794d8ff4-vjkpc
+Namespace:        wasmcloud
+Priority:         0
+Service Account:  wasmcloud-runtime-operator-runtime
+Node:             workshop-toolbox-control-plane/192.168.97.4
+Start Time:       Thu, 05 Nov 2026 01:40:29 +0000
+Labels:           app.kubernetes.io/instance=wasmcloud
+                  app.kubernetes.io/managed-by=Helm
+                  app.kubernetes.io/name=runtime-operator
+                  app.kubernetes.io/version=2.12.0
+                  helm.sh/chart=runtime-operator-2.12.0
+                  pod-template-hash=65794d8ff4
+                  wasmcloud.com/hostgroup=default
+                  wasmcloud.com/name=hostgroup
+Annotations:      checksum/host-plugin-config: 153747272b162393e3c5f92309947d43bdf4625b04e63db6224f2cd0167daa9a
+                  secret.reloader.stakater.com/reload: kube-api-token
+Status:           Running
+SeccompProfile:   RuntimeDefault
+IP:               10.244.0.12
+IPs:
+  IP:           10.244.0.12
+Controlled By:  ReplicaSet/hostgroup-default-65794d8ff4
+Containers:
+  host:
+    Container ID:  containerd://ba2b3008ecfbc97a0a8429ac2fb91e117b45c1ea6c7416765b39c73e5c850ca7
+    Image:         ghcr.io/wasmcloud/wash:2.12.0-all-features
+    Image ID:      ghcr.io/wasmcloud/wash@sha256:b899dfa82e191ac31521d1985e6af25f200932025ab2760c9910a39c70dfdd4a
+    Ports:         80/TCP (http), 8081/TCP (probes)
+    Host Ports:    0/TCP (http), 0/TCP (probes)
+    Args:
+      host
+      --host-name=$(WASMCLOUD_HOST_IP)
+      --host-group=default
+      --environment=$(WASMCLOUD_HOST_ENVIRONMENT)
+      --scheduler-nats-url=nats://nats.wasmcloud.svc.cluster.local:4222
+      --scheduler-nats-tls-ca=/runtime-cert/ca.crt
+      --scheduler-nats-tls-cert=/runtime-cert/tls.crt
+      --scheduler-nats-tls-key=/runtime-cert/tls.key
+      --data-nats-url=nats://nats.wasmcloud.svc.cluster.local:4222
+      --data-nats-tls-ca=/data-cert/ca.crt
+      --data-nats-tls-cert=/data-cert/tls.crt
+      --data-nats-tls-key=/data-cert/tls.key
+      --oci-cache-dir=/oci-cache
+      --drain-delay=5s
+      --nats-connect-timeout=60s
+      --nats-ignore-discovered-servers
+      --probe-addr=0.0.0.0:8081
+      --allowed-host-path=/workshop/sqlite-data
+      --allowed-host-path=/workshop/repo
+      --allowed-host-path=/workshop/curl-data
+      --http-addr=0.0.0.0:80
+      --http-client-ca-path=/etc/kube-ca/ca.crt
+      --user-config=/etc/wasmcloud/host-config/config.yaml
+      --allow-insecure-registries
+    State:          Running
+      Started:      Thu, 05 Nov 2026 12:59:27 +0000
+    Last State:     Terminated
+      Reason:       Unknown
+      Exit Code:    255
+      Started:      Thu, 05 Nov 2026 01:40:39 +0000
+      Finished:     Thu, 05 Nov 2026 12:59:20 +0000
+    Ready:          True
+    Restart Count:  1
+    Limits:
+      memory:  768Mi
+    Requests:
+      cpu:      250m
+      memory:   64Mi
+    Liveness:   http-get http://:probes/livez delay=10s timeout=5s period=30s successThreshold=1 failureThreshold=5
+    Readiness:  http-get http://:probes/readyz delay=5s timeout=1s period=10s successThreshold=1 failureThreshold=3
+    Startup:    http-get http://:probes/livez delay=0s timeout=1s period=5s successThreshold=1 failureThreshold=60
+    Environment:
+      HOME:                        /tmp
+      WASMCLOUD_HOST_IP:            (v1:status.podIP)
+      WASMCLOUD_HOST_ENVIRONMENT:  wasmcloud (v1:metadata.namespace)
+      WASH_GUEST_MEMORY_MODE:      enforce
+    Mounts:
+      /data-cert from data-cert (ro)
+      /etc/kube-ca from kube-ca (ro)
+      /etc/wasmcloud/host-config from host-plugin-config (ro)
+      /etc/wasmcloud/host-plugin-secrets/kube-api-token from host-plugin-secret-kube-api-token (ro)
+      /oci-cache from oci-cache (rw)
+      /runtime-cert from runtime-cert (ro)
+      /tmp from tmp (rw)
+      /workshop/curl-data from curl-data (rw)
+      /workshop/private-data from private-data (ro)
+      /workshop/repo from repo (rw)
+      /workshop/sqlite-data from sqlite-data (rw)
+Conditions:
+  Type                        Status
+  PodReadyToStartContainers   True 
+  Initialized                 True 
+  Ready                       True 
+  ContainersReady             True 
+  PodScheduled                True 
+Volumes:
+  oci-cache:
+    Type:       EmptyDir (a temporary directory that shares a pod's lifetime)
+    Medium:     
+    SizeLimit:  <unset>
+  tmp:
+    Type:       EmptyDir (a temporary directory that shares a pod's lifetime)
+    Medium:     
+    SizeLimit:  <unset>
+  runtime-cert:
+    Type:        Secret (a volume populated by a Secret)
+    SecretName:  wasmcloud-runtime-tls
+    Optional:    false
+  data-cert:
+    Type:        Secret (a volume populated by a Secret)
+    SecretName:  wasmcloud-data-tls
+    Optional:    false
+  sqlite-data:
+    Type:          HostPath (bare host directory volume)
+    Path:          /workshop/sqlite-data
+    HostPathType:  Directory
+  repo:
+    Type:          HostPath (bare host directory volume)
+    Path:          /workshop/repo
+    HostPathType:  Directory
+  curl-data:
+    Type:          HostPath (bare host directory volume)
+    Path:          /workshop/curl-data
+    HostPathType:  Directory
+  private-data:
+    Type:          HostPath (bare host directory volume)
+    Path:          /workshop/private-data
+    HostPathType:  Directory
+  kube-ca:
+    Type:      ConfigMap (a volume populated by a ConfigMap)
+    Name:      kube-root-ca.crt
+    Optional:  false
+  host-plugin-config:
+    Type:      ConfigMap (a volume populated by a ConfigMap)
+    Name:      hostgroup-default-host-config
+    Optional:  false
+  host-plugin-secret-kube-api-token:
+    Type:        Secret (a volume populated by a Secret)
+    SecretName:  kube-api-token
+    Optional:    false
+QoS Class:       Burstable
+Node-Selectors:  <none>
+Tolerations:     node.kubernetes.io/not-ready:NoExecute op=Exists for 300s
+                 node.kubernetes.io/unreachable:NoExecute op=Exists for 300s

@@ -1,0 +1,503 @@
+{
+  "apiVersion": "v1",
+  "kind": "Pod",
+  "metadata": {
+    "annotations": {
+      "checksum/host-plugin-config": "153747272b162393e3c5f92309947d43bdf4625b04e63db6224f2cd0167daa9a",
+      "secret.reloader.stakater.com/reload": "kube-api-token"
+    },
+    "creationTimestamp": "2026-11-05T01:40:18Z",
+    "finalizers": [
+      "runtime.wasmcloud.dev/pod-host-finalizer"
+    ],
+    "generateName": "hostgroup-default-65794d8ff4-",
+    "generation": 1,
+    "labels": {
+      "app.kubernetes.io/instance": "wasmcloud",
+      "app.kubernetes.io/managed-by": "Helm",
+      "app.kubernetes.io/name": "runtime-operator",
+      "app.kubernetes.io/version": "2.12.0",
+      "helm.sh/chart": "runtime-operator-2.12.0",
+      "pod-template-hash": "65794d8ff4",
+      "wasmcloud.com/hostgroup": "default",
+      "wasmcloud.com/name": "hostgroup"
+    },
+    "name": "hostgroup-default-65794d8ff4-vjkpc",
+    "namespace": "wasmcloud",
+    "ownerReferences": [
+      {
+        "apiVersion": "apps/v1",
+        "blockOwnerDeletion": true,
+        "controller": true,
+        "kind": "ReplicaSet",
+        "name": "hostgroup-default-65794d8ff4",
+        "uid": "b46efd2a-ec1a-4c80-83a4-e1fa92080ebd"
+      }
+    ],
+    "resourceVersion": "59195",
+    "uid": "8cbd16a9-f97e-49a6-92a0-bed649c36e1e"
+  },
+  "spec": {
+    "automountServiceAccountToken": false,
+    "containers": [
+      {
+        "args": [
+          "host",
+          "--host-name=$(WASMCLOUD_HOST_IP)",
+          "--host-group=default",
+          "--environment=$(WASMCLOUD_HOST_ENVIRONMENT)",
+          "--scheduler-nats-url=nats://nats.wasmcloud.svc.cluster.local:4222",
+          "--scheduler-nats-tls-ca=/runtime-cert/ca.crt",
+          "--scheduler-nats-tls-cert=/runtime-cert/tls.crt",
+          "--scheduler-nats-tls-key=/runtime-cert/tls.key",
+          "--data-nats-url=nats://nats.wasmcloud.svc.cluster.local:4222",
+          "--data-nats-tls-ca=/data-cert/ca.crt",
+          "--data-nats-tls-cert=/data-cert/tls.crt",
+          "--data-nats-tls-key=/data-cert/tls.key",
+          "--oci-cache-dir=/oci-cache",
+          "--drain-delay=5s",
+          "--nats-connect-timeout=60s",
+          "--nats-ignore-discovered-servers",
+          "--probe-addr=0.0.0.0:8081",
+          "--allowed-host-path=/workshop/sqlite-data",
+          "--allowed-host-path=/workshop/repo",
+          "--allowed-host-path=/workshop/curl-data",
+          "--http-addr=0.0.0.0:80",
+          "--http-client-ca-path=/etc/kube-ca/ca.crt",
+          "--user-config=/etc/wasmcloud/host-config/config.yaml",
+          "--allow-insecure-registries"
+        ],
+        "env": [
+          {
+            "name": "HOME",
+            "value": "/tmp"
+          },
+          {
+            "name": "WASMCLOUD_HOST_IP",
+            "valueFrom": {
+              "fieldRef": {
+                "apiVersion": "v1",
+                "fieldPath": "status.podIP"
+              }
+            }
+          },
+          {
+            "name": "WASMCLOUD_HOST_ENVIRONMENT",
+            "valueFrom": {
+              "fieldRef": {
+                "apiVersion": "v1",
+                "fieldPath": "metadata.namespace"
+              }
+            }
+          },
+          {
+            "name": "WASH_GUEST_MEMORY_MODE",
+            "value": "enforce"
+          }
+        ],
+        "image": "ghcr.io/wasmcloud/wash:2.12.0-all-features",
+        "imagePullPolicy": "Always",
+        "livenessProbe": {
+          "failureThreshold": 5,
+          "httpGet": {
+            "path": "/livez",
+            "port": "probes",
+            "scheme": "HTTP"
+          },
+          "initialDelaySeconds": 10,
+          "periodSeconds": 30,
+          "successThreshold": 1,
+          "timeoutSeconds": 5
+        },
+        "name": "host",
+        "ports": [
+          {
+            "containerPort": 80,
+            "name": "http",
+            "protocol": "TCP"
+          },
+          {
+            "containerPort": 8081,
+            "name": "probes",
+            "protocol": "TCP"
+          }
+        ],
+        "readinessProbe": {
+          "failureThreshold": 3,
+          "httpGet": {
+            "path": "/readyz",
+            "port": "probes",
+            "scheme": "HTTP"
+          },
+          "initialDelaySeconds": 5,
+          "periodSeconds": 10,
+          "successThreshold": 1,
+          "timeoutSeconds": 1
+        },
+        "resources": {
+          "limits": {
+            "memory": "768Mi"
+          },
+          "requests": {
+            "cpu": "250m",
+            "memory": "64Mi"
+          }
+        },
+        "securityContext": {
+          "allowPrivilegeEscalation": false,
+          "capabilities": {
+            "drop": [
+              "ALL"
+            ]
+          },
+          "readOnlyRootFilesystem": true,
+          "runAsNonRoot": true
+        },
+        "startupProbe": {
+          "failureThreshold": 60,
+          "httpGet": {
+            "path": "/livez",
+            "port": "probes",
+            "scheme": "HTTP"
+          },
+          "periodSeconds": 5,
+          "successThreshold": 1,
+          "timeoutSeconds": 1
+        },
+        "terminationMessagePath": "/dev/termination-log",
+        "terminationMessagePolicy": "File",
+        "volumeMounts": [
+          {
+            "mountPath": "/oci-cache",
+            "name": "oci-cache"
+          },
+          {
+            "mountPath": "/tmp",
+            "name": "tmp"
+          },
+          {
+            "mountPath": "/runtime-cert",
+            "name": "runtime-cert",
+            "readOnly": true
+          },
+          {
+            "mountPath": "/data-cert",
+            "name": "data-cert",
+            "readOnly": true
+          },
+          {
+            "mountPath": "/workshop/sqlite-data",
+            "name": "sqlite-data"
+          },
+          {
+            "mountPath": "/workshop/repo",
+            "name": "repo"
+          },
+          {
+            "mountPath": "/workshop/curl-data",
+            "name": "curl-data"
+          },
+          {
+            "mountPath": "/workshop/private-data",
+            "name": "private-data",
+            "readOnly": true
+          },
+          {
+            "mountPath": "/etc/kube-ca",
+            "name": "kube-ca",
+            "readOnly": true
+          },
+          {
+            "mountPath": "/etc/wasmcloud/host-config",
+            "name": "host-plugin-config",
+            "readOnly": true
+          },
+          {
+            "mountPath": "/etc/wasmcloud/host-plugin-secrets/kube-api-token",
+            "name": "host-plugin-secret-kube-api-token",
+            "readOnly": true
+          }
+        ]
+      }
+    ],
+    "dnsPolicy": "ClusterFirst",
+    "enableServiceLinks": true,
+    "nodeName": "workshop-toolbox-control-plane",
+    "preemptionPolicy": "PreemptLowerPriority",
+    "priority": 0,
+    "restartPolicy": "Always",
+    "schedulerName": "default-scheduler",
+    "securityContext": {
+      "fsGroup": 65532,
+      "runAsGroup": 65532,
+      "runAsNonRoot": true,
+      "runAsUser": 65532,
+      "seccompProfile": {
+        "type": "RuntimeDefault"
+      }
+    },
+    "serviceAccount": "wasmcloud-runtime-operator-runtime",
+    "serviceAccountName": "wasmcloud-runtime-operator-runtime",
+    "terminationGracePeriodSeconds": 15,
+    "tolerations": [
+      {
+        "effect": "NoExecute",
+        "key": "node.kubernetes.io/not-ready",
+        "operator": "Exists",
+        "tolerationSeconds": 300
+      },
+      {
+        "effect": "NoExecute",
+        "key": "node.kubernetes.io/unreachable",
+        "operator": "Exists",
+        "tolerationSeconds": 300
+      }
+    ],
+    "volumes": [
+      {
+        "emptyDir": {},
+        "name": "oci-cache"
+      },
+      {
+        "emptyDir": {},
+        "name": "tmp"
+      },
+      {
+        "name": "runtime-cert",
+        "secret": {
+          "defaultMode": 420,
+          "secretName": "wasmcloud-runtime-tls"
+        }
+      },
+      {
+        "name": "data-cert",
+        "secret": {
+          "defaultMode": 420,
+          "secretName": "wasmcloud-data-tls"
+        }
+      },
+      {
+        "hostPath": {
+          "path": "/workshop/sqlite-data",
+          "type": "Directory"
+        },
+        "name": "sqlite-data"
+      },
+      {
+        "hostPath": {
+          "path": "/workshop/repo",
+          "type": "Directory"
+        },
+        "name": "repo"
+      },
+      {
+        "hostPath": {
+          "path": "/workshop/curl-data",
+          "type": "Directory"
+        },
+        "name": "curl-data"
+      },
+      {
+        "hostPath": {
+          "path": "/workshop/private-data",
+          "type": "Directory"
+        },
+        "name": "private-data"
+      },
+      {
+        "configMap": {
+          "defaultMode": 420,
+          "name": "kube-root-ca.crt"
+        },
+        "name": "kube-ca"
+      },
+      {
+        "configMap": {
+          "defaultMode": 420,
+          "name": "hostgroup-default-host-config"
+        },
+        "name": "host-plugin-config"
+      },
+      {
+        "name": "host-plugin-secret-kube-api-token",
+        "secret": {
+          "defaultMode": 256,
+          "secretName": "kube-api-token"
+        }
+      }
+    ]
+  },
+  "status": {
+    "allocatedResources": {
+      "cpu": "250m",
+      "memory": "64Mi"
+    },
+    "conditions": [
+      {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-11-05T12:59:25Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "PodReadyToStartContainers"
+      },
+      {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-11-05T01:40:29Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "Initialized"
+      },
+      {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-11-05T13:00:03Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "Ready"
+      },
+      {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-11-05T13:00:03Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "ContainersReady"
+      },
+      {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-11-05T01:40:29Z",
+        "observedGeneration": 1,
+        "status": "True",
+        "type": "PodScheduled"
+      }
+    ],
+    "containerStatuses": [
+      {
+        "allocatedResources": {
+          "cpu": "250m",
+          "memory": "64Mi"
+        },
+        "containerID": "containerd://ba2b3008ecfbc97a0a8429ac2fb91e117b45c1ea6c7416765b39c73e5c850ca7",
+        "image": "ghcr.io/wasmcloud/wash:2.12.0-all-features",
+        "imageID": "ghcr.io/wasmcloud/wash@sha256:b899dfa82e191ac31521d1985e6af25f200932025ab2760c9910a39c70dfdd4a",
+        "lastState": {
+          "terminated": {
+            "containerID": "containerd://1e1507f7eec7d392c668a22b8c62ef0458c2007d39a7d557c3f1ed8eeef07b8b",
+            "exitCode": 255,
+            "finishedAt": "2026-11-05T12:59:20Z",
+            "reason": "Unknown",
+            "startedAt": "2026-11-05T01:40:39Z"
+          }
+        },
+        "name": "host",
+        "ready": true,
+        "resources": {
+          "limits": {
+            "memory": "768Mi"
+          },
+          "requests": {
+            "cpu": "250m",
+            "memory": "64Mi"
+          }
+        },
+        "restartCount": 1,
+        "started": true,
+        "state": {
+          "running": {
+            "startedAt": "2026-11-05T12:59:27Z"
+          }
+        },
+        "user": {
+          "linux": {
+            "gid": 65532,
+            "supplementalGroups": [
+              65532
+            ],
+            "uid": 65532
+          }
+        },
+        "volumeMounts": [
+          {
+            "mountPath": "/oci-cache",
+            "name": "oci-cache"
+          },
+          {
+            "mountPath": "/tmp",
+            "name": "tmp"
+          },
+          {
+            "mountPath": "/runtime-cert",
+            "name": "runtime-cert",
+            "readOnly": true,
+            "recursiveReadOnly": "Disabled"
+          },
+          {
+            "mountPath": "/data-cert",
+            "name": "data-cert",
+            "readOnly": true,
+            "recursiveReadOnly": "Disabled"
+          },
+          {
+            "mountPath": "/workshop/sqlite-data",
+            "name": "sqlite-data"
+          },
+          {
+            "mountPath": "/workshop/repo",
+            "name": "repo"
+          },
+          {
+            "mountPath": "/workshop/curl-data",
+            "name": "curl-data"
+          },
+          {
+            "mountPath": "/workshop/private-data",
+            "name": "private-data",
+            "readOnly": true,
+            "recursiveReadOnly": "Disabled"
+          },
+          {
+            "mountPath": "/etc/kube-ca",
+            "name": "kube-ca",
+            "readOnly": true,
+            "recursiveReadOnly": "Disabled"
+          },
+          {
+            "mountPath": "/etc/wasmcloud/host-config",
+            "name": "host-plugin-config",
+            "readOnly": true,
+            "recursiveReadOnly": "Disabled"
+          },
+          {
+            "mountPath": "/etc/wasmcloud/host-plugin-secrets/kube-api-token",
+            "name": "host-plugin-secret-kube-api-token",
+            "readOnly": true,
+            "recursiveReadOnly": "Disabled"
+          }
+        ]
+      }
+    ],
+    "hostIP": "192.168.97.4",
+    "hostIPs": [
+      {
+        "ip": "192.168.97.4"
+      }
+    ],
+    "observedGeneration": 1,
+    "phase": "Running",
+    "podIP": "10.244.0.12",
+    "podIPs": [
+      {
+        "ip": "10.244.0.12"
+      }
+    ],
+    "qosClass": "Burstable",
+    "resources": {
+      "limits": {
+        "memory": "768Mi"
+      },
+      "requests": {
+        "cpu": "232m",
+        "memory": "64Mi"
+      }
+    },
+    "startTime": "2026-11-05T01:40:29Z"
+  }
+}

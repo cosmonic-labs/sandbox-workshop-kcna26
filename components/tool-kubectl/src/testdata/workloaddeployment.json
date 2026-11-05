@@ -1,0 +1,169 @@
+{
+  "apiVersion": "runtime.wasmcloud.dev/v1alpha1",
+  "kind": "WorkloadDeployment",
+  "metadata": {
+    "annotations": {
+      "kubectl.kubernetes.io/last-applied-configuration": "{\"apiVersion\":\"runtime.wasmcloud.dev/v1alpha1\",\"kind\":\"WorkloadDeployment\",\"metadata\":{\"annotations\":{},\"name\":\"toolbox-agent\",\"namespace\":\"default\"},\"spec\":{\"kubernetes\":{\"service\":{\"name\":\"toolbox-agent\"}},\"replicas\":1,\"template\":{\"spec\":{\"components\":[{\"image\":\"workshop-toolbox-registry:5000/workshop/agent:0.4.0\",\"name\":\"agent\"},{\"image\":\"workshop-toolbox-registry:5000/workshop/model-scripted:0.4.0\",\"name\":\"model\"},{\"image\":\"workshop-toolbox-registry:5000/workshop/tool-curl:0.4.0\",\"localResources\":{\"allowedHosts\":[\"api.workshop-sites.svc\"],\"volumeMounts\":[{\"mountPath\":\"/data\",\"name\":\"curl-data\"}]},\"name\":\"curl\"},{\"image\":\"workshop-toolbox-registry:5000/workshop/tool-sqlite:0.4.0\",\"localResources\":{\"volumeMounts\":[{\"mountPath\":\"/data\",\"name\":\"sqlite-data\",\"readOnly\":true}]},\"name\":\"sqlite\"},{\"image\":\"workshop-toolbox-registry:5000/workshop/tool-git:0.4.0\",\"localResources\":{\"volumeMounts\":[{\"mountPath\":\"/repo\",\"name\":\"repo\",\"readOnly\":true}]},\"name\":\"git\"},{\"image\":\"workshop-toolbox-registry:5000/workshop/tool-kubectl:0.4.0\",\"name\":\"kubectl\"}],\"hostInterfaces\":[{\"config\":{\"host\":\"agent.localhost\"},\"interfaces\":[\"handler\"],\"namespace\":\"wasi\",\"package\":\"http\"},{\"interfaces\":[\"kube-api\"],\"namespace\":\"workshop\",\"package\":\"toolbox\"}],\"hostSelector\":{\"hostgroup\":\"default\"},\"volumes\":[{\"hostPath\":{\"path\":\"/workshop/curl-data\"},\"name\":\"curl-data\"},{\"hostPath\":{\"path\":\"/workshop/sqlite-data\"},\"name\":\"sqlite-data\"},{\"hostPath\":{\"path\":\"/workshop/repo\"},\"name\":\"repo\"}]}}}}\n"
+    },
+    "creationTimestamp": "2026-11-05T04:16:45Z",
+    "generation": 6,
+    "name": "toolbox-agent",
+    "namespace": "default",
+    "resourceVersion": "59432",
+    "uid": "810c107a-7ccc-4b79-9b9e-c98efc746d30"
+  },
+  "spec": {
+    "deployPolicy": "RollingUpdate",
+    "kubernetes": {
+      "service": {
+        "name": "toolbox-agent"
+      }
+    },
+    "replicas": 1,
+    "template": {
+      "spec": {
+        "components": [
+          {
+            "image": "workshop-toolbox-registry:5000/workshop/agent:0.4.0",
+            "name": "agent"
+          },
+          {
+            "image": "workshop-toolbox-registry:5000/workshop/model-scripted:0.4.0",
+            "name": "model"
+          },
+          {
+            "image": "workshop-toolbox-registry:5000/workshop/tool-curl:0.4.0",
+            "localResources": {
+              "allowedHosts": [
+                "api.workshop-sites.svc"
+              ],
+              "volumeMounts": [
+                {
+                  "mountPath": "/data",
+                  "name": "curl-data"
+                }
+              ]
+            },
+            "name": "curl"
+          },
+          {
+            "image": "workshop-toolbox-registry:5000/workshop/tool-sqlite:0.4.0",
+            "localResources": {
+              "volumeMounts": [
+                {
+                  "mountPath": "/data",
+                  "name": "sqlite-data",
+                  "readOnly": true
+                }
+              ]
+            },
+            "name": "sqlite"
+          },
+          {
+            "image": "workshop-toolbox-registry:5000/workshop/tool-git:0.4.0",
+            "localResources": {
+              "volumeMounts": [
+                {
+                  "mountPath": "/repo",
+                  "name": "repo",
+                  "readOnly": true
+                }
+              ]
+            },
+            "name": "git"
+          },
+          {
+            "image": "workshop-toolbox-registry:5000/workshop/tool-kubectl:0.4.0",
+            "name": "kubectl"
+          }
+        ],
+        "hostInterfaces": [
+          {
+            "config": {
+              "host": "agent.localhost"
+            },
+            "interfaces": [
+              "handler"
+            ],
+            "namespace": "wasi",
+            "package": "http"
+          },
+          {
+            "interfaces": [
+              "kube-api"
+            ],
+            "namespace": "workshop",
+            "package": "toolbox"
+          }
+        ],
+        "hostSelector": {
+          "hostgroup": "default"
+        },
+        "volumes": [
+          {
+            "hostPath": {
+              "path": "/workshop/curl-data"
+            },
+            "name": "curl-data"
+          },
+          {
+            "hostPath": {
+              "path": "/workshop/sqlite-data"
+            },
+            "name": "sqlite-data"
+          },
+          {
+            "hostPath": {
+              "path": "/workshop/repo"
+            },
+            "name": "repo"
+          }
+        ]
+      }
+    }
+  },
+  "status": {
+    "conditions": [
+      {
+        "lastTransitionTime": "2026-11-05T04:16:45Z",
+        "reason": "Available",
+        "status": "True",
+        "type": "Artifact"
+      },
+      {
+        "lastTransitionTime": "2026-11-05T04:17:37Z",
+        "reason": "Available",
+        "status": "True",
+        "type": "Sync"
+      },
+      {
+        "lastTransitionTime": "2026-11-05T04:16:45Z",
+        "reason": "Available",
+        "status": "True",
+        "type": "Deploy"
+      },
+      {
+        "lastTransitionTime": "2026-11-05T13:01:25Z",
+        "reason": "Available",
+        "status": "True",
+        "type": "Ready"
+      },
+      {
+        "lastTransitionTime": "2026-11-05T13:01:25Z",
+        "reason": "Available",
+        "status": "True",
+        "type": "Scale"
+      }
+    ],
+    "currentReplicaSet": {
+      "name": "toolbox-agent-5498f5f778"
+    },
+    "currentReplicas": 1,
+    "replicas": {
+      "current": 1,
+      "expected": 1,
+      "ready": 1
+    },
+    "selector": "runtime.wasmcloud.dev/workload-deployment=toolbox-agent"
+  }
+}

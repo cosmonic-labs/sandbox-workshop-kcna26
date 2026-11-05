@@ -1,0 +1,101 @@
+Name:         toolbox-agent
+Namespace:    default
+Labels:       <none>
+Annotations:  <none>
+API Version:  runtime.wasmcloud.dev/v1alpha1
+Kind:         WorkloadDeployment
+Metadata:
+  Creation Timestamp:  2026-11-05T04:16:45Z
+  Generation:          6
+  Resource Version:    59432
+  UID:                 810c107a-7ccc-4b79-9b9e-c98efc746d30
+Spec:
+  Deploy Policy:  RollingUpdate
+  Kubernetes:
+    Service:
+      Name:  toolbox-agent
+  Replicas:  1
+  Template:
+    Spec:
+      Components:
+        Image:  workshop-toolbox-registry:5000/workshop/agent:0.4.0
+        Name:   agent
+        Image:  workshop-toolbox-registry:5000/workshop/model-scripted:0.4.0
+        Name:   model
+        Image:  workshop-toolbox-registry:5000/workshop/tool-curl:0.4.0
+        Local Resources:
+          Allowed Hosts:
+            api.workshop-sites.svc
+          Volume Mounts:
+            Mount Path:  /data
+            Name:        curl-data
+        Name:            curl
+        Image:           workshop-toolbox-registry:5000/workshop/tool-sqlite:0.4.0
+        Local Resources:
+          Volume Mounts:
+            Mount Path:  /data
+            Name:        sqlite-data
+            Read Only:   true
+        Name:            sqlite
+        Image:           workshop-toolbox-registry:5000/workshop/tool-git:0.4.0
+        Local Resources:
+          Volume Mounts:
+            Mount Path:  /repo
+            Name:        repo
+            Read Only:   true
+        Name:            git
+        Image:           workshop-toolbox-registry:5000/workshop/tool-kubectl:0.4.0
+        Name:            kubectl
+      Host Interfaces:
+        Config:
+          Host:  agent.localhost
+        Interfaces:
+          handler
+        Namespace:  wasi
+        Package:    http
+        Interfaces:
+          kube-api
+        Namespace:  workshop
+        Package:    toolbox
+      Host Selector:
+        Hostgroup:  default
+      Volumes:
+        Host Path:
+          Path:  /workshop/curl-data
+        Name:    curl-data
+        Host Path:
+          Path:  /workshop/sqlite-data
+        Name:    sqlite-data
+        Host Path:
+          Path:  /workshop/repo
+        Name:    repo
+Status:
+  Conditions:
+    Last Transition Time:  2026-11-05T04:16:45Z
+    Reason:                Available
+    Status:                True
+    Type:                  Artifact
+    Last Transition Time:  2026-11-05T04:17:37Z
+    Reason:                Available
+    Status:                True
+    Type:                  Sync
+    Last Transition Time:  2026-11-05T04:16:45Z
+    Reason:                Available
+    Status:                True
+    Type:                  Deploy
+    Last Transition Time:  2026-11-05T13:01:25Z
+    Reason:                Available
+    Status:                True
+    Type:                  Ready
+    Last Transition Time:  2026-11-05T13:01:25Z
+    Reason:                Available
+    Status:                True
+    Type:                  Scale
+  Current Replica Set:
+    Name:            toolbox-agent-5498f5f778
+  Current Replicas:  1
+  Replicas:
+    Current:   1
+    Expected:  1
+    Ready:     1
+  Selector:    runtime.wasmcloud.dev/workload-deployment=toolbox-agent

@@ -96,7 +96,7 @@ ls -l artifacts/tool_curl.wasm artifacts/tool_sqlite.wasm artifacts/tool_git.was
 ```
 
 `curl` is about 180 KB (182,276 bytes), `sqlite3` about 1.2 MB (1,173,947),
-`git` about 2.5 MB (2,450,652) and `kubectl` about 800 KB (800,595). These
+`git` about 2.5 MB (2,450,652) and `kubectl` about 900 KB (905,138). These
 are the component files only; the wasmCloud host that runs them is a separate,
 long-running pod.
 
