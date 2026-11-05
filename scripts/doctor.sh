@@ -112,6 +112,12 @@ if ! (command -v nc >/dev/null 2>&1 && nc -z 127.0.0.1 "$port" 2>/dev/null); the
 elif command -v docker >/dev/null 2>&1 &&
      docker ps --format '{{.Names}}' 2>/dev/null | grep -qx workshop-toolbox-control-plane; then
   ok "port $port is in use by this workshop's cluster (make clean deletes it)"
+  # The cluster is up, so the guide should answer (k8s/guide.yaml).
+  if [ "$(curl -s -o /dev/null -m 5 -w '%{http_code}' -H 'Host: guide.localhost' "http://127.0.0.1:$port/")" = 200 ]; then
+    ok "the guide answers at http://guide.localhost:$port"
+  else
+    opt "the guide does not answer at http://guide.localhost:$port" "fix: make up    (deploys k8s/guide.yaml)"
+  fi
 else
   fail "port $port is taken by another program" \
     "see which one: lsof -nP -iTCP:$port -sTCP:LISTEN" \
@@ -132,6 +138,21 @@ if [ -f "$ROOT/artifacts/SHA256SUMS" ]; then
   fi
 else
   fail "artifacts/SHA256SUMS is missing" "fix: git checkout -- artifacts"
+fi
+
+# The guide's pages are the READMEs as they were when artifacts/guide.wasm was
+# built. It carries the cksum of each README (served at /sources), so a
+# README edited since shows up here.
+if [ -f "$ROOT/artifacts/guide.wasm" ]; then
+  stale=$(cd "$ROOT" && cksum README.md steps/*/README.md | while read -r line; do
+    grep -qaF "$line" artifacts/guide.wasm || printf '%s ' "${line##* }"
+  done)
+  if [ -z "$stale" ]; then
+    ok "the guide in artifacts/guide.wasm matches the READMEs"
+  else
+    opt "the guide in artifacts/guide.wasm is older than: $stale" \
+      "fix: make guide && make up    (maintainers; needs Rust)"
+  fi
 fi
 
 # Prebuilt databases (scripts/fixtures.sh copies them into .run for kind).
