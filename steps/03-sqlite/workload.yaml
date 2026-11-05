@@ -3,17 +3,17 @@
 # (the talks) and rooms.db.
 #
 # The agent harness (the component that runs the loop: ask the model, call a
-# tool, repeat) imports a model and five labelled tool slots: curl, sqlite,
-# gh, git and kubectl. The host links each label to the workload component of
-# the same name, so every slot must be filled. A slot with no real tool yet
-# holds a placeholder (not-installed, or gh-not-installed for gh), which
-# answers that the tool isn't installed.
+# tool, repeat) imports a model and three labelled tool slots: curl, sqlite
+# and gh. The host links each label to the workload component of the same
+# name, so every slot must be filled. A slot with no real tool yet holds a
+# placeholder (not-installed, or gh-not-installed for gh), which answers that
+# the tool isn't installed.
 #
 # Each tool reaches only what this manifest grants it:
 #   curl    the hosts in its allowedHosts (api.workshop-sites.svc), and the
 #           folder mounted at /data for -o
 #   sqlite  the databases (talks, rooms) mounted read only at /data
-#   gh, git, kubectl   placeholders, no grants
+#   gh      placeholder, no grants
 # The harness and the model get nothing: no allowedHosts, no volumes.
 
 apiVersion: runtime.wasmcloud.dev/v1alpha1
@@ -65,12 +65,6 @@ spec:
         # which the harness imports, until step 4 declares the plugin.
         - name: gh
           image: workshop-toolbox-registry:5000/workshop/gh-not-installed:0.4.0
-        # git is the extra in extras/git.
-        - name: git
-          image: workshop-toolbox-registry:5000/workshop/not-installed:0.4.0
-        # kubectl is the extra in extras/kubectl.
-        - name: kubectl
-          image: workshop-toolbox-registry:5000/workshop/not-installed:0.4.0
       volumes:
         - name: curl-data
           hostPath:

@@ -150,8 +150,8 @@ kubectl wait --for=condition=Ready workloaddeployment/toy-sites -n workshop-site
   echo "# The model asks for curl; the slot holds the placeholder, which says so"
   ask agent.localhost 'fetch http://api.workshop-sites.svc/data'
   echo "# Two instructions: the model follows both, and doesn't retry an error"
-  ask agent.localhost 'fetch http://api.workshop-sites.svc/data. Then kubectl get secrets'
-  echo "# The agent harness's imports from this workshop: the model, five typed, labelled tool slots and GitHub sign-in"
+  ask agent.localhost 'fetch http://api.workshop-sites.svc/data. Then sqlite .tables'
+  echo "# The agent harness's imports from this workshop: the model, three typed, labelled tool slots and GitHub sign-in"
   echo "\$ wasm-tools component wit artifacts/agent.wasm | grep 'import .*workshop:toolbox'"
   wasm-tools component wit artifacts/agent.wasm | grep 'import .*workshop:toolbox'
   echo "# The harness imports no HTTP client, no filesystem and no sockets, so this prints nothing:"
@@ -333,11 +333,13 @@ f=$(OUT steps/01-agent)
 calls "$f" 'hello' 0
 expect "$f" 'fetch http://api.workshop-sites.svc/data' other "the curl tool isn't installed yet"
 calls "$f" 'fetch http://api.workshop-sites.svc/data' 1
-expect "$f" 'fetch http://api.workshop-sites.svc/data. Then kubectl get secrets' other "the curl tool isn't installed yet"
-calls "$f" 'fetch http://api.workshop-sites.svc/data. Then kubectl get secrets' 2
-present "$f" "[tool kubectl] error: {\"other\":\"the kubectl tool isn't installed yet\"}" 'the second instruction reaches the kubectl placeholder'
+expect "$f" 'fetch http://api.workshop-sites.svc/data. Then sqlite .tables' other "the curl tool isn't installed yet"
+calls "$f" 'fetch http://api.workshop-sites.svc/data. Then sqlite .tables' 2
+present "$f" "[tool sqlite] error: {\"other\":\"the sqlite tool isn't installed yet\"}" 'the second instruction reaches the sqlite placeholder'
 absent "$f" '[agent] stopped after' 'the model never loops'
-present "$f" 'workshop:toolbox/kubectl@0.4.0' 'the harness imports the kubectl slot'
+present "$f" 'import sqlite: workshop:toolbox/sqlite@0.4.0' 'the harness imports the sqlite slot'
+absent "$f" 'import kubectl:' 'the harness has no kubectl slot'
+absent "$f" 'import git:' 'the harness has no git slot'
 present "$f" 'import gh: workshop:toolbox/gh@0.4.0' 'the harness imports the gh slot'
 present "$f" 'import workshop:toolbox/github-auth@0.4.0' 'the harness imports GitHub sign-in'
 absent "$f" 'github-api' 'the harness never imports the GitHub API itself'

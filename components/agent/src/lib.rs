@@ -11,8 +11,8 @@
 //! the transcript as a timeline; curl gets the same text as ever.
 //!
 //! The harness itself holds no capabilities. Its world imports the model,
-//! five labelled tool slots (curl, sqlite, gh, git and kubectl) and GitHub
-//! sign-in, and nothing else from the host; whatever a tool can reach is
+//! three labelled tool slots (curl, sqlite and gh) and GitHub sign-in, and
+//! nothing else from the host; whatever a tool can reach is
 //! decided by the manifest entry of the component filling that slot.
 //!
 //! Sign-in is the one thing the harness does besides the loop. The page's

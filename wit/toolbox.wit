@@ -1,6 +1,6 @@
-/// The workshop's own interfaces: five tools, the Kubernetes and GitHub API
-/// capabilities behind two of them, the model, and the worlds that say what
-/// each component may touch.
+/// The workshop's own interfaces: three tools, the GitHub capabilities behind
+/// gh and sign-in, the model, and the worlds that say what each component may
+/// touch.
 ///
 /// The tools follow typed-tool conventions. Each function takes
 /// one record whose fields are the tool's arguments, each interface has its
@@ -14,9 +14,9 @@ package workshop:toolbox@0.4.0;
 // The tools: familiar command line tools, each its own component.
 //
 // Each one takes what you would type after the program's name, so you can
-// teach it new tricks without changing this file. Each is famous for an
-// escape (sqlite3's .shell, curl reaching the cloud metadata service, git
-// running hooks); as components they have nothing to escape to. Every tool
+// teach it new tricks without changing this file. curl and sqlite3 are
+// famous for escapes (curl reaching the cloud metadata service, sqlite3's
+// .shell); as components they have nothing to escape to. Every tool
 // ships as its own component, so each one gets its own capabilities (a
 // folder, network hosts) from the workload manifest. The agent harness
 // imports the tools through labelled slots, and each interface defines its
@@ -88,73 +88,6 @@ interface sqlite {
   /// Run SQL against this tool's database and return the rows, one per
   /// line, with columns separated by " | ".
   query: async func(args: query-args) -> result<string, error>;
-}
-
-/// git: read a repository in this component's folder. Only commands that
-/// read are available.
-@since(version = 0.4.0)
-interface git {
-  /// Why a git call failed.
-  ///
-  /// Payload strings are diagnostic. Their wording is not stable, and
-  /// programs should not parse them.
-  variant error {
-    /// The arguments are malformed, or name a command this tool does not
-    /// offer. The payload says which and why.
-    invalid-argument(string),
-    /// This tool may not do this: the path is outside its folder. The
-    /// payload names it.
-    access-denied(string),
-    /// No repository, revision or file exists by this name. The payload
-    /// names it.
-    not-found(string),
-    /// Any other failure. Treat it as a generic failure.
-    other(option<string>),
-  }
-
-  /// Arguments for `run`.
-  record run-args {
-    /// What you would type after `git`, such as `log --oneline -5` or
-    /// `show HEAD:README.md`.
-    arguments: string,
-  }
-
-  /// Run a read-only git command in the repository and return what it
-  /// prints.
-  run: async func(args: run-args) -> result<string, error>;
-}
-
-/// kubectl: read Kubernetes objects from a command line, as the service
-/// account the platform gave this workload. Requests go through the kube-api
-/// capability; this tool holds no token and reaches nothing else.
-@since(version = 0.4.0)
-interface kubectl {
-  /// Why a kubectl call failed.
-  ///
-  /// Payload strings are diagnostic. Their wording is not stable, and
-  /// programs should not parse them.
-  variant error {
-    /// The arguments are malformed, such as an unknown command or resource.
-    /// The payload says which and why.
-    invalid-argument(string),
-    /// The API server refused the request (its RBAC), or this tool does not
-    /// offer the command at all. The payload names what was refused.
-    access-denied(string),
-    /// The request did not reach the API server, or no answer came back.
-    /// The payload says what happened.
-    network(string),
-    /// Any other failure. Treat it as a generic failure.
-    other(option<string>),
-  }
-
-  /// Arguments for `run`.
-  record run-args {
-    /// What you would type after `kubectl`, such as `get pods -n demo`.
-    arguments: string,
-  }
-
-  /// Run kubectl with these arguments and return what it prints.
-  run: async func(args: run-args) -> result<string, error>;
 }
 
 /// gh: read pull requests on GitHub from a command line, like GitHub's own
@@ -346,8 +279,6 @@ world agent {
   import curl: curl;
   import sqlite: sqlite;
   import gh: gh;
-  import git: git;
-  import kubectl: kubectl;
   import github-auth;
   export wasi:http/handler@0.3.0;
 }
@@ -395,15 +326,13 @@ world github-api-plugin {
   export github-auth;
 }
 
-/// The placeholder that fills every slot until a step installs the real
-/// tool. One image, all four tool interfaces, every function returns an
-/// error saying the tool isn't installed yet.
+/// The placeholder that fills the curl and sqlite slots until a step installs
+/// the real tool. One image exports both interfaces, and every function
+/// returns an error saying the tool isn't installed yet.
 @since(version = 0.4.0)
 world not-installed {
   export curl;
   export sqlite;
-  export git;
-  export kubectl;
 }
 
 /// The placeholder for the gh slot until step 4. It answers the gh tool's

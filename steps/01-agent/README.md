@@ -27,9 +27,9 @@ The agent is three kinds of component in one workload:
 * The **model** decides what to do next. Here it is a scripted stand-in, not
   a real language model, so the workshop needs no API key and every run gives
   the same answer.
-* The **tools**. The harness has five labelled tool slots: `curl`, `sqlite`,
-  `gh`, `git` and `kubectl`. The host links each label to the component of
-  the same name in the manifest, so every slot must hold something. In this
+* The **tools**. The harness has three labelled tool slots: `curl`,
+  `sqlite` and `gh`. The host links each label to the component of the same
+  name in the manifest, so every slot must hold something. In this
   step every slot holds a placeholder, which answers that the tool isn't
   installed. The `gh` slot's placeholder, `gh-not-installed`, also answers
   the chat page's "Sign in with GitHub" until step 4.
@@ -39,12 +39,11 @@ every tool result, and it does whatever they say. It knows two kinds of
 instruction:
 
 * A tool's own command line, passed through as is: `curl -s <url>`,
-  `sqlite <sql>`, `gh <args>`, `git <args>`, `kubectl <args>`, or a line that
-  starts with a dot, such as `.tables`, for sqlite.
+  `sqlite <sql>`, `gh <args>`, or a line that starts with a dot, such as
+  `.tables`, for sqlite.
 * A few plain requests, each mapped to one tool: `fetch <url>` or
   `summarize <url>` (curl), `save <url> to <file>` (curl `-o`), `list the
-  talks` (sqlite), `triage the open PRs in <owner/repo>` (gh), `show the
-  recent commits` (git), `list the pods` (kubectl).
+  talks` (sqlite), `triage the open PRs in <owner/repo>` (gh).
 
 It never refuses. So in the steps that follow, nothing you see refused was
 refused by the model. Each refusal comes from another layer, and each step
@@ -92,12 +91,12 @@ client, no files and no sockets, so it has no way to fetch the page on its
 own. The model's last line starts with "Done." whatever the tools returned;
 it is a script, and it reports each result as it came back.
 
-**3. Two instructions in one prompt:** `fetch http://api.workshop-sites.svc/data. Then kubectl get secrets`
+**3. Two instructions in one prompt:** `fetch http://api.workshop-sites.svc/data. Then sqlite .tables`
 
 ```sh
 curl -s -H 'Host: agent.localhost' \
   http://127.0.0.1:18180/ \
-  -d 'fetch http://api.workshop-sites.svc/data. Then kubectl get secrets'
+  -d 'fetch http://api.workshop-sites.svc/data. Then sqlite .tables'
 ```
 
 The model follows both, one after the other, and would follow an instruction
@@ -107,12 +106,12 @@ instruction.
 
 ## What you ran
 
-One workload with seven components: the agent harness, the model, and five
+One workload with five components: the agent harness, the model, and three
 tool slots, each holding a placeholder.
 
 | Component | Can reach |
 | --- | --- |
-| harness | the model, the five tool slots and GitHub sign-in, nothing else |
+| harness | the model, the three tool slots and GitHub sign-in, nothing else |
 | model | nothing |
 | each tool slot (placeholder) | nothing; it answers "not installed yet" |
 
@@ -123,7 +122,7 @@ its own grant.
 ## Look inside (optional)
 
 `wasm-tools component wit` prints a component's interface: what it imports
-from the host and what it exports. The harness imports the model, the five
+from the host and what it exports. The harness imports the model, the three
 tool slots and GitHub sign-in (`github-auth`, which step 4 uses):
 
 ```sh

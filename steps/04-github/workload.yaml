@@ -15,7 +15,6 @@
 #           folder mounted at /data for -o
 #   sqlite  the databases (talks, rooms) mounted read only at /data
 #   gh      the github-api capability only
-#   git, kubectl   placeholders, no grants
 # The harness gets github-auth; the model gets nothing.
 
 apiVersion: runtime.wasmcloud.dev/v1alpha1
@@ -74,12 +73,6 @@ spec:
         # github-api capability above.
         - name: gh
           image: workshop-toolbox-registry:5000/workshop/tool-gh:0.4.0
-        # git is the extra in extras/git.
-        - name: git
-          image: workshop-toolbox-registry:5000/workshop/not-installed:0.4.0
-        # kubectl is the extra in extras/kubectl.
-        - name: kubectl
-          image: workshop-toolbox-registry:5000/workshop/not-installed:0.4.0
       volumes:
         - name: curl-data
           hostPath:

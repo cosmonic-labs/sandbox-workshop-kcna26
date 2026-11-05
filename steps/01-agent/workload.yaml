@@ -1,17 +1,16 @@
 # Step 1: run the agent with no tools.
 #
 # The agent harness (the component that runs the loop: ask the model, call a
-# tool, repeat) imports a model and five labelled tool slots: curl, sqlite,
-# gh, git and kubectl. The host links each label to the workload component of
-# the same name, so every slot must be filled. Here every slot holds a
-# placeholder (not-installed, or gh-not-installed for gh), which answers that
-# the tool isn't installed. The model is the scripted one: it follows every
+# tool, repeat) imports a model and three labelled tool slots: curl, sqlite
+# and gh. The host links each label to the workload component of the same
+# name, so every slot must be filled. Here every slot holds a placeholder
+# (not-installed, or gh-not-installed for gh), which answers that the tool
+# isn't installed. The model is the scripted one: it follows every
 # instruction it reads.
 #
 # Nothing in this workload has a grant: no allowedHosts, no volumes. Later
 # steps put real tools into the slots, each with its own grant: curl in step
-# 2, sqlite in step 3, gh in step 4. kubectl and git are extras
-# (extras/kubectl, extras/git).
+# 2, sqlite in step 3, gh in step 4.
 
 apiVersion: runtime.wasmcloud.dev/v1alpha1
 kind: WorkloadDeployment
@@ -52,7 +51,3 @@ spec:
         # plugin that provides it.
         - name: gh
           image: workshop-toolbox-registry:5000/workshop/gh-not-installed:0.4.0
-        - name: git
-          image: workshop-toolbox-registry:5000/workshop/not-installed:0.4.0
-        - name: kubectl
-          image: workshop-toolbox-registry:5000/workshop/not-installed:0.4.0
