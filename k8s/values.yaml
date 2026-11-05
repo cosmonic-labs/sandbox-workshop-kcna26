@@ -119,6 +119,32 @@ runtime:
             - kubernetes.default.svc
           secretFrom:
             - kube-api-token
+        # Step 4's github-api host component plugin: GitHub reads for the gh
+        # tool (github-api) and GitHub sign-in for the agent harness
+        # (github-auth). A workload uses it only by declaring both under
+        # hostInterfaces. It builds every URL itself, sends only GET, only to
+        # api.github.com and only for the read paths the gh tool needs, and
+        # refuses everything else. Sign-in is GitHub's device flow, run by the
+        # plugin from start to finish with no scopes; the token stays in the
+        # plugin's memory, keyed by the calling workload's id (the host's
+        # wasmcloud:host/identity), and is gone when the host restarts.
+        #
+        # client-id names the GitHub OAuth app (device flow enabled) that
+        # sign-in uses. A client id is public, not a secret. Until it is set,
+        # sign-in reports that it isn't set up and everything else works
+        # signed out. Change it, then `make up` (or helm upgrade) to apply.
+        #
+        # Pinned by digest, like kube-api: copy the digest scripts/push.sh
+        # prints after rebuilding artifacts/github_api.wasm.
+        - id: github-api
+          image: workshop-toolbox-registry:5000/workshop/github-api:0.4.0
+          digest: sha256:abe18fef947eefc6c5cb9f040ce9011edbe4f78a44711e9f0dd0ee9ce83eb76e
+          pullPolicy: ifNotPresent
+          allowedHosts:
+            - github.com
+            - api.github.com
+          config:
+            client-id: REPLACE-WITH-GITHUB-OAUTH-APP-CLIENT-ID
     # The toy sites (steps/00-fixtures) get a host group of their own, in
     # their own namespace, so the Services in k8s/sites.yaml can select its
     # pods. Workloads land here only by asking: hostSelector hostgroup: fixtures.

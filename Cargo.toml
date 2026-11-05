@@ -2,10 +2,12 @@
 resolver = "2"
 members = [
   "components/agent",
+  "components/github-api",
   "components/kube-api",
   "components/model-scripted",
   "components/model-real",
   "components/not-installed",
+  "components/gh-not-installed",
   "components/tool-curl",
   "components/tool-gh",
   "components/tool-git",

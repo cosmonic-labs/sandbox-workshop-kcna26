@@ -245,6 +245,46 @@ interface github-api {
   send: async func(method: string, path-and-query: string) -> result<response, send-error>;
 }
 
+/// Signing in to GitHub, as a capability. The same plugin as github-api
+/// serves it and runs GitHub's device flow itself: it asks GitHub for a code,
+/// the person enters that code on github.com, and the plugin keeps the token
+/// it gets back, in its own memory, for the calling workload only. A caller
+/// sees the code, the address to enter it at and the signed-in login, never
+/// the token.
+@since(version = 0.4.0)
+interface github-auth {
+  /// What the person needs to finish signing in.
+  record device-prompt {
+    /// The code to enter, such as `WDJB-MJHT`.
+    user-code: string,
+    /// Where to enter it: https://github.com/login/device.
+    verification-uri: string,
+    /// Seconds until the code expires.
+    expires-in: u32,
+  }
+
+  /// Whether this workload is signed in.
+  variant sign-in-status {
+    /// Not signed in: requests go to GitHub without a token.
+    signed-out,
+    /// Waiting for the person to enter the code.
+    pending(device-prompt),
+    /// Signed in, as this GitHub login.
+    signed-in(string),
+  }
+
+  /// Start signing in: ask GitHub for a code, with no scopes. The error says
+  /// why it could not start, such as no OAuth app configured.
+  start: async func() -> result<device-prompt, string>;
+
+  /// Whether this workload is signed in, checking with GitHub when a code is
+  /// waiting. The error says why sign-in ended, such as an expired code.
+  status: async func() -> result<sign-in-status, string>;
+
+  /// Forget this workload's token.
+  sign-out: async func() -> result<_, string>;
+}
+
 // ---------------------------------------------------------------------------
 // The model.
 // ---------------------------------------------------------------------------
@@ -312,17 +352,23 @@ interface model {
 // wasmCloud's async keyvalue interface.
 // ---------------------------------------------------------------------------
 
-/// The agent harness. It answers HTTP and imports one model and one labelled
-/// slot per tool, and nothing else. Each label names the workload component
-/// that fills it, so the manifest, not the harness code, decides which
-/// component (and which capabilities) sits behind each slot.
+/// The agent harness. It answers HTTP and imports one model, one labelled
+/// slot per tool, and GitHub sign-in, and nothing else. Each label names the
+/// workload component that fills it, so the manifest, not the harness code,
+/// decides which component (and which capabilities) sits behind each slot.
+/// Sign-in is unlabelled: the github-api plugin serves it in a workload that
+/// declares it (step 4), and the gh slot's placeholder answers it before
+/// that. The harness never imports github-api, so it can't read GitHub
+/// itself.
 @since(version = 0.4.0)
 world agent {
   import model: model;
   import curl: curl;
   import sqlite: sqlite;
+  import gh: gh;
   import git: git;
   import kubectl: kubectl;
+  import github-auth;
   export wasi:http/handler@0.3.0;
 }
 
@@ -390,6 +436,20 @@ world kube-api-plugin {
   export kube-api;
 }
 
+/// The github-api host component plugin, installed on the host group by the
+/// platform: outgoing HTTP, which its own allowedHosts limit to github.com
+/// (the device flow) and api.github.com, its config (the OAuth app's public
+/// client id), and the host's answer to "which workload is calling", which
+/// keys each token to one workload.
+@since(version = 0.4.0)
+world github-api-plugin {
+  import wasi:http/client@0.3.0;
+  import wasi:config/store@0.2.0-rc.1;
+  import wasmcloud:host/identity@0.1.6;
+  export github-api;
+  export github-auth;
+}
+
 /// The placeholder that fills every slot until a step installs the real
 /// tool. One image, all four tool interfaces, every function returns an
 /// error saying the tool isn't installed yet.
@@ -399,6 +459,18 @@ world not-installed {
   export sqlite;
   export git;
   export kubectl;
+}
+
+/// The placeholder for the gh slot until step 4. It answers the gh tool's
+/// interface with "not installed yet", and GitHub sign-in with "not in this
+/// step", so the harness can start before any workload declares the
+/// github-api plugin. A separate image from not-installed: the harness's
+/// sign-in import is unlabelled, so only one component in a workload may
+/// export it.
+@since(version = 0.4.0)
+world gh-not-installed {
+  export gh;
+  export github-auth;
 }
 
 /// Test fixture, not part of the toolbox: the ordinary API page, the

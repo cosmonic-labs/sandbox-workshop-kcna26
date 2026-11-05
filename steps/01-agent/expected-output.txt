@@ -4,7 +4,7 @@ $ kubectl apply -f steps/01-agent/workload.yaml && sleep 2 && kubectl wait --for
 # No instruction in the prompt: the model answers in text
 $ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'hello'
 [user] hello
-[model] Hello! I am the workshop agent running a scripted model. Ask me to run curl, sqlite, git or kubectl, for example "list the talks in sqlite" or "curl -s http://api.workshop-sites.svc/data".
+[model] Hello! I am the workshop agent running a scripted model. Ask me to run curl, sqlite, gh, git or kubectl, for example "list the talks in sqlite" or "curl -s http://api.workshop-sites.svc/data".
 
 # The model asks for curl; the slot holds the placeholder, which says so
 $ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'fetch http://api.workshop-sites.svc/data'
@@ -22,18 +22,20 @@ $ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'fetch http://ap
 [tool kubectl] error: {"other":"the kubectl tool isn't installed yet"}
 [model] Done. Here is what each step returned: curl: ERROR: {"other":"the curl tool isn't installed yet"} | kubectl: ERROR: {"other":"the kubectl tool isn't installed yet"}
 
-# The agent harness's imports from this workshop: the model and four typed, labelled tool slots
+# The agent harness's imports from this workshop: the model, five typed, labelled tool slots and GitHub sign-in
 $ wasm-tools component wit artifacts/agent.wasm | grep 'import .*workshop:toolbox'
   import workshop:toolbox/types@0.4.0;
   import model: workshop:toolbox/model@0.4.0;
   import curl: workshop:toolbox/curl@0.4.0;
   import sqlite: workshop:toolbox/sqlite@0.4.0;
+  import gh: workshop:toolbox/gh@0.4.0;
   import git: workshop:toolbox/git@0.4.0;
   import kubectl: workshop:toolbox/kubectl@0.4.0;
+  import workshop:toolbox/github-auth@0.4.0;
 # The harness imports no HTTP client, no filesystem and no sockets, so this prints nothing:
 $ wasm-tools component wit artifacts/agent.wasm | grep -E 'wasi:(http/client|filesystem|sockets)'
 # The tools you'll add are small. Look at the sizes:
-$ ls -l artifacts/tool_curl.wasm artifacts/tool_sqlite.wasm artifacts/tool_kubectl.wasm
+$ ls -l artifacts/tool_curl.wasm artifacts/tool_sqlite.wasm artifacts/tool_gh.wasm
 182276 artifacts/tool_curl.wasm
-905138 artifacts/tool_kubectl.wasm
+297695 artifacts/tool_gh.wasm
 1173947 artifacts/tool_sqlite.wasm

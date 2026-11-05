@@ -76,6 +76,18 @@
     border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer;
   }
   .btn:hover { background: var(--hover); }
+  .btn:disabled { opacity: 0.55; cursor: default; }
+  .tools { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; justify-content: flex-end; }
+
+  /* GitHub sign-in (step 4): a button, then the code to enter, then who. */
+  .gh { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; font-size: 0.8rem; color: var(--muted); }
+  .gh a { color: var(--brand-ink); font-weight: 600; }
+  .gh code {
+    font-size: 0.9rem; font-weight: 700; color: var(--strong); background: var(--sunken);
+    padding: 0.1rem 0.45rem; border-radius: 0.35rem; letter-spacing: 0.05em;
+  }
+  .gh strong { color: var(--strong); }
+  .gh .why { max-width: 22rem; }
 
   /* One centred reading column, as in a chat session. */
   .col { width: 100%; max-width: 48rem; margin: 0 auto; padding: 0 1.25rem; }
@@ -195,7 +207,10 @@
     <h1>Agent chat</h1>
     <span class="event">KubeCon workshop</span>
   </div>
-  <button class="btn" id="clear" type="button">Clear</button>
+  <div class="tools">
+    <div class="gh" id="gh" role="status" aria-live="polite"></div>
+    <button class="btn" id="clear" type="button">Clear</button>
+  </div>
 </header>
 
 <main>
@@ -219,8 +234,9 @@
       <button class="chip" type="button" title="Step 2">curl -sL http://api.workshop-sites.svc/redirect</button>
       <button class="chip" type="button" title="Step 3">sqlite .shell id</button>
       <button class="chip" type="button" title="Step 3">sqlite attach 'file:/workshop/private-data/payroll.db?immutable=1' as p</button>
-      <button class="chip" type="button" title="Step 4">kubectl get pods</button>
-      <button class="chip" type="button" title="Step 4">kubectl get secrets</button>
+      <button class="chip" type="button" title="Step 4">triage the open PRs in wasmCloud/wasmCloud</button>
+      <button class="chip" type="button" title="Step 4">gh api -X POST /repos/wasmCloud/wasmCloud/issues/1/comments</button>
+      <button class="chip" type="button" title="Step 4">curl -s https://api.github.com/repos/wasmCloud/wasmCloud/pulls</button>
     </div>
     <div class="box">
       <label class="sr-only" for="prompt">Prompt</label>
@@ -435,6 +451,47 @@
       $('prompt').focus();
     }
   }
+
+  // GitHub sign-in. The harness passes each call to the github-api plugin,
+  // which runs GitHub's device flow and keeps the token; this page only sees
+  // the code to enter, where to enter it, and the login once signed in.
+  let ghTimer = null;
+  async function gh(path, method) {
+    try {
+      const res = await fetch(path, { method: method || 'GET', cache: 'no-store' });
+      return await res.json();
+    } catch (e) {
+      return { state: 'error', error: 'cannot reach the agent' };
+    }
+  }
+  function ghButton(label, onClick) {
+    const b = el('button', 'btn', label);
+    b.type = 'button';
+    b.addEventListener('click', async () => { b.disabled = true; await onClick(); });
+    return b;
+  }
+  function ghShow(s) {
+    const box = $('gh');
+    box.replaceChildren();
+    clearTimeout(ghTimer);
+    if (s.state === 'signed-in') {
+      box.append(document.createTextNode('Signed in to GitHub as '), el('strong', '', s.login),
+        ghButton('Sign out', async () => ghShow(await gh('/github/sign-out', 'POST'))));
+    } else if (s.state === 'pending') {
+      const a = el('a', '', s.verification_uri.replace(/^https:\/\//, ''));
+      a.href = s.verification_uri;
+      a.target = '_blank';
+      a.rel = 'noopener';
+      box.append(document.createTextNode('Enter '), el('code', '', s.user_code),
+        document.createTextNode(' at '), a,
+        ghButton('Cancel', async () => ghShow(await gh('/github/sign-out', 'POST'))));
+      ghTimer = setTimeout(async () => ghShow(await gh('/github/status')), 5000);
+    } else {
+      if (s.state === 'error') box.append(el('span', 'why', s.error));
+      box.append(ghButton('Sign in with GitHub', async () => ghShow(await gh('/github/sign-in', 'POST'))));
+    }
+  }
+  gh('/github/status').then((s) => ghShow(s.state === 'error' ? { state: 'signed-out' } : s));
 
   $('form').addEventListener('submit', (e) => { e.preventDefault(); send($('prompt').value); });
   document.querySelectorAll('.examples button').forEach((b) =>

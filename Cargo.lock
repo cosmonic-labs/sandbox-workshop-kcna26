@@ -353,6 +353,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "gh-not-installed"
+version = "0.1.0"
+dependencies = [
+ "wit-bindgen",
+]
+
+[[package]]
+name = "github-api"
+version = "0.1.0"
+dependencies = [
+ "serde_json",
+ "wit-bindgen",
+]
+
+[[package]]
 name = "github-core"
 version = "0.1.0"
 dependencies = [

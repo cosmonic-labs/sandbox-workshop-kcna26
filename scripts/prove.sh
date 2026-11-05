@@ -135,15 +135,15 @@ kubectl wait --for=condition=Ready workloaddeployment/toy-sites -n workshop-site
   ask agent.localhost 'fetch http://api.workshop-sites.svc/data'
   echo "# Two instructions: the model follows both, and doesn't retry an error"
   ask agent.localhost 'fetch http://api.workshop-sites.svc/data. Then kubectl get secrets'
-  echo "# The agent harness's imports from this workshop: the model and four typed, labelled tool slots"
+  echo "# The agent harness's imports from this workshop: the model, five typed, labelled tool slots and GitHub sign-in"
   echo "\$ wasm-tools component wit artifacts/agent.wasm | grep 'import .*workshop:toolbox'"
   wasm-tools component wit artifacts/agent.wasm | grep 'import .*workshop:toolbox'
   echo "# The harness imports no HTTP client, no filesystem and no sockets, so this prints nothing:"
   echo "\$ wasm-tools component wit artifacts/agent.wasm | grep -E 'wasi:(http/client|filesystem|sockets)'"
   wasm-tools component wit artifacts/agent.wasm | grep -E 'wasi:(http/client|filesystem|sockets)' || true
   echo "# The tools you'll add are small. Look at the sizes:"
-  echo "\$ ls -l artifacts/tool_curl.wasm artifacts/tool_sqlite.wasm artifacts/tool_kubectl.wasm"
-  ls -l artifacts/tool_curl.wasm artifacts/tool_sqlite.wasm artifacts/tool_kubectl.wasm | awk '{print $5, $NF}'
+  echo "\$ ls -l artifacts/tool_curl.wasm artifacts/tool_sqlite.wasm artifacts/tool_gh.wasm"
+  ls -l artifacts/tool_curl.wasm artifacts/tool_sqlite.wasm artifacts/tool_gh.wasm | awk '{print $5, $NF}'
 } >"$(OUT steps/01-agent)" 2>&1
 
 {
@@ -367,6 +367,9 @@ calls "$f" 'fetch http://api.workshop-sites.svc/data. Then kubectl get secrets' 
 present "$f" "[tool kubectl] error: {\"other\":\"the kubectl tool isn't installed yet\"}" 'the second instruction reaches the kubectl placeholder'
 absent "$f" '[agent] stopped after' 'the model never loops'
 present "$f" 'workshop:toolbox/kubectl@0.4.0' 'the harness imports the kubectl slot'
+present "$f" 'import gh: workshop:toolbox/gh@0.4.0' 'the harness imports the gh slot'
+present "$f" 'import workshop:toolbox/github-auth@0.4.0' 'the harness imports GitHub sign-in'
+absent "$f" 'github-api' 'the harness never imports the GitHub API itself'
 absent "$f" 'import wasi:http/client' 'the harness imports no HTTP client'
 
 f=$(OUT steps/02-curl)

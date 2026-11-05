@@ -54,6 +54,10 @@ spec:
               - name: sqlite-data
                 mountPath: /data
                 readOnly: true
+        # gh arrives in step 4. Its placeholder also answers GitHub sign-in,
+        # which the harness imports, until step 4 declares the plugin.
+        - name: gh
+          image: workshop-toolbox-registry:5000/workshop/gh-not-installed:0.4.0
         # git reads the repository, mounted read only at /repo.
         - name: git
           image: workshop-toolbox-registry:5000/workshop/tool-git:0.4.0

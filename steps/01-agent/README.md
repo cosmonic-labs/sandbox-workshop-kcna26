@@ -3,7 +3,7 @@
 **Folder:** `steps/01-agent`
 
 Deploy an agent with `kubectl`, with no tools at all, and talk to it. The
-next two steps give it one tool each, and the extras add more.
+next three steps give it one tool each, and the extras add more.
 
 ## Deploy
 
@@ -27,22 +27,24 @@ The agent is three kinds of component in one workload:
 * The **model** decides what to do next. Here it is a scripted stand-in, not
   a real language model, so the workshop needs no API key and every run gives
   the same answer.
-* The **tools**. The harness has four labelled tool slots: `curl`, `sqlite`,
-  `git` and `kubectl`. The host links each label to the component of the same
-  name in the manifest, so every slot must hold something. In this step every
-  slot holds a placeholder, `not-installed`, which answers that the tool
-  isn't installed.
+* The **tools**. The harness has five labelled tool slots: `curl`, `sqlite`,
+  `gh`, `git` and `kubectl`. The host links each label to the component of
+  the same name in the manifest, so every slot must hold something. In this
+  step every slot holds a placeholder, which answers that the tool isn't
+  installed. The `gh` slot's placeholder, `gh-not-installed`, also answers
+  the chat page's "Sign in with GitHub" until step 4.
 
 The scripted model is **deliberately gullible**. It reads your prompt and
 every tool result, and it does whatever they say. It knows two kinds of
 instruction:
 
 * A tool's own command line, passed through as is: `curl -s <url>`,
-  `sqlite <sql>`, `git <args>`, `kubectl <args>`, or a line that starts with
-  a dot, such as `.tables`, for sqlite.
+  `sqlite <sql>`, `gh <args>`, `git <args>`, `kubectl <args>`, or a line that
+  starts with a dot, such as `.tables`, for sqlite.
 * A few plain requests, each mapped to one tool: `fetch <url>` or
   `summarize <url>` (curl), `save <url> to <file>` (curl `-o`), `list the
-  talks` (sqlite), `show the recent commits` (git), `list the pods` (kubectl).
+  talks` (sqlite), `triage the open PRs in <owner/repo>` (gh), `show the
+  recent commits` (git), `list the pods` (kubectl).
 
 It never refuses. So in the steps that follow, nothing you see refused was
 refused by the model. Each refusal comes from another layer, and each step
@@ -105,24 +107,24 @@ instruction.
 
 ## What you ran
 
-One workload with six components: the agent harness, the model, and four
-tool slots, each holding the placeholder.
+One workload with seven components: the agent harness, the model, and five
+tool slots, each holding a placeholder.
 
 | Component | Can reach |
 | --- | --- |
-| harness | the model and the four tool slots, nothing else |
+| harness | the model, the five tool slots and GitHub sign-in, nothing else |
 | model | nothing |
 | each tool slot (placeholder) | nothing; it answers "not installed yet" |
 
 None of them has `localResources`, the part of a manifest entry that grants
-hosts and folders. Steps 2 and 3 and the extras fill the slots with real
+hosts and folders. Steps 2 to 4 and the extras fill the slots with real
 tools, each with its own grant.
 
 ## Look inside (optional)
 
 `wasm-tools component wit` prints a component's interface: what it imports
-from the host and what it exports. The harness imports the model and the
-four tool slots:
+from the host and what it exports. The harness imports the model, the five
+tool slots and GitHub sign-in (`github-auth`, which step 4 uses):
 
 ```sh
 wasm-tools component wit artifacts/agent.wasm | grep 'import .*workshop:toolbox'
@@ -137,11 +139,11 @@ wasm-tools component wit artifacts/agent.wasm | grep -E 'wasi:(http/client|files
 The tools you'll add are whole programs, and small:
 
 ```sh
-ls -l artifacts/tool_curl.wasm artifacts/tool_sqlite.wasm artifacts/tool_kubectl.wasm
+ls -l artifacts/tool_curl.wasm artifacts/tool_sqlite.wasm artifacts/tool_gh.wasm
 ```
 
 `curl` is about 180 KB (182,276 bytes), `sqlite3` about 1.2 MB (1,173,947)
-and `kubectl` about 900 KB (905,138). These are the component files only;
+and `gh` about 300 KB (297,695). These are the component files only;
 the wasmCloud host that runs them is a separate, long-running pod.
 
 Full transcript: [`expected-output.txt`](expected-output.txt).
