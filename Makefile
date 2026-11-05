@@ -10,7 +10,7 @@
 #   make kubectl     build the kubectl tool (its own crate: tokio_unstable stays scoped to it)
 #   make fixtures-db rebuild fixtures/*.db from their .sql (maintainers; needs sqlite3)
 #   make check-fixtures-db  the committed .db files match their checksums and sources
-#   make prove       replay steps 1 to 3, extras/kubectl and extras/git on the cluster, rewrite their expected-output.txt
+#   make prove       replay steps 1 to 4, extras/kubectl and extras/git on the cluster, rewrite their expected-output.txt
 #   make verify      replay the same, change nothing, check each result is what it should be
 #   make down        changes nothing; make clean deletes the cluster and the registry
 #

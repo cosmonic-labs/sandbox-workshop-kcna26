@@ -1,4 +1,4 @@
-# Extra: give the agent kubectl. steps/03-sqlite/workload.yaml with two
+# Extra: give the agent kubectl. steps/04-github/workload.yaml with two
 # changes: the kubectl slot holds the real kubectl tool, and hostInterfaces
 # declares the kube-api capability it uses.
 #
@@ -37,10 +37,20 @@ spec:
           interfaces: [handler]
           config:
             host: agent.localhost
-        # The Kubernetes API, as a capability: the host links it to the
-        # kube-api plugin. kubectl imports it; nothing else here does.
+        # GitHub, as two capabilities the host links to the github-api plugin
+        # the platform installed on the default host group (k8s/values.yaml):
+        # github-api, which the gh tool imports, and github-auth (sign-in),
+        # which the agent harness imports. Nothing else here imports either.
         - namespace: workshop
           package: toolbox
+          interfaces: [github-api, github-auth]
+        # The Kubernetes API, as a capability: the host links it to the
+        # kube-api plugin. kubectl imports it; nothing else here does. A
+        # manifest may have one unnamed entry per package, so this one is
+        # named, after the plugin it addresses.
+        - namespace: workshop
+          package: toolbox
+          name: kube-api
           interfaces: [kube-api]
       components:
         - name: agent
@@ -64,10 +74,10 @@ spec:
               - name: sqlite-data
                 mountPath: /data
                 readOnly: true
-        # gh arrives in step 4. Its placeholder also answers GitHub sign-in,
-        # which the harness imports, until step 4 declares the plugin.
+        # gh: no grants of its own. It reaches GitHub only through the
+        # github-api capability above.
         - name: gh
-          image: workshop-toolbox-registry:5000/workshop/gh-not-installed:0.4.0
+          image: workshop-toolbox-registry:5000/workshop/tool-gh:0.4.0
         # git is the extra in extras/git: the placeholder, no grants.
         - name: git
           image: workshop-toolbox-registry:5000/workshop/not-installed:0.4.0

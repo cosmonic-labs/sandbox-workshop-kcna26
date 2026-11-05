@@ -1,7 +1,7 @@
-# Extra: a real model on your own machine. steps/03-sqlite/workload.yaml
+# Extra: a real model on your own machine. steps/04-github/workload.yaml
 # with one change: the model slot holds model-real instead of the scripted
 # model. Nothing is rebuilt, and every tool keeps exactly the grant it had in
-# step 3.
+# step 4.
 #
 # model-real speaks the OpenAI chat completions API, which Ollama, llama.cpp's
 # llama-server, LM Studio and vLLM all serve. As written it calls Ollama on
@@ -35,6 +35,13 @@ spec:
           interfaces: [handler]
           config:
             host: agent.localhost
+        # GitHub, as two capabilities the host links to the github-api plugin
+        # the platform installed on the default host group (k8s/values.yaml):
+        # github-api, which the gh tool imports, and github-auth (sign-in),
+        # which the agent harness imports. Nothing else here imports either.
+        - namespace: workshop
+          package: toolbox
+          interfaces: [github-api, github-auth]
       components:
         - name: agent
           image: workshop-toolbox-registry:5000/workshop/agent:0.4.0
@@ -66,10 +73,10 @@ spec:
               - name: sqlite-data
                 mountPath: /data
                 readOnly: true
-        # gh arrives in step 4. Its placeholder also answers GitHub sign-in,
-        # which the harness imports, until step 4 declares the plugin.
+        # gh: no grants of its own. It reaches GitHub only through the
+        # github-api capability above.
         - name: gh
-          image: workshop-toolbox-registry:5000/workshop/gh-not-installed:0.4.0
+          image: workshop-toolbox-registry:5000/workshop/tool-gh:0.4.0
         # git is the extra in extras/git: the placeholder, no grants.
         - name: git
           image: workshop-toolbox-registry:5000/workshop/not-installed:0.4.0

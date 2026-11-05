@@ -2,11 +2,12 @@
 
 **Folder:** `extras/git`
 
-Extra credit: the session doesn't cover this one. It builds on step 3's
-cluster state. Its manifest is `steps/03-sqlite/workload.yaml` with one
+Extra credit: the session doesn't cover this one. It builds on step 4's
+cluster state. Its manifest is `steps/04-github/workload.yaml` with one
 change: the `git` slot, which holds the placeholder in every step, gets the
 real git tool and the repository, read only. The repository is already on
-your cluster: `make up` builds it into `.run/repo` for this extra.
+your cluster: `make up` builds it into `.run/repo` for this extra. Sign-in
+is kept per workload, so applying this manifest signs you out of GitHub.
 
 `git` is on [GTFOBins](https://gtfobins.github.io/) because a repository can
 tell git to run a program: a hook, `core.fsmonitor`, `core.pager`, a bang
@@ -93,7 +94,7 @@ kubectl apply -f extras/git/workload.yaml \
   workloaddeployment/toolbox-agent
 ```
 
-The same agent as step 3, with the real git tool in its slot. Its grant: the
+The same agent as step 4, with the real git tool in its slot. Its grant: the
 repository, read only.
 
 ```yaml

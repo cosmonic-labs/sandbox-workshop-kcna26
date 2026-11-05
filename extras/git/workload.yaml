@@ -1,4 +1,4 @@
-# Extra: read a hostile repository. steps/03-sqlite/workload.yaml with one
+# Extra: read a hostile repository. steps/04-github/workload.yaml with one
 # change: the git slot holds the real git tool, which reads the repository
 # mounted read only at /repo.
 #
@@ -6,8 +6,9 @@
 #   curl     the hosts in its allowedHosts (api.workshop-sites.svc), and the
 #            folder mounted at /data for -o
 #   sqlite   the databases (talks, rooms) mounted read only at /data
+#   gh       the github-api capability only
 #   git      the repository mounted read only at /repo
-# The harness and the model get nothing: no allowedHosts, no volumes.
+# The harness gets github-auth; the model gets nothing.
 
 apiVersion: runtime.wasmcloud.dev/v1alpha1
 kind: WorkloadDeployment
@@ -32,6 +33,13 @@ spec:
           interfaces: [handler]
           config:
             host: agent.localhost
+        # GitHub, as two capabilities the host links to the github-api plugin
+        # the platform installed on the default host group (k8s/values.yaml):
+        # github-api, which the gh tool imports, and github-auth (sign-in),
+        # which the agent harness imports. Nothing else here imports either.
+        - namespace: workshop
+          package: toolbox
+          interfaces: [github-api, github-auth]
       components:
         - name: agent
           image: workshop-toolbox-registry:5000/workshop/agent:0.4.0
@@ -54,10 +62,10 @@ spec:
               - name: sqlite-data
                 mountPath: /data
                 readOnly: true
-        # gh arrives in step 4. Its placeholder also answers GitHub sign-in,
-        # which the harness imports, until step 4 declares the plugin.
+        # gh: no grants of its own. It reaches GitHub only through the
+        # github-api capability above.
         - name: gh
-          image: workshop-toolbox-registry:5000/workshop/gh-not-installed:0.4.0
+          image: workshop-toolbox-registry:5000/workshop/tool-gh:0.4.0
         # git reads the repository, mounted read only at /repo.
         - name: git
           image: workshop-toolbox-registry:5000/workshop/tool-git:0.4.0

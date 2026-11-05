@@ -4,10 +4,11 @@
 A hands-on workshop for KubeCon + CloudNativeCon NA 2026. You `kubectl apply`
 an agent to your own cluster with **wasmCloud**, a CNCF project, give it
 tools one at a time, then try each tool's most famous escape and watch it
-fail.
+fail. Then you give it a real job: triaging pull requests on GitHub, signed
+in with your own account if you like.
 
-The tools are `curl` and `sqlite3`, with `kubectl` and `git` as extra
-credit. `curl`, `sqlite3` and `git` are classics from
+The tools are `curl`, `sqlite3` and `gh` (GitHub's command line), with
+`kubectl` and `git` as extra credit. `curl`, `sqlite3` and `git` are classics from
 [GTFOBins](https://gtfobins.github.io/), the catalogue of everyday programs
 that break out of restricted shells. The model is a gullible stand-in that
 does whatever it reads (step 1 explains how it works). It never refuses, so
@@ -21,6 +22,9 @@ one:
   `push`.
 * **The grant**: the lines of the manifest that give each tool its folders
   (`volumeMounts`) and its hosts (`allowedHosts`).
+* **A platform plugin's own rules**: the GitHub capability behind `gh` sends
+  only reads, only to `api.github.com`, only for the paths `gh` needs, and
+  keeps your sign-in to itself (step 4).
 * **RBAC** (role-based access control, the Kubernetes API server's own
   rules): what the identity behind `kubectl` may do (`extras/kubectl`).
 
@@ -32,6 +36,7 @@ Each tool starts with nothing and gets only its own grant.
   containers, on macOS or Linux. On Windows, use WSL2.
 * Or nothing at all: GitHub Codespaces (see below).
 * About 1 GB of downloads. Do them before the conference: `make tools && make up`.
+* For step 4, the internet, and optionally a GitHub account to sign in with.
 * Optional, to build `curl` yourself in step 2: Rust 1.98.1 with the
   `wasm32-wasip2` target, and one `make build` beforehand to fetch the
   crates. Without it, step 2 uses the prebuilt image.
@@ -63,6 +68,7 @@ cluster named `workshop-toolbox` and switches your kubectl context to it.
 | 1 | `steps/01-agent` | The agent with no tools: how it and its gullible model work, and that it can use only what its manifest gives it |
 | 2 | `steps/02-curl` | `curl` (prebuilt, or build your own) gets one host; its escapes (metadata service, other hosts, redirects, files) are refused |
 | 3 | `steps/03-sqlite` | `sqlite3`'s escapes (`.shell`, `ATTACH`, extensions) go nowhere |
+| 4 | `steps/04-github` | A real job: triage wasmCloud's pull requests with `gh`, signed in or not; the GitHub capability refuses writes, and the token never leaves the platform |
 
 Each step README has the commands and the output to expect
 (`expected-output.txt`).
@@ -72,7 +78,7 @@ step with its one `kubectl apply`.
 
 ### Extra credit
 
-Not covered in the session. Each builds on step 3's cluster state.
+Not covered in the session. Each builds on step 4's cluster state.
 
 | Folder | What you'll see |
 | --- | --- |
@@ -124,8 +130,10 @@ registry.
   host pod, group "default"                       host pod, group "fixtures"
     workload toolbox-agent                          toy sites: api, collector,
       harness ──▶ model                             llm
+        ├──▶ sign-in  github-api plugin ──▶ github.com (device flow)
         ├──▶ curl     allowedHosts only ─── HTTP ──▶ (.workshop-sites.svc)
         ├──▶ sqlite   /data, read only
+        ├──▶ gh       github-api plugin ──▶ api.github.com (GET, allowlisted paths)
         ├──▶ kubectl  kube-api plugin ──▶ API server (RBAC: agent-reader, extras/kubectl)
         └──▶ git      /repo, read only (extras/git)
 ```
@@ -160,6 +168,11 @@ the workshop needs no internet.
   with `maxConcurrency` above 1. The workshop's components aren't pooled (each
   request gets a fresh store) and the harness awaits each tool call before the
   next, so it can't happen here.
+* The github-api plugin keeps each sign-in in its memory, keyed by the
+  workload's id, and nothing clears the entry when a workload goes away: a
+  replaced workload's token stays in the plugin's memory, unused, until the
+  host restarts. A real platform would keep tokens in a secrets store and
+  drop them when the workload is deleted.
 * The chart's NetworkPolicies are off in `k8s/values.yaml` because kindnet on
   kind v0.33.0 dropped their DNS replies. Keep them on in a real cluster.
 
@@ -169,9 +182,24 @@ the workshop needs no internet.
   needs wasi-sdk (`WASI_SDK_PATH`, `CC_wasm32_wasip2`). `make push-build`
   pushes your build to the cluster's registry. A running workload keeps its
   old image until it is recreated.
-* `make prove` replays steps 1 to 3, `extras/kubectl` and `extras/git` and
-  rewrites each `expected-output.txt`; `make verify` replays them and checks each result.
-  `extras/real-model` needs a real model, so neither runs it.
+* `make prove` replays steps 1 to 4, `extras/kubectl` and `extras/git` and
+  rewrites each `expected-output.txt`; `make verify` replays them and checks
+  each result. `extras/real-model` needs a real model, so neither runs it.
+  Step 4 calls GitHub (7 requests a run): its live answers are masked in the
+  transcript and checked for shape, and verify skips them (SKIP) when
+  GitHub's unauthenticated limit of 60 an hour is used up.
+* **GitHub sign-in** (step 4) needs a GitHub OAuth app with the device flow
+  enabled. Create one in GitHub under Settings, Developer settings, OAuth
+  Apps, New OAuth App. Any name, homepage URL and callback URL will do (the
+  device flow uses neither URL). Tick **Enable Device Flow**. Scopes are not
+  part of the app: they are asked for at sign-in, and the plugin asks for
+  none. Put the app's Client ID (public, not a secret; no client secret is
+  needed) in `k8s/values.yaml` under the `github-api` plugin's `client-id`,
+  then run `make up` again. Until then, sign-in says it isn't set up and step
+  4 works signed out.
+* After rebuilding `artifacts/github_api.wasm` or `artifacts/kube_api.wasm`,
+  copy the digest `scripts/push.sh` prints into `k8s/values.yaml`: the host
+  refuses a plugin whose digest differs.
 * `TESTING.md` is the pre-workshop test checklist.
 * `extras/real-model/` swaps the scripted model for `model-real` (an OpenAI
   compatible endpoint, hosted or local) in the same slot, with no rebuild.

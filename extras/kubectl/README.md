@@ -2,10 +2,12 @@
 
 **Folder:** `extras/kubectl`
 
-Extra credit: the session doesn't cover this one. It builds on step 3's
-cluster state. Its manifest is `steps/03-sqlite/workload.yaml` with two
+Extra credit: the session doesn't cover this one. It builds on step 4's
+cluster state. Its manifest is `steps/04-github/workload.yaml` with two
 changes: the `kubectl` slot, which holds the placeholder in every step, gets
 the real kubectl tool, and `hostInterfaces` gets the kube-api capability.
+Sign-in is kept per workload, so applying this manifest signs you out of
+GitHub; sign in again if you want gh's higher limit.
 
 `kubectl` is the tool a platform team least wants an agent to have. Here the
 agent gets it, and two layers decide what it can do: the wasmCloud grant and
@@ -42,12 +44,15 @@ kubectl apply -f extras/kubectl/workload.yaml \
   workloaddeployment/toolbox-agent
 ```
 
-The same agent as step 3, with the real tool in its kubectl slot and one new
-entry under `hostInterfaces`:
+The same agent as step 4, with the real tool in its kubectl slot and one new
+entry under `hostInterfaces`. A manifest may have only one unnamed entry per
+package, and step 4's GitHub entry is already `workshop:toolbox`, so this one
+is named after the plugin it addresses:
 
 ```yaml
 - namespace: workshop
   package: toolbox
+  name: kube-api
   interfaces: [kube-api]
 ```
 

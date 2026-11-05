@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Replay every step (steps/01-agent to steps/03-sqlite) and the kubectl and
+# Replay every step (steps/01-agent to steps/04-github) and the kubectl and
 # git extras (extras/kubectl, extras/git) on the kind cluster (make up) and write each one's transcript
 # to <folder>/expected-output.txt. Resets the demo state first so the outputs
 # are repeatable. The commands echoed with "$" are the ones the READMEs ask
@@ -9,8 +9,16 @@
 # answers differ from run to run.
 #
 # Pod names in the demo namespace are random, so they are written as
-# hello-<pod>, kubectl's ages as <age> and describe's timestamps as <time>. Everything else is deterministic:
-# a second run on a fresh cluster should leave `git diff steps extras` empty.
+# hello-<pod>, kubectl's ages as <age> and describe's timestamps as <time>.
+# Step 4 reads live data from GitHub, so each of its gh replies that GitHub
+# answered is written as <live data from GitHub> and checked for its shape
+# instead. Everything else is deterministic: a second run on a fresh cluster
+# should leave `git diff steps extras` empty.
+#
+# Step 4 needs the internet and makes 7 GitHub requests per run. Without a
+# sign-in GitHub allows 60 an hour per IP address; when they run out, verify
+# skips the live checks (SKIP) and still checks every refusal, and prove
+# stops rather than record the rate-limit error.
 #
 #   scripts/prove.sh            replay and rewrite the transcripts (make prove)
 #   scripts/prove.sh --verify   replay into a scratch folder, change nothing,
@@ -67,6 +75,30 @@ normalize() {
   sed -E -e 's/hello-[a-z0-9]{6,10}-[a-z0-9]{5}/hello-<pod>/g' \
     -e 's/[A-Z][a-z]{2}, [0-9]{2} [A-Z][a-z]{2} [0-9]{4} [0-9]{2}:[0-9]{2}:[0-9]{2} [+-][0-9]{4}/<time>/g' \
     -e '/^\[tool kubectl\]|^\[model\] Done/ s/(^| |\()[0-9]+[smhdy]([0-9]+[smhd])?( |\)|$)/\1<age>\3/g'
+}
+
+# Step 4's live replies: what GitHub answered is masked in the transcript, and
+# the reply as it came back is kept in $SCRATCH/live-<name> for verify.
+live_mask() {
+  sed -E -e 's/^\[tool gh\] ok: .*/[tool gh] ok: <live data from GitHub>/' \
+    -e 's/^\[model\] Done\. Here is what each step returned: gh: [^E].*/[model] Done. Here is what each step returned: gh: <live data from GitHub>/'
+}
+ask_live() { # name, prompt
+  local reply
+  echo "\$ curl -s -H 'Host: agent.localhost' $URL/ -d $(shell_quote "$2")"
+  for _ in $(seq 1 30); do
+    reply=$(curl -s -m 60 -w '\n%{http_code}' -H "Host: agent.localhost" "$URL/" -d "$2")
+    case "${reply##*$'\n'}" in 502 | 503 | 504) sleep 1 ;; *) break ;; esac
+  done
+  reply=${reply%$'\n'*}
+  printf '%s\n' "$reply" >"$SCRATCH/live-$1"
+  if [ "$MODE" = write ] && printf '%s' "$reply" | grep -q '"network":"GitHub.*rate limit'; then
+    echo "GitHub's rate limit is used up; run make prove again once it resets:" >&2
+    printf '%s\n' "$reply" | grep -m1 '^\[tool gh\]' >&2
+    exit 1
+  fi
+  printf '%s' "$reply" | normalize | live_mask
+  echo
 }
 
 ask() { # host, prompt
@@ -207,6 +239,40 @@ kubectl wait --for=condition=Ready workloaddeployment/toy-sites -n workshop-site
   echo "\$ wasm-tools component wit artifacts/tool_sqlite.wasm | grep -E '^  import'"
   wasm-tools component wit artifacts/tool_sqlite.wasm | grep -E '^  import'
 } >"$(OUT steps/03-sqlite)" 2>&1
+
+# The pull request step 4 looks at closely: merged, so it reads the same for
+# everyone. The list itself is whatever is open today.
+PR=5885
+{
+  echo "# Step 4: gh reads GitHub through the github-api capability; the plugin decides what is sent"
+  apply steps/04-github/workload.yaml
+  echo "# Sign-in, as the chat page asks for it: a new workload is signed out"
+  echo "\$ curl -s -H 'Host: agent.localhost' $URL/github/status"
+  curl -s -m 30 -H 'Host: agent.localhost' "$URL/github/status"
+  echo
+  echo
+  echo "# Allowed: the open pull requests (live, so masked here)"
+  ask_live list 'triage the open PRs in wasmCloud/wasmCloud'
+  echo "# Allowed: one pull request, its checks and its diff (live, so masked here)"
+  ask_live view "gh pr view $PR"
+  ask_live checks "gh pr checks $PR"
+  ask_live diff "gh pr diff $PR"
+  echo "# Refused by the grant: curl may not reach api.github.com"
+  ask agent.localhost 'curl -s https://api.github.com/repos/wasmCloud/wasmCloud/pulls'
+  echo "# Refused by the plugin: gh api sends a write through the capability as is"
+  ask agent.localhost "gh api -X POST /repos/wasmCloud/wasmCloud/issues/$PR/comments"
+  echo "# Refused by the plugin: a read outside its path allowlist"
+  ask agent.localhost 'gh api /user'
+  echo "# Refused by the tool's own code: gh offers no command that writes"
+  ask agent.localhost "gh pr merge $PR"
+  echo "# The tool imports the github-api capability and no HTTP client, sockets or files:"
+  echo "\$ wasm-tools component wit artifacts/tool_gh.wasm | grep -E '^  import (workshop|wasi:http|wasi:sockets|wasi:filesystem|wasmcloud)'"
+  wasm-tools component wit artifacts/tool_gh.wasm | grep -E '^  import (workshop|wasi:http|wasi:sockets|wasi:filesystem|wasmcloud)'
+  # Sign-in starts, or says it isn't set up; either way the plugin named the
+  # calling workload, or it would have refused. Then forget it again.
+  fact signin "$(curl -s -m 30 -X POST -H 'Host: agent.localhost' "$URL/github/sign-in")"
+  curl -s -m 30 -X POST -H 'Host: agent.localhost' "$URL/github/sign-out" >/dev/null
+} >"$(OUT steps/04-github)" 2>&1
 
 {
   echo "# Extra: kubectl reads the demo namespace through the kube-api capability"
@@ -406,6 +472,54 @@ expect "$f" "sqlite select load_extension('/tmp/evil')" invalid-argument 'no suc
 absent "$f" 'import wasi:http' 'sqlite imports no HTTP'
 absent "$f" 'import wasi:sockets' 'sqlite imports no sockets'
 
+f=$(OUT steps/04-github)
+SKIPS=0
+# A live reply: gh answered ok with every text given, or GitHub's rate limit
+# was used up, which skips the check (SKIP) instead of failing it.
+live() { # name, text...
+  local name=$1 line t
+  shift
+  CHECKED=$((CHECKED + 1))
+  line=$(grep -m1 '^\[tool gh\]' "$SCRATCH/live-$name" || true)
+  case "$line" in
+    *'] ok: '*) ;;
+    *'"network":"GitHub'*'rate limit'*)
+      SKIPS=$((SKIPS + 1))
+      echo "SKIP step 4 $name: GitHub's rate limit is used up (sign in, or wait for it to reset)"
+      return ;;
+    *) fail "$f" "gh: $name" "[tool gh] ok: ..." "${line:-<no tool call>}"; return ;;
+  esac
+  for t in "$@"; do
+    case "$line" in
+      *"$t"*) ;;
+      *) fail "$f" "gh: $name" "contains: $t" "$line"; return ;;
+    esac
+  done
+}
+present "$f" '{"state":"signed-out"}' 'a new workload is signed out'
+calls "$f" 'triage the open PRs in wasmCloud/wasmCloud' 1
+present "$f" '[model] call gh({"arguments":"pr list -R wasmCloud/wasmCloud --limit 10"})' 'the triage prompt becomes gh pr list'
+live list 'open pull requests in wasmCloud/wasmCloud' '(by '
+live view "#$PR " 'State: merged' 'Author: '
+live checks "Checks for #$PR in wasmCloud/wasmCloud at " 'passing'
+live diff "changed in wasmCloud/wasmCloud#$PR"
+expect "$f" 'curl -s https://api.github.com/repos/wasmCloud/wasmCloud/pulls' access-denied "api.github.com: $DENIED_HOST"
+expect "$f" "gh api -X POST /repos/wasmCloud/wasmCloud/issues/$PR/comments" access-denied \
+  'github-api plugin: only GET requests are allowed'
+expect "$f" 'gh api /user' access-denied "github-api plugin: /user is not on this plugin's path allowlist"
+expect "$f" "gh pr merge $PR" access-denied "'gh pr merge' changes GitHub; this gh only reads"
+present "$f" 'import workshop:toolbox/github-api@0.4.0' 'gh imports the github-api capability'
+absent "$f" '  import wasi:http' 'gh imports no HTTP client'
+absent "$f" '  import wasi:sockets' 'gh imports no sockets'
+absent "$f" '  import wasi:filesystem' 'gh imports no files'
+absent "$f" 'could not say which workload' 'the plugin resolved the calling workload'
+CHECKED=$((CHECKED + 1))
+case "$(sed -n 's/^signin=//p' "$FACTS")" in
+  *'"state":"pending"'* | *'GitHub sign-in is not set up on this cluster'*) ;;
+  *) fail facts 'sign-in starts, or says it is not set up (and the plugin named the workload)' \
+    'pending, or not set up' "$(sed -n 's/^signin=//p' "$FACTS")" ;;
+esac
+
 f=$(OUT extras/kubectl)
 expect "$f" 'kubectl get pods' ok 'NAME READY STATUS RESTARTS AGE hello-<pod> 1/1 Running 0 <age>'
 expect "$f" 'kubectl get deployments' ok 'NAME READY UP-TO-DATE AVAILABLE AGE hello 2/2 2 2 <age>'
@@ -449,5 +563,9 @@ if [ "$FAILS" -gt 0 ]; then
   trap - EXIT
   echo "verify: $FAILS of $CHECKED checks failed (this run's transcripts: $SCRATCH)"
   exit 1
+fi
+if [ "$SKIPS" -gt 0 ]; then
+  echo "verify: all $((CHECKED - SKIPS)) checks passed, $SKIPS live GitHub checks skipped (rate limit)"
+  exit 0
 fi
 echo "verify: all $CHECKED checks passed"

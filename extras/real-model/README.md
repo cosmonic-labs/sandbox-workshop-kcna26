@@ -2,15 +2,15 @@
 
 **Folder:** `extras/real-model`
 
-Extra credit: the session doesn't cover this one. It builds on step 3's
-cluster state: each manifest here is `steps/03-sqlite/workload.yaml` with
+Extra credit: the session doesn't cover this one. It builds on step 4's
+cluster state: each manifest here is `steps/04-github/workload.yaml` with
 one change, the model.
 
 Every step so far used the scripted model, so the transcripts are the same
 on every machine. Here you put a real language model in the same slot. The
 `model` slot is a label like any tool slot, so this is a manifest change,
 from `model-scripted` to `model-real`. Nothing is rebuilt, and every tool
-keeps exactly the grant it had in step 3.
+keeps exactly the grant it had in step 4.
 
 `model-real` speaks the OpenAI chat completions API (the `/v1/chat/completions`
 request most model servers accept). It is the only component granted the
@@ -100,7 +100,7 @@ extra. One run of `workload-local.yaml` with `qwen3:4b`, abbreviated:
 A real model may pick a different query, call a tool the scripted model
 wouldn't, or refuse an instruction outright. None of that changes what a
 tool can reach. The `[tool ...]` lines come from the same tools with the
-same grants as step 3, so whatever the model asks for, the same layers
+same grants as step 4, so whatever the model asks for, the same layers
 allow or refuse it. That is why the steps use the scripted model: a model
 that obeys everything shows the grants hold without counting on the model
 to say no.
@@ -117,10 +117,10 @@ model server, set `LLM_URL` to
 
 ## Clean up
 
-Go back to the scripted model with step 3's manifest:
+Go back to the scripted model with step 4's manifest:
 
 ```sh
-kubectl apply -f steps/03-sqlite/workload.yaml \
+kubectl apply -f steps/04-github/workload.yaml \
   && sleep 2 && kubectl wait --for=condition=Ready \
   workloaddeployment/toolbox-agent
 ```

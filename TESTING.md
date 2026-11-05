@@ -26,19 +26,21 @@ make doctor
       `kubectl config current-context` says `kind-workshop-toolbox`.
 - [ ] `make check-fixtures-db` (maintainers, needs sqlite3): ends with
       `fixtures/talks.db: matches fixtures/talks.sql`.
-- [ ] `export PATH="$PWD/.tools:$PATH"`, then walk steps 1 to 3 by hand from
+- [ ] `export PATH="$PWD/.tools:$PATH"`, then walk steps 1 to 4 by hand from
       each `steps/*/README.md`, then `extras/kubectl/README.md` and
       `extras/git/README.md`. Every command
       runs as written and the output matches the result line under it.
 - [ ] `make prove`: ends with `proofs written:` and the step and extra
       files. `git diff steps extras` shows nothing: the transcripts are
-      deterministic (pod names are written as `hello-<pod>` and kubectl's
-      ages as `<age>`; the git extra's native control in
+      deterministic (pod names are written as `hello-<pod>`, kubectl's
+      ages as `<age>` and step 4's live GitHub answers as
+      `<live data from GitHub>`; the git extra's native control in
       `extras/git/control-checks.txt` depends on the local git version).
       `extras/real-model` is not replayed: it needs a real model.
-- [ ] `make verify`: replays steps 1 to 3, `extras/kubectl` and
+- [ ] `make verify`: replays steps 1 to 4, `extras/kubectl` and
       `extras/git` without writing anything and ends with
-      `verify: all N checks passed`. It checks each result, not the
+      `verify: all N checks passed` (or, when GitHub's unauthenticated
+      limit is used up, `N live GitHub checks skipped`). It checks each result, not the
       exact text: allowed calls return what they should, each refusal has the
       expected error and the refusing layer's message (the grant, the tool's
       own code, or RBAC), the native git control runs the repository's
@@ -57,8 +59,9 @@ make doctor
       `make doctor` on its own; every Required line is green (Docker comes
       from the docker-in-docker feature).
 - [ ] `make up` completes inside the codespace. Note how long it takes.
-- [ ] Steps 1 to 3, `extras/kubectl` and `extras/git` run as written from
-      the codespace terminal (step 2 with the prebuilt curl).
+- [ ] Steps 1 to 4, `extras/kubectl` and `extras/git` run as written from
+      the codespace terminal (step 2 with the prebuilt curl, step 4's
+      sign-in with the curl commands its README gives).
 
 ## 3. Build curl yourself
 
@@ -75,7 +78,21 @@ make doctor
       up` the day before needs no downloads (kind's node image and the chart
       images are cached).
 - [ ] Jumping ahead works: on a fresh `make up`, `kubectl apply -f
-      extras/kubectl/workload.yaml` alone, then that extra's commands.
+      steps/04-github/workload.yaml` alone, then step 4's commands.
+- [ ] Conference Wi-Fi and GitHub: everyone in the room shares one IP
+      address, so the unauthenticated limit (60 requests an hour) runs out
+      fast. Signed in, each person gets their own 5,000.
+
+## 4a. GitHub sign-in (once the OAuth app's client id is in k8s/values.yaml)
+
+- [ ] Step 4's chat page: **Sign in with GitHub** shows a code and a link;
+      entering the code on github.com turns it into `Signed in to GitHub as
+      <you>` within a few seconds, and `gh` answers end with
+      `(signed in)` and a limit of 5000.
+- [ ] `gh api -X POST /repos/wasmCloud/wasmCloud/issues/5885/comments`,
+      signed in: still `github-api plugin: only GET requests are allowed`.
+- [ ] **Sign out** returns to `Sign in with GitHub`; applying another
+      manifest or restarting the host pod signs you out too.
 
 ## 5. Extra: a real model
 
