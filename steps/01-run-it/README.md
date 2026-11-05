@@ -92,10 +92,13 @@ The harness and the model have no `localResources` at all.
 The tools are whole programs, and small:
 
 ```sh
-ls -l artifacts/tool_curl.wasm artifacts/tool_sqlite.wasm artifacts/tool_git.wasm
+ls -l artifacts/tool_curl.wasm artifacts/tool_sqlite.wasm artifacts/tool_git.wasm artifacts/tool_kubectl.wasm
 ```
 
-`curl` is about 180 KB, `sqlite3` about 1.2 MB, `git` about 2.4 MB.
+`curl` is about 180 KB (182,276 bytes), `sqlite3` about 1.2 MB (1,173,947),
+`git` about 2.5 MB (2,450,652) and `kubectl` about 780 KB (781,444). These
+are the component files only; the wasmCloud host that runs them is a separate,
+long-running pod.
 
 The harness imports the model and four tool slots, and no network or files of
 its own. The second command prints nothing:
