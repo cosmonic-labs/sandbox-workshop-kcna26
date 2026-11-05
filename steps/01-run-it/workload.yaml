@@ -1,4 +1,5 @@
-# Step 1: run the agent and its three tools.
+# Step 1: run the agent. Its four tool slots: three real tools and a
+# placeholder for kubectl.
 #
 # The agent harness (the component that runs the loop: ask the model, call a
 # tool, repeat) imports a model and four labelled tool slots: curl, sqlite,
@@ -10,7 +11,7 @@
 # Each tool reaches only what this manifest grants it:
 #   curl    the hosts in its allowedHosts (api.workshop-sites.svc), and the folder
 #           mounted at /data for -o
-#   sqlite  the database mounted read only at /data
+#   sqlite  the databases (talks, rooms) mounted read only at /data
 #   git     the repository mounted read only at /repo
 # The harness and the model get nothing: no allowedHosts, no volumes.
 
@@ -51,7 +52,7 @@ spec:
             volumeMounts:
               - name: curl-data
                 mountPath: /data
-        # sqlite reads the talks database, mounted read only at /data.
+        # sqlite reads the databases in /data (talks, rooms), mounted read only.
         - name: sqlite
           image: workshop-toolbox-registry:5000/workshop/tool-sqlite:0.4.0
           localResources:

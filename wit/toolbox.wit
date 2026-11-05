@@ -49,7 +49,7 @@ interface curl {
   /// Arguments for `run`.
   record run-args {
     /// What you would type after `curl`, such as
-    /// `-s -H "Accept: application/json" https://example.com`.
+    /// `-s -H "Accept: application/json" http://api.workshop-sites.svc/data`.
     arguments: string,
   }
 
@@ -324,7 +324,7 @@ world not-installed {
   export kubectl;
 }
 
-/// Test fixture, not part of the toolbox: the planted web page, the
+/// Test fixture, not part of the toolbox: the ordinary API page, the
 /// exfiltration collector and a fake OpenAI compatible endpoint, all served
 /// from one HTTP component on names that exist nowhere in DNS.
 @since(version = 0.3.0)

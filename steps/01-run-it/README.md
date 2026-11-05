@@ -59,8 +59,8 @@ what the tool returned.
 ## What you ran
 
 One workload with six components: the agent harness (the loop that asks the
-model, calls a tool and repeats), the model, three tools and a placeholder in
-the kubectl slot. Each tool gets only what its entry in the manifest grants:
+model, calls a tool and repeats), the model, and four tool slots: three real
+tools and a placeholder in the kubectl slot. Each tool gets only what its entry in the manifest grants:
 
 | Component | Can reach | Everything else |
 | --- | --- | --- |

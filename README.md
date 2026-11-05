@@ -102,10 +102,11 @@ registry.
             ▼                                                ▼
   host pod, group "default"                       host pod, group "fixtures"
     workload toolbox-agent                          toy sites: api, collector,
-      harness ──▶ model                             planted, llm
-        ├──▶ curl    allowedHosts only  ─── HTTP ──▶ (.workshop-sites.svc)
-        ├──▶ sqlite  /data, read only
-        └──▶ git     /repo, read only
+      harness ──▶ model                             llm
+        ├──▶ curl     allowedHosts only ─── HTTP ──▶ (.workshop-sites.svc)
+        ├──▶ sqlite   /data, read only
+        ├──▶ git      /repo, read only
+        └──▶ kubectl  kube-api plugin ──▶ API server (RBAC: agent-reader)
 ```
 
 * A **component** is a WebAssembly program that starts with no access to
@@ -149,8 +150,6 @@ the workshop needs no internet.
   old image until it is recreated.
 * `make prove` replays every step and rewrites each `expected-output.txt`.
 * `TESTING.md` is the pre-workshop test checklist.
-* `extras/container/` is the same gullible agent as an ordinary container,
-  leaking its Secret and token, for the presentation.
 * `extras/real-model/` swaps the scripted model for `model-real` (an OpenAI
   compatible endpoint) in the same slot, with no rebuild.
 * The tool interfaces are in `wit/toolbox.wit`; the harness's tool table is

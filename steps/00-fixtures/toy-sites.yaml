@@ -1,10 +1,10 @@
-# Fixture workload: the planted page, the exfiltration collector and a fake
-# OpenAI-compatible endpoint, all one component, all inside the cluster.
+# Fixture workload: the ordinary API page, the exfiltration collector and a
+# fake OpenAI-compatible endpoint, all one component, all inside the cluster.
 #
 # It runs in its own namespace on its own host group (hostSelector), never on
 # the agent's host pod. The agent reaches it the ordinary way, by
-# the Kubernetes Services in k8s/sites.yaml: planted.workshop-sites.svc,
-# collector.workshop-sites.svc, llm.workshop-sites.svc and api.workshop-sites.svc. The host routes a
+# the Kubernetes Services in k8s/sites.yaml: api.workshop-sites.svc,
+# collector.workshop-sites.svc and llm.workshop-sites.svc. The host routes a
 # request by its Host header, so this workload serves those names
 # (host-aliases) and sites.localhost, the name your laptop uses through the
 # ingress. Upstream wasmCloud (v2.12.0) adds a Service's DNS names to a
@@ -30,7 +30,7 @@ spec:
           interfaces: [handler]
           config:
             host: sites.localhost
-            host-aliases: planted.workshop-sites.svc,collector.workshop-sites.svc,llm.workshop-sites.svc,api.workshop-sites.svc
+            host-aliases: api.workshop-sites.svc,collector.workshop-sites.svc,llm.workshop-sites.svc
         - namespace: wasmcloud
           package: keyvalue
           version: 0.2.0

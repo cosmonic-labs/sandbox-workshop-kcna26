@@ -8,10 +8,10 @@
 # their real tools and the scripted model, so the agent answers straight away;
 # kubectl holds a placeholder until step 6.
 #
-# Each tool reaches only what this manifest grants it:
-#   curl    the hosts in its allowedHosts (api.workshop-sites.svc), and the folder
-#           mounted at /data for -o
-#   sqlite  the database mounted read only at /data
+# Each tool reaches only what this manifest grants it. This control differs
+# from steps/03-curl/workload.yaml in one line, curl's allowedHosts:
+#   curl    ANY host ("*"), and the folder mounted at /data for -o
+#   sqlite  the databases (talks, rooms) mounted read only at /data
 #   git     the repository mounted read only at /repo
 # The harness and the model get nothing: no allowedHosts, no volumes.
 
@@ -43,7 +43,7 @@ spec:
           image: workshop-toolbox-registry:5000/workshop/agent:0.4.0
         - name: model
           image: workshop-toolbox-registry:5000/workshop/model-scripted:0.4.0
-        # curl may reach only api.workshop-sites.svc, and writes with -o only into /data.
+        # Control: curl may reach any host. It still writes with -o only into /data.
         - name: curl
           image: workshop-toolbox-registry:5000/workshop/tool-curl:0.4.0
           localResources:
@@ -52,7 +52,7 @@ spec:
             volumeMounts:
               - name: curl-data
                 mountPath: /data
-        # sqlite reads the talks database, mounted read only at /data.
+        # sqlite reads the databases in /data (talks, rooms), mounted read only.
         - name: sqlite
           image: workshop-toolbox-registry:5000/workshop/tool-sqlite:0.4.0
           localResources:

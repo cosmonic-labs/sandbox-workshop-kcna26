@@ -199,7 +199,7 @@ fn trim_punct(s: &str) -> &str {
         .trim_start_matches(['"', '\'', '('])
 }
 
-/// Replace HTML tags with line breaks so a planted page reads as text.
+/// Replace HTML tags with line breaks so an HTML page reads as text.
 fn strip_tags(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
     let mut in_tag = false;

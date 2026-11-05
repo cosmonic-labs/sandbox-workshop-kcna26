@@ -98,8 +98,8 @@ helm --kube-context "$CTX" upgrade --install wasmcloud "$ROOT/.upstream/charts/r
 K -n wasmcloud rollout status deploy/hostgroup-default --timeout 5m >/dev/null
 K -n workshop-sites rollout status deploy/hostgroup-fixtures --timeout 5m >/dev/null
 
-# The ingress image, and step 4's container image, are loaded into the node
-# so nothing pulls at the workshop.
+# The ingress image, and the busybox image of step 6's demo hello
+# Deployment, are loaded into the node so nothing pulls at the workshop.
 for img in docker.io/library/nginx:1.27.5-alpine busybox:1.36; do
   docker image inspect "$img" >/dev/null 2>&1 || docker pull -q "$img" >/dev/null
   kind load docker-image "$img" --name "$CLUSTER" >/dev/null 2>&1 || true
@@ -113,7 +113,7 @@ K -n wasmcloud rollout status deploy/workshop-ingress --timeout 3m >/dev/null
 K -n workshop-data rollout status deploy/data-nats --timeout 3m >/dev/null
 "$ROOT/scripts/stores.sh" create
 
-# The toy sites (planted page, collector, fake model) run from the start, on
+# The toy sites (api page, collector, fake model) run from the start, on
 # the fixtures host group. A host pulls an image when a workload starts, and
 # the tag above is the same on every run, so recreate the toy sites to pick up
 # what was just pushed. The collector's count lives in its bucket and stays.

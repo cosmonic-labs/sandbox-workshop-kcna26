@@ -10,9 +10,6 @@ from one component, all inside the cluster, so the workshop needs no internet:
 * `collector.workshop-sites.svc/collect`: a stand-in for an attacker's server.
   It counts every request that reaches it, in the keyvalue bucket
   `toy-collector`.
-* `planted.workshop-sites.svc/page`: a normal looking page with a hidden
-  instruction, used by the container demo in the presentation
-  (`extras/container`).
 * `llm.workshop-sites.svc/v1/chat/completions`: a fake OpenAI compatible model
   for the real-model extra (`extras/real-model`).
 
@@ -24,7 +21,7 @@ the names under `host-aliases`. A caller still needs the name in its own
 `allowedHosts`.
 
 Your laptop uses `sites.localhost` through the ingress, which serves the same
-pages and collector. Only `sites.localhost` may reset or list the leaks (`POST
+api page and collector. Only `sites.localhost` may reset or list the leaks (`POST
 /reset`, `GET /leaks`); `/count` answers on any name.
 
 ```sh

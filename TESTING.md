@@ -20,8 +20,9 @@ make doctor
 - [ ] `make tools`: six `ok` lines (wash, nats, wasm-tools, kind, kubectl,
       helm), under a minute on good Wi-Fi.
 - [ ] `make doctor`: every Required line green, ending in `Ready.`
-- [ ] `make up`: copies the prebuilt databases and builds the hostile repo, ends with the cluster, registry and
-      ingress lines and a `stores` line, in about 2 minutes the first time.
+- [ ] `make up`: copies the prebuilt databases and builds the hostile
+      repository, then ends with the cluster, registry and ingress lines and
+      a `stores` line, in about 2 minutes the first time.
       `kubectl config current-context` says `kind-workshop-toolbox`.
 - [ ] `make check-fixtures-db` (maintainers, needs sqlite3): ends with
       `fixtures/talks.db: matches fixtures/talks.sql`.
