@@ -24,6 +24,21 @@ allowedHosts: [api.workshop-sites.svc]
 volumeMounts: [{ name: curl-data, mountPath: /data }]
 ```
 
+## Who does what
+
+The host enforces both boundaries. It refuses a request to any host not in
+`allowedHosts`, and the component's filesystem holds only the folder mounted
+at `/data`. The tool only words the error messages you'll see:
+
+* For a host, the host returns an `HttpRequestDenied` error, and the tool
+  writes it as `access-denied: <host>: this tool may not reach that host (not
+  in its allowedHosts)`.
+* For a file, the filesystem answers "No such file or directory", because
+  the path doesn't exist in this component's view. The tool reports that as
+  `access-denied` and adds `(this tool sees only /data)`.
+
+The messages are the tool's choice. What gets through is the host's.
+
 ## Try each escape
 
 Type each prompt into the chat at http://agent.localhost:18180, or run the curl command under it.
@@ -46,7 +61,7 @@ curl -s -H 'Host: agent.localhost' \
   -d 'curl -s http://169.254.169.254/latest/meta-data/'
 ```
 
-On most clouds this address hands out credentials. The host refuses it with `access-denied` before anything leaves.
+On most clouds this address hands out credentials. The host refuses it before anything leaves.
 
 **3. Other cluster hosts are refused:** `curl -s http://collector.workshop-sites.svc/collect`
 
@@ -56,7 +71,7 @@ curl -s -H 'Host: agent.localhost' \
   -d 'curl -s http://collector.workshop-sites.svc/collect'
 ```
 
-The collector stands in for an attacker's server. It is on the network, but not in curl's grant: `access-denied`.
+The collector stands in for an attacker's server. It is on the network, but not in curl's grant, so the host refuses it.
 
 **4. A redirect can't sneak past:** `curl -sL http://api.workshop-sites.svc/redirect`
 
@@ -66,7 +81,7 @@ curl -s -H 'Host: agent.localhost' \
   -d 'curl -sL http://api.workshop-sites.svc/redirect'
 ```
 
-The granted host redirects to the collector. The host checks every hop, including the one you didn't type: `access-denied`.
+The granted host redirects to the collector. The host checks every hop, including the one you didn't type, and refuses the second.
 
 **5. Writing outside /data fails:** `curl -o /etc/evil -s http://api.workshop-sites.svc/data`
 
@@ -76,7 +91,8 @@ curl -s -H 'Host: agent.localhost' \
   -d 'curl -o /etc/evil -s http://api.workshop-sites.svc/data'
 ```
 
-This curl sees one folder, so `/etc` doesn't exist for it.
+This curl sees one folder, so `/etc` doesn't exist for it. The filesystem
+says "No such file or directory"; the tool calls that `access-denied`.
 
 **6. Writing inside /data works:** `curl -o page.html -s http://api.workshop-sites.svc/data`
 
