@@ -24,6 +24,10 @@ make doctor
       registry and ingress lines and a `stores` line, in about 2 minutes the
       first time.
       `kubectl config current-context` says `kind-workshop-toolbox`.
+- [ ] http://guide.localhost:18180 in Chrome or Firefox: the overview and
+      the four steps, each step marked in the side list, Previous and Next at
+      the bottom. A code block's **Copy** button says `Copied`, and what it
+      copied pastes into a shell as written.
 - [ ] `make check-fixtures-db` (maintainers, needs sqlite3): ends with
       `fixtures/talks.db: matches fixtures/talks.sql`.
 - [ ] `export PATH="$PWD/.tools:$PATH"`, then walk steps 1 to 4 by hand from
