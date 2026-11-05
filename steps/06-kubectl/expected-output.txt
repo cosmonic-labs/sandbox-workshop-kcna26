@@ -5,15 +5,15 @@ $ kubectl apply -f steps/06-kubectl/workload.yaml && sleep 2 && kubectl wait --f
 $ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'kubectl get pods'
 [user] kubectl get pods
 [model] call kubectl({"arguments":"get pods"})
-[tool kubectl] ok: NAME STATUS hello-<pod> Running hello-<pod> Running
-[model] Done. Here is what each step returned: kubectl: NAME STATUS hello-<pod> Running hello-<pod> Running
+[tool kubectl] ok: NAME READY STATUS RESTARTS AGE hello-<pod> 1/1 Running 0 <age> hello-<pod> 1/1 Running 0 <age>
+[model] Done. Here is what each step returned: kubectl: NAME READY STATUS RESTARTS AGE hello-<pod> 1/1 Running 0 <age> hello-<pod> 1/1 Running 0 <age>
 
 # Allowed (RBAC): deployments
 $ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'kubectl get deployments'
 [user] kubectl get deployments
 [model] call kubectl({"arguments":"get deployments"})
-[tool kubectl] ok: NAME STATUS hello 2/2 ready
-[model] Done. Here is what each step returned: kubectl: NAME STATUS hello 2/2 ready
+[tool kubectl] ok: NAME READY UP-TO-DATE AVAILABLE AGE hello 2/2 2 2 <age>
+[model] Done. Here is what each step returned: kubectl: NAME READY UP-TO-DATE AVAILABLE AGE hello 2/2 2 2 <age>
 
 # Allowed (RBAC grants pods/log): a pod's logs
 $ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'kubectl logs deployment/hello'
@@ -51,11 +51,18 @@ $ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'kubectl get pod
 [model] Done. Here is what each step returned: kubectl: ERROR: {"access-denied":"Error from server (Forbidden): pods is forbidden: User \"system:serviceaccount:wasmcloud:agent-
 
 # Refused by RBAC: the plugin forwards any method, the API server decides
-$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'kubectl raw DELETE /api/v1/namespaces/demo/pods/hello'
-[user] kubectl raw DELETE /api/v1/namespaces/demo/pods/hello
-[model] call kubectl({"arguments":"raw DELETE /api/v1/namespaces/demo/pods/hello"})
-[tool kubectl] ok: HTTP 403 {"kind":"Status","apiVersion":"v1","metadata":{},"status":"Failure","message":"pods \"hello\" is forbidden: User \"system:serviceaccount:wasmcloud:agent-reader\" cannot delete resource \"pods\" in API group \"\" in the namespace \"demo\"","reason":"Forbidden","details":{"name":"hello","kind...
-[model] Done. Here is what each step returned: kubectl: HTTP 403 {"kind":"Status","apiVersion":"v1","metadata":{},"status":"Failure","message":"pods \"hello\" is forbidden: Use
+$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'kubectl delete --raw /api/v1/namespaces/demo/pods/hello'
+[user] kubectl delete --raw /api/v1/namespaces/demo/pods/hello
+[model] call kubectl({"arguments":"delete --raw /api/v1/namespaces/demo/pods/hello"})
+[tool kubectl] error: {"access-denied":"Error from server (Forbidden): pods \"hello\" is forbidden: User \"system:serviceaccount:wasmcloud:agent-reader\" cannot delete resource \"pods\" in API group \"\" in the namespace \"demo\""}
+[model] Done. Here is what each step returned: kubectl: ERROR: {"access-denied":"Error from server (Forbidden): pods \"hello\" is forbidden: User \"system:serviceaccount:wasmcl
+
+# RBAC answers a question too: may agent-reader list secrets?
+$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'kubectl auth can-i list secrets'
+[user] kubectl auth can-i list secrets
+[model] call kubectl({"arguments":"auth can-i list secrets"})
+[tool kubectl] ok: no
+[model] Done. Here is what each step returned: kubectl: no
 
 # The tool imports the kube-api capability and no HTTP client, sockets or secrets:
 $ wasm-tools component wit artifacts/tool_kubectl.wasm | grep -E '^  import (workshop|wasi:http|wasi:sockets|wasmcloud)'

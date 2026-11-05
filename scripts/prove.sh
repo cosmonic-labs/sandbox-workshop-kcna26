@@ -7,8 +7,8 @@
 # steps/<step>/control-checks.txt.
 #
 # Pod names in the demo namespace are random, so they are written as
-# hello-<pod>. Everything else is deterministic: a second run on a fresh
-# cluster should leave `git diff steps` empty.
+# hello-<pod>, and kubectl's ages as <age>. Everything else is deterministic:
+# a second run on a fresh cluster should leave `git diff steps` empty.
 set -euo pipefail
 source "$(dirname "$0")/env.sh"
 cd "$ROOT"
@@ -28,12 +28,24 @@ shell_quote() {
     *) printf "'%s'" "$1" ;;
   esac
 }
-# Random pod names, as a placeholder.
-normalize() { sed -E 's/hello-[a-z0-9]{6,10}-[a-z0-9]{5}/hello-<pod>/g'; }
+# Random pod names, and kubectl's ages (45s, 12m, 5h12m, 2d3h, "3 (39s ago)"),
+# as placeholders.
+normalize() {
+  sed -E -e 's/hello-[a-z0-9]{6,10}-[a-z0-9]{5}/hello-<pod>/g' \
+    -e '/^\[tool kubectl\]|^\[model\] Done/ s/(^| |\()[0-9]+[smhdy]([0-9]+[smhd])?( |\)|$)/\1<age>\3/g'
+}
 
 ask() { # host, prompt
+  local reply
   echo "\$ curl -s -H 'Host: $1' $URL/ -d $(shell_quote "$2")"
-  curl -s -m 30 -H "Host: $1" "$URL/" -d "$2" | normalize
+  # Right after a workload is recreated, the ingress can answer 502 for a
+  # moment while it picks up the new Service. Ask again; nothing reached the
+  # agent.
+  for _ in $(seq 1 30); do
+    reply=$(curl -s -m 30 -w '\n%{http_code}' -H "Host: $1" "$URL/" -d "$2")
+    case "${reply##*$'\n'}" in 502 | 503 | 504) sleep 1 ;; *) break ;; esac
+  done
+  printf '%s' "${reply%$'\n'*}" | normalize
   echo
 }
 
@@ -102,7 +114,7 @@ kubectl wait --for=condition=Ready workloaddeployment/toy-sites -n workshop-site
 
 {
   echo "# Step 2: the curl tool imports only an HTTP client; its reach is the grant"
-  echo "# Path B, the prebuilt curl. Path A (your build) runs the same commands on"
+  echo "# The prebuilt curl. Your own build runs the same commands on"
   echo "# target/wasm32-wasip2/release/tool_curl.wasm and workload-mine.yaml."
   echo "\$ wasm-tools component wit artifacts/tool_curl.wasm | grep -E 'import wasi:(http|sockets|filesystem)'"
   wasm-tools component wit artifacts/tool_curl.wasm | grep -E 'import wasi:(http|sockets|filesystem)'
@@ -218,7 +230,9 @@ kubectl wait --for=condition=Ready workloaddeployment/toy-sites -n workshop-site
   echo "# Refused by RBAC: kube-system"
   ask agent.localhost 'kubectl get pods -n kube-system'
   echo "# Refused by RBAC: the plugin forwards any method, the API server decides"
-  ask agent.localhost 'kubectl raw DELETE /api/v1/namespaces/demo/pods/hello'
+  ask agent.localhost 'kubectl delete --raw /api/v1/namespaces/demo/pods/hello'
+  echo "# RBAC answers a question too: may agent-reader list secrets?"
+  ask agent.localhost 'kubectl auth can-i list secrets'
   echo "# The tool imports the kube-api capability and no HTTP client, sockets or secrets:"
   echo "\$ wasm-tools component wit artifacts/tool_kubectl.wasm | grep -E '^  import (workshop|wasi:http|wasi:sockets|wasmcloud)'"
   wasm-tools component wit artifacts/tool_kubectl.wasm | grep -E '^  import (workshop|wasi:http|wasi:sockets|wasmcloud)'

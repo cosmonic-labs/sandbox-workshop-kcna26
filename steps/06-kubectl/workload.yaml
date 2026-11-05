@@ -7,7 +7,9 @@
 # the default host group (k8s/values.yaml). The plugin holds the token of a
 # read-only identity, agent-reader, shared by any workload on this host group
 # that declares the plugin. It forwards any method and path; RBAC on
-# agent-reader (k8s/kube.yaml) decides what kubectl may do.
+# agent-reader (k8s/kube.yaml) decides what kubectl may do. The README's
+# `kubectl delete --raw` sends a write to show it, and `kubectl auth can-i`
+# asks RBAC without trying.
 
 apiVersion: runtime.wasmcloud.dev/v1alpha1
 kind: WorkloadDeployment

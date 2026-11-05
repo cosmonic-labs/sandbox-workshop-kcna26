@@ -15,6 +15,13 @@ token is shared by any workload on this host group that declares the plugin.
 The plugin forwards any method and path it is given, and may reach only the
 API server.
 
+The tool takes ordinary kubectl command lines and answers as kubectl does:
+`get` with kubectl's columns and `-o json`, `yaml`, `name` or `wide`, `logs`,
+`auth can-i`, `version`, and `get --raw` and `delete --raw` for a request of
+your own. It only reads. Commands that need a stream or a connection upgrade
+(`exec`, `port-forward`, `logs -f`) are refused, because the capability
+carries one request and one answer.
+
 ## Two layers
 
 | Layer | What it decides here |
@@ -53,7 +60,8 @@ curl -s -H 'Host: agent.localhost' \
   -d 'kubectl get pods'
 ```
 
-The two `hello` pods, `Running`. `demo` is this kubectl's default namespace.
+kubectl's own columns, `NAME READY STATUS RESTARTS AGE`: the two `hello`
+pods, `1/1 Running`. `demo` is this kubectl's default namespace.
 
 **2. Deployments** (allowed: RBAC): `kubectl get deployments`
 
@@ -63,7 +71,7 @@ curl -s -H 'Host: agent.localhost' \
   -d 'kubectl get deployments'
 ```
 
-`hello`, `2/2 ready`.
+`hello 2/2 2 2`: two of two pods ready, two up to date, two available.
 
 **3. A pod's logs** (allowed: RBAC grants `pods/log`): `kubectl logs deployment/hello`
 
@@ -122,17 +130,30 @@ curl -s -H 'Host: agent.localhost' \
 `Forbidden`, the same way.
 
 **8. Any method gets through the plugin** (refused: RBAC):
-`kubectl raw DELETE /api/v1/namespaces/demo/pods/hello`
+`kubectl delete --raw /api/v1/namespaces/demo/pods/hello`
 
 ```sh
 curl -s -H 'Host: agent.localhost' \
   http://127.0.0.1:18180/ \
-  -d 'kubectl raw DELETE /api/v1/namespaces/demo/pods/hello'
+  -d 'kubectl delete --raw /api/v1/namespaces/demo/pods/hello'
 ```
 
-`raw` sends exactly this request through the capability. The plugin forwards
-it; the API server answers `HTTP 403`, because agent-reader cannot delete
-pods. The plugin is not a filter. RBAC is.
+`--raw` sends exactly this request through the capability, past the tool's
+own checks. The plugin forwards it, and the API server refuses it:
+`Error from server (Forbidden): pods "hello" is forbidden: User
+"system:serviceaccount:wasmcloud:agent-reader" cannot delete resource "pods"`.
+The plugin is not a filter. RBAC is.
+
+**9. Ask RBAC first** (answered by RBAC): `kubectl auth can-i list secrets`
+
+```sh
+curl -s -H 'Host: agent.localhost' \
+  http://127.0.0.1:18180/ \
+  -d 'kubectl auth can-i list secrets'
+```
+
+`no`. The tool asks the API server what agent-reader may do, without trying
+it. `kubectl auth can-i list pods` answers `yes`.
 
 ## Control: widen the Role
 
@@ -146,10 +167,11 @@ curl -s -H 'Host: agent.localhost' \
   -d 'kubectl get secrets'
 ```
 
-Abbreviated, the tool's line of the reply:
+Abbreviated, the tool's line of the reply (the age differs on every
+cluster):
 
 ```
-[tool kubectl] ok: NAME STATUS db-password
+[tool kubectl] ok: NAME TYPE DATA AGE db-password Opaque 1 52m
 ```
 
 Revert it right away:
@@ -205,5 +227,6 @@ copy as is.
   permitted name. In v2.12.0 it applies to raw sockets and native host
   plugins; for `wasi:http` requests, `allowedHosts` is the control. Keep it on.
 
-Full transcript: [`expected-output.txt`](expected-output.txt). Pod names differ
-on every cluster; the transcript writes them as `hello-<pod>`.
+Full transcript: [`expected-output.txt`](expected-output.txt). Pod names and
+ages differ on every cluster; the transcript writes them as `hello-<pod>` and
+`<age>`.

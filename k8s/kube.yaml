@@ -9,7 +9,8 @@
 # Services, Deployments and WorkloadDeployments in the demo namespace. No
 # Secrets, no ConfigMaps, no writes, no exec, nothing in any other namespace.
 # Pod logs are allowed because step 6 reads one; logs can carry sensitive data,
-# so grant pods/log only where that is acceptable.
+# so grant pods/log only where that is acceptable. To see what the Role allows
+# from the agent's side, ask it: `kubectl auth can-i list secrets` answers no.
 #
 # scripts/up.sh applies this before the chart, because the host reads the
 # token once, when it starts.

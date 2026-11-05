@@ -1,5 +1,5 @@
 # Step 2: the curl tool imports only an HTTP client; its reach is the grant
-# Path B, the prebuilt curl. Path A (your build) runs the same commands on
+# The prebuilt curl. Your own build runs the same commands on
 # target/wasm32-wasip2/release/tool_curl.wasm and workload-mine.yaml.
 $ wasm-tools component wit artifacts/tool_curl.wasm | grep -E 'import wasi:(http|sockets|filesystem)'
   import wasi:http/types@0.3.0;
