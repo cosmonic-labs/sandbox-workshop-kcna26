@@ -1,5 +1,0 @@
-# Scoped to this crate: kube's client pulls in tokio's networking features,
-# which compile for wasm only with tokio_unstable. Nothing calls them, and the
-# component imports no sockets. The other components keep stable tokio.
-[target.wasm32-wasip2]
-rustflags = ["--cfg", "tokio_unstable"]

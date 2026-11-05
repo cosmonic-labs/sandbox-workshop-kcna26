@@ -1,19 +1,15 @@
 #!/usr/bin/env bash
-# Replay every step (steps/01-agent to steps/04-github) and the kubectl and
-# git extras (extras/kubectl, extras/git) on the kind cluster (make up) and write each one's transcript
-# to <folder>/expected-output.txt. Resets the demo state first so the outputs
-# are repeatable. The commands echoed with "$" are the ones the READMEs ask
-# attendees to run, quoted so they paste into a shell. Extra checks that no
-# README asks for (the controls) go to <folder>/control-checks.txt.
-# extras/real-model is not replayed: it needs a real model, and a real model's
-# answers differ from run to run.
+# Replay every step (steps/01-agent to steps/04-github) on the kind cluster
+# (make up) and write each one's transcript to <folder>/expected-output.txt.
+# Resets the demo state first so the outputs are repeatable. The commands
+# echoed with "$" are the ones the READMEs ask attendees to run, quoted so
+# they paste into a shell. Extra checks that no README asks for (the control)
+# go to <folder>/control-checks.txt.
 #
-# Pod names in the demo namespace are random, so they are written as
-# hello-<pod>, kubectl's ages as <age> and describe's timestamps as <time>.
 # Step 4 reads live data from GitHub, so each of its gh replies that GitHub
 # answered is written as <live data from GitHub> and checked for its shape
 # instead. Everything else is deterministic: a second run on a fresh cluster
-# should leave `git diff steps extras` empty.
+# should leave `git diff steps` empty.
 #
 # Step 4 needs the internet and makes 7 GitHub requests per run. Without a
 # sign-in GitHub allows 60 an hour per IP address; when they run out, verify
@@ -25,9 +21,8 @@
 #                               and check every result (make verify): each
 #                               allowed call answers with what it should, each
 #                               refusal comes from the layer that should refuse
-#                               it, the native control runs the repository's
-#                               programs and the components don't, and both
-#                               controls revert. Exits nonzero on any mismatch.
+#                               it, and the control reverts. Exits nonzero on
+#                               any mismatch.
 set -euo pipefail
 source "$(dirname "$0")/env.sh"
 cd "$ROOT"
@@ -43,7 +38,7 @@ trap 'rm -rf "$SCRATCH"' EXIT
 FACTS="$SCRATCH/facts"
 : >"$FACTS"
 if [ "$MODE" = verify ]; then
-  mkdir -p "$SCRATCH/steps" "$SCRATCH/extras"
+  mkdir -p "$SCRATCH/steps"
   OUT() { echo "$SCRATCH/$1.expected-output.txt"; }
   CHECKS() { echo "$SCRATCH/$1.control-checks.txt"; }
 else
@@ -53,9 +48,6 @@ fi
 # A fact checked after the replay (verify mode), such as a counter's value.
 fact() { echo "$1=$2" >>"$FACTS"; }
 leaks() { curl -s -m 10 -H 'Host: sites.localhost' "$URL/count" | sed -n 's/^leaks=//p'; }
-host_markers() { # marker files the git tool could have left on the host pod
-  kubectl -n wasmcloud exec deploy/hostgroup-default -- ls /tmp 2>/dev/null | grep -c '^gtfobins-git-' || true
-}
 # What the READMEs tell attendees to type. prove itself waits more precisely
 # (rollout below), so a slow machine can't record a reply from the old version.
 WAIT='sleep 2 && kubectl wait --for=condition=Ready workloaddeployment/toolbox-agent'
@@ -69,14 +61,6 @@ shell_quote() {
     *) printf "'%s'" "$1" ;;
   esac
 }
-# Random pod names, kubectl's ages (45s, 12m, 5h12m, 2d3h, "3 (39s ago)") and
-# describe's timestamps (Thu, 05 Nov 2026 01:40:17 +0000), as placeholders.
-normalize() {
-  sed -E -e 's/hello-[a-z0-9]{6,10}-[a-z0-9]{5}/hello-<pod>/g' \
-    -e 's/[A-Z][a-z]{2}, [0-9]{2} [A-Z][a-z]{2} [0-9]{4} [0-9]{2}:[0-9]{2}:[0-9]{2} [+-][0-9]{4}/<time>/g' \
-    -e '/^\[tool kubectl\]|^\[model\] Done/ s/(^| |\()[0-9]+[smhdy]([0-9]+[smhd])?( |\)|$)/\1<age>\3/g'
-}
-
 # Step 4's live replies: what GitHub answered is masked in the transcript, and
 # the reply as it came back is kept in $SCRATCH/live-<name> for verify.
 live_mask() {
@@ -97,7 +81,7 @@ ask_live() { # name, prompt
     printf '%s\n' "$reply" | grep -m1 '^\[tool gh\]' >&2
     exit 1
   fi
-  printf '%s' "$reply" | normalize | live_mask
+  printf '%s' "$reply" | live_mask
   echo
 }
 
@@ -111,7 +95,7 @@ ask() { # host, prompt
     reply=$(curl -s -m 30 -w '\n%{http_code}' -H "Host: $1" "$URL/" -d "$2")
     case "${reply##*$'\n'}" in 502 | 503 | 504) sleep 1 ;; *) break ;; esac
   done
-  printf '%s' "${reply%$'\n'*}" | normalize
+  printf '%s' "${reply%$'\n'*}"
   echo
 }
 
@@ -274,96 +258,18 @@ PR=5885
   curl -s -m 30 -X POST -H 'Host: agent.localhost' "$URL/github/sign-out" >/dev/null
 } >"$(OUT steps/04-github)" 2>&1
 
-{
-  echo "# Extra: kubectl reads the demo namespace through the kube-api capability"
-  apply extras/kubectl/workload.yaml
-  echo "# Allowed (grant and RBAC): pods in demo"
-  ask agent.localhost 'kubectl get pods'
-  echo "# Allowed (RBAC): deployments"
-  ask agent.localhost 'kubectl get deployments'
-  echo "# Allowed (RBAC grants pods/log): a pod's logs"
-  ask agent.localhost 'kubectl logs deployment/hello'
-  echo "# Allowed (RBAC): describe, as kubectl prints it (the reply is cut at 300 characters)"
-  ask agent.localhost 'kubectl describe deployment hello'
-  echo "# Refused by the grant: curl may not reach the API server"
-  ask agent.localhost 'curl -s https://kubernetes.default.svc/api/v1/namespaces/demo/pods'
-  echo "# Refused by the grant: the plugin's token file is outside curl's /data"
-  ask agent.localhost 'curl -s file:///etc/wasmcloud/host-plugin-secrets/kube-api-token/token'
-  echo "# Refused by RBAC: secrets"
-  ask agent.localhost 'kubectl get secrets'
-  echo "# Refused by RBAC: every namespace"
-  ask agent.localhost 'kubectl get pods -A'
-  echo "# Refused by RBAC: kube-system"
-  ask agent.localhost 'kubectl get pods -n kube-system'
-  echo "# Refused by RBAC: the plugin forwards any method, the API server decides"
-  ask agent.localhost 'kubectl delete --raw /api/v1/namespaces/demo/pods/hello'
-  echo "# RBAC answers a question too: may agent-reader list secrets?"
-  ask agent.localhost 'kubectl auth can-i list secrets'
-  echo "# And may it list pods?"
-  ask agent.localhost 'kubectl auth can-i list pods'
-  echo "# The tool imports the kube-api capability and no HTTP client, sockets or secrets:"
-  echo "\$ wasm-tools component wit artifacts/tool_kubectl.wasm | grep -E '^  import (workshop|wasi:http|wasi:sockets|wasmcloud)'"
-  wasm-tools component wit artifacts/tool_kubectl.wasm | grep -E '^  import (workshop|wasi:http|wasi:sockets|wasmcloud)'
-} >"$(OUT extras/kubectl)" 2>&1
-
-{
-  echo "# Extra kubectl, control: the Role widened to read Secrets, nothing else changed"
-  echo "\$ kubectl apply -f extras/kubectl/control-secrets-role.yaml"
-  kubectl apply -f extras/kubectl/control-secrets-role.yaml
-  ask agent.localhost 'kubectl get secrets'
-  echo "\$ kubectl apply -f k8s/kube.yaml"
-  kubectl apply -f k8s/kube.yaml >/dev/null
-  echo "# Reverted: refused again"
-  ask agent.localhost 'kubectl get secrets'
-  fact role-reads-secrets "$(kubectl -n demo get role read-only -o jsonpath='{.rules[*].resources}' | grep -c secrets || true)"
-} >"$(CHECKS extras/kubectl)" 2>&1
-
-{
-  echo "# Extra: git reads a hostile repository, and none of its programs run"
-  echo "# The repository's config sets core.fsmonitor, core.pager, aliases, filters,"
-  echo "# a textconv, diff.external and a credential helper to marker commands."
-  echo "# The tool has no import that could start a process:"
-  echo "\$ wasm-tools component wit artifacts/tool_git.wasm | grep -E '^  import'"
-  wasm-tools component wit artifacts/tool_git.wasm | grep -E '^  import'
-  apply extras/git/workload.yaml
-  echo "# log reads commits:"
-  ask agent.localhost 'git log --oneline -5'
-  echo "# status reports the branch and the tip:"
-  ask agent.localhost 'git status'
-  echo "# blame reads line history:"
-  ask agent.localhost 'git blame README.md'
-  echo "# push: refused by the tool's own dispatch"
-  ask agent.localhost 'git push origin main'
-  fact host-markers "$(host_markers)"
-} >"$(OUT extras/git)" 2>&1
-
-{
-  echo "# Extra git, native positive control: the same repository under this machine's git."
-  echo "# Output depends on the local git version ($(git --version))."
-  rm -f /tmp/gtfobins-git-*
-  echo "\$ git -C .run/repo status"
-  git -C .run/repo status 2>&1 || true
-  echo "\$ ls /tmp/gtfobins-git-*"
-  ls /tmp/gtfobins-git-* 2>&1 || true
-  echo "\$ git -C .run/repo diff HEAD~2 HEAD"
-  git -C .run/repo diff HEAD~2 HEAD 2>&1 || true
-  echo "\$ ls /tmp/gtfobins-git-*"
-  ls /tmp/gtfobins-git-* 2>&1 || true
-  echo "\$ rm -f /tmp/gtfobins-git-*"
-  rm -f /tmp/gtfobins-git-*
-} >"$(CHECKS extras/git)" 2>&1
-
 if [ "$MODE" = write ]; then
   echo "proofs written:"
-  ls steps/*/expected-output.txt steps/*/control-checks.txt extras/*/expected-output.txt extras/*/control-checks.txt
+  ls steps/*/expected-output.txt steps/*/control-checks.txt
   exit 0
 fi
 
 # ---------------------------------------------------------------------------
 # Verify: what each result must be. A refusal names its error variant and the
 # message of the layer that refuses it: the grant (allowedHosts, the mounted
-# folder), the tool's own code (git's push, sqlite's .shell, no extension
-# loading compiled in) or RBAC (the API server's Forbidden).
+# folder), the tool's own code (sqlite's .shell, no extension loading
+# compiled in, gh's missing write commands) or the github-api plugin's own
+# rules.
 # ---------------------------------------------------------------------------
 FAILS=0
 CHECKED=0
@@ -422,7 +328,6 @@ want_fact() { # name, value, why
 }
 DENIED_HOST='this tool may not reach that host (not in its allowedHosts)'
 NO_FILE='No such file or directory'
-FORBIDDEN='Error from server (Forbidden)'
 
 f=$(OUT steps/01-agent)
 calls "$f" 'hello' 0
@@ -520,44 +425,6 @@ case "$(sed -n 's/^signin=//p' "$FACTS")" in
     'pending, or not set up' "$(sed -n 's/^signin=//p' "$FACTS")" ;;
 esac
 
-f=$(OUT extras/kubectl)
-expect "$f" 'kubectl get pods' ok 'NAME READY STATUS RESTARTS AGE hello-<pod> 1/1 Running 0 <age>'
-expect "$f" 'kubectl get deployments' ok 'NAME READY UP-TO-DATE AVAILABLE AGE hello 2/2 2 2 <age>'
-expect "$f" 'kubectl logs deployment/hello' ok 'hello from hello-<pod>'
-expect "$f" 'kubectl describe deployment hello' ok 'Name: hello Namespace: demo CreationTimestamp: <time> Labels: <none>' \
-  'Selector: app=hello Replicas: 2 desired | 2 updated | 2 total | 2 available | 0 unavailable StrategyType: RollingUpdate'
-calls "$f" 'kubectl describe deployment hello' 1
-expect "$f" 'curl -s https://kubernetes.default.svc/api/v1/namespaces/demo/pods' access-denied "kubernetes.default.svc: $DENIED_HOST"
-expect "$f" 'curl -s file:///etc/wasmcloud/host-plugin-secrets/kube-api-token/token' access-denied 'kube-api-token/token: No such file or directory' 'this tool sees only /data'
-expect "$f" 'kubectl get secrets' access-denied "$FORBIDDEN: secrets is forbidden" 'cannot list resource'
-expect "$f" 'kubectl get pods -A' access-denied "$FORBIDDEN: pods is forbidden" 'at the cluster scope'
-expect "$f" 'kubectl get pods -n kube-system' access-denied "$FORBIDDEN: pods is forbidden" 'kube-system'
-expect "$f" 'kubectl delete --raw /api/v1/namespaces/demo/pods/hello' access-denied "$FORBIDDEN: pods" 'cannot delete resource'
-expect "$f" 'kubectl auth can-i list secrets' ok '[tool kubectl] ok: no'
-expect "$f" 'kubectl auth can-i list pods' ok '[tool kubectl] ok: yes'
-present "$f" 'import workshop:toolbox/kube-api@0.4.0' 'kubectl imports the kube-api capability'
-absent "$f" '  import wasi:http' 'kubectl imports no HTTP client'
-f=$(CHECKS extras/kubectl)
-expect "$f" 'kubectl get secrets' ok 'db-password'
-last=$(awk '/Reverted: refused again/ { on = 1 } on && /^\[tool kubectl\]/ { print; exit }' "$f")
-CHECKED=$((CHECKED + 1))
-case "$last" in
-  *"error: {\"access-denied\":\"$FORBIDDEN: secrets is forbidden"*) ;;
-  *) fail "$f" 'secrets after the Role is reverted' "access-denied: $FORBIDDEN: secrets is forbidden" "${last:-<no tool call>}" ;;
-esac
-want_fact role-reads-secrets 0 'the Role is back to k8s/kube.yaml'
-
-f=$(OUT extras/git)
-absent "$f" 'import wasi:http' 'git imports no HTTP'
-absent "$f" 'import wasi:sockets' 'git imports no sockets'
-expect "$f" 'git log --oneline -5' ok '72e53e6 Add gitattributes' '0c5ab57 Initial commit'
-expect "$f" 'git status' ok 'On branch main HEAD is 72e53e6'
-expect "$f" 'git blame README.md' ok '0c5ab578 (Workshop Fixture'
-expect "$f" 'git push origin main' invalid-argument "'push' changes the repository or reaches the network"
-absent "$f" '/tmp/gtfobins-git-' 'the component runs leave no marker'
-want_fact host-markers 0 'no marker file on the host pod after the git tool read the repository'
-f=$(CHECKS extras/git)
-present "$f" '/tmp/gtfobins-git-fsmonitor' 'native git ran core.fsmonitor on status (the positive control)'
 
 if [ "$FAILS" -gt 0 ]; then
   trap - EXIT

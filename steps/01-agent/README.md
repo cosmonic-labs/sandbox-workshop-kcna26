@@ -3,7 +3,7 @@
 **Folder:** `steps/01-agent`
 
 Deploy an agent with `kubectl`, with no tools at all, and talk to it. The
-next three steps give it one tool each, and the extras add more.
+next three steps give it one tool each.
 
 ## Deploy
 
@@ -49,7 +49,7 @@ instruction:
 It never refuses. So in the steps that follow, nothing you see refused was
 refused by the model. Each refusal comes from another layer, and each step
 names which one. A real model is less predictable, and you can't count on it
-to refuse either; `extras/real-model` swaps one in.
+to refuse either.
 
 The answer to each prompt is the whole transcript, so you can see every step:
 `[user]` is your prompt, `[model] call ...` is the tool the model asked for,
@@ -117,8 +117,8 @@ tool slots, each holding a placeholder.
 | each tool slot (placeholder) | nothing; it answers "not installed yet" |
 
 None of them has `localResources`, the part of a manifest entry that grants
-hosts and folders. Steps 2 to 4 and the extras fill the slots with real
-tools, each with its own grant.
+hosts and folders. Steps 2 to 4 fill the slots with real tools, each with
+its own grant.
 
 ## Look inside (optional)
 

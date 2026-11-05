@@ -7,10 +7,9 @@ tools one at a time, then try each tool's most famous escape and watch it
 fail. Then you give it a real job: triaging pull requests on GitHub, signed
 in with your own account if you like.
 
-The tools are `curl`, `sqlite3` and `gh` (GitHub's command line), with
-`kubectl` and `git` as extra credit. `curl`, `sqlite3` and `git` are classics from
-[GTFOBins](https://gtfobins.github.io/), the catalogue of everyday programs
-that break out of restricted shells. The model is a gullible stand-in that
+The tools are `curl`, `sqlite3` and `gh` (GitHub's command line). `curl` and
+`sqlite3` are classics from [GTFOBins](https://gtfobins.github.io/), the
+catalogue of everyday programs that break out of restricted shells. The model is a gullible stand-in that
 does whatever it reads (step 1 explains how it works). It never refuses, so
 every refusal you see comes from another layer, and each step names which
 one:
@@ -18,15 +17,13 @@ one:
 * **Imports**: what a component can ask the host for at all. None of these
   tools imports a way to start a process, and none imports sockets.
 * **The tool's own code**: this sqlite3's small shell answers `.shell`
-  itself and has no extension loading compiled in, and this git offers no
-  `push`.
+  itself and has no extension loading compiled in, and this gh offers no
+  command that writes.
 * **The grant**: the lines of the manifest that give each tool its folders
   (`volumeMounts`) and its hosts (`allowedHosts`).
 * **A platform plugin's own rules**: the GitHub capability behind `gh` sends
   only reads, only to `api.github.com`, only for the paths `gh` needs, and
   keeps your sign-in to itself (step 4).
-* **RBAC** (role-based access control, the Kubernetes API server's own
-  rules): what the identity behind `kubectl` may do (`extras/kubectl`).
 
 Each tool starts with nothing and gets only its own grant.
 
@@ -76,16 +73,6 @@ Each step README has the commands and the output to expect
 **Fell behind?** Every step's manifest is complete, so you can jump to any
 step with its one `kubectl apply`.
 
-### Extra credit
-
-Not covered in the session. Each builds on step 4's cluster state.
-
-| Folder | What you'll see |
-| --- | --- |
-| `extras/kubectl` | Ordinary `kubectl` through a platform capability; RBAC still decides |
-| `extras/git` | A hostile repository names programs to run; native git runs them, the git tool can't |
-| `extras/real-model` | A real model (hosted, with an API key, or on your own machine) in the model slot; the answers vary, the grants don't |
-
 ## Chat in the browser, or use curl
 
 On your own machine or in a local dev container, open
@@ -133,9 +120,7 @@ registry.
         ├──▶ sign-in  github-api plugin ──▶ github.com (device flow)
         ├──▶ curl     allowedHosts only ─── HTTP ──▶ (.workshop-sites.svc)
         ├──▶ sqlite   /data, read only
-        ├──▶ gh       github-api plugin ──▶ api.github.com (GET, allowlisted paths)
-        ├──▶ kubectl  kube-api plugin ──▶ API server (RBAC: agent-reader, extras/kubectl)
-        └──▶ git      /repo, read only (extras/git)
+        └──▶ gh       github-api plugin ──▶ api.github.com (GET, allowlisted paths)
 ```
 
 * A **component** is a WebAssembly program that starts with no access to
@@ -182,10 +167,8 @@ the workshop needs no internet.
   needs wasi-sdk (`WASI_SDK_PATH`, `CC_wasm32_wasip2`). `make push-build`
   pushes your build to the cluster's registry. A running workload keeps its
   old image until it is recreated.
-* `make prove` replays steps 1 to 4, `extras/kubectl` and `extras/git` and
-  rewrites each `expected-output.txt`; `make verify` replays them and checks
-  each result. `extras/real-model` needs a real model, so neither runs it.
-  Step 4 calls GitHub (7 requests a run): its live answers are masked in the
+* `make prove` replays steps 1 to 4 and rewrites each `expected-output.txt`;
+  `make verify` replays them and checks each result. Step 4 calls GitHub (7 requests a run): its live answers are masked in the
   transcript and checked for shape, and verify skips them (SKIP) when
   GitHub's unauthenticated limit of 60 an hour is used up.
 * **GitHub sign-in** (step 4) needs a GitHub OAuth app with the device flow
@@ -197,11 +180,9 @@ the workshop needs no internet.
   needed) in `k8s/values.yaml` under the `github-api` plugin's `client-id`,
   then run `make up` again. Until then, sign-in says it isn't set up and step
   4 works signed out.
-* After rebuilding `artifacts/github_api.wasm` or `artifacts/kube_api.wasm`,
-  copy the digest `scripts/push.sh` prints into `k8s/values.yaml`: the host
-  refuses a plugin whose digest differs.
+* After rebuilding `artifacts/github_api.wasm`, copy the digest
+  `scripts/push.sh` prints into `k8s/values.yaml`: the host refuses a plugin
+  whose digest differs.
 * `TESTING.md` is the pre-workshop test checklist.
-* `extras/real-model/` swaps the scripted model for `model-real` (an OpenAI
-  compatible endpoint, hosted or local) in the same slot, with no rebuild.
 * The tool interfaces are in `wit/toolbox.wit`; the harness's tool table is
   `components/agent/src/tools.rs`.

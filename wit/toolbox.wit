@@ -157,25 +157,6 @@ interface kubectl {
   run: async func(args: run-args) -> result<string, error>;
 }
 
-/// The Kubernetes API, as a capability. A host component plugin serves it: it
-/// holds the service account token, adds it to each request, and reaches only
-/// the API server. A caller never sees the token.
-@since(version = 0.4.0)
-interface kube-api {
-  /// What the API server answered.
-  record response {
-    /// HTTP status, such as 200 or 403.
-    status: u16,
-    /// The response body, usually JSON.
-    body: list<u8>,
-  }
-
-  /// Send one request to the API server. `method` is GET, POST, and so on;
-  /// `path-and-query` is relative to the API server, such as
-  /// `/api/v1/namespaces/demo/pods`. The error is a failure to send it at all.
-  send: async func(method: string, path-and-query: string, body: list<u8>) -> result<response, string>;
-}
-
 /// gh: read pull requests on GitHub from a command line, like GitHub's own
 /// `gh`. Requests go through the github-api capability; this tool holds no
 /// token, reaches nothing else, and only reads.
@@ -333,9 +314,8 @@ interface types {
   }
 }
 
-/// A language model. Two implementations ship: model-scripted (offline,
-/// deterministic, and gullible on purpose) and model-real (an
-/// OpenAI compatible chat completions endpoint).
+/// A language model. The workshop ships one implementation, model-scripted:
+/// offline, deterministic, and gullible on purpose.
 @since(version = 0.3.0)
 interface model {
   use types.{message, tool-def, completion};
@@ -378,15 +358,6 @@ world model-provider {
   export model;
 }
 
-/// The real model: an OpenAI compatible endpoint over outgoing HTTP, which
-/// only reaches the hosts in this component's allowedHosts.
-@since(version = 0.3.0)
-world model-real {
-  import wasi:cli/environment@0.3.0;
-  import wasi:http/client@0.3.0;
-  export model;
-}
-
 /// The curl tool: outgoing HTTP, only to the hosts in this component's
 /// allowedHosts, and files only in the folder its manifest mounts.
 @since(version = 0.4.0)
@@ -402,38 +373,12 @@ world sqlite-tool {
   export sqlite;
 }
 
-/// The git tool: a repository in the folder its manifest mounts, read only.
-@since(version = 0.4.0)
-world git-tool {
-  export git;
-}
-
-/// The kubectl tool: no outgoing HTTP, no sockets, no token. Its only way to
-/// the cluster is the kube-api capability.
-@since(version = 0.4.0)
-world kubectl-tool {
-  import kube-api;
-  export kubectl;
-}
-
 /// The gh tool: no outgoing HTTP, no sockets, no files, no token. Its only
 /// way to GitHub is the github-api capability.
 @since(version = 0.4.0)
 world gh-tool {
   import github-api;
   export gh;
-}
-
-/// The kube-api host component plugin, installed on the host group by the
-/// platform, not by a workload: the service account token (its labelled
-/// `token` secret) and outgoing HTTP, which its own allowedHosts limit to the
-/// API server.
-@since(version = 0.4.0)
-world kube-api-plugin {
-  import token: wasmcloud:secrets/secret@2.1.0;
-  import wasmcloud:secrets/reveal@2.1.0;
-  import wasi:http/client@0.3.0;
-  export kube-api;
 }
 
 /// The github-api host component plugin, installed on the host group by the
@@ -473,9 +418,9 @@ world gh-not-installed {
   export github-auth;
 }
 
-/// Test fixture, not part of the toolbox: the ordinary API page, the
-/// exfiltration collector and a fake OpenAI compatible endpoint, all served
-/// from one HTTP component on names that exist nowhere in DNS.
+/// Test fixture, not part of the toolbox: the ordinary API page and the
+/// exfiltration collector, served from one HTTP component on the names of
+/// the Services in k8s/sites.yaml.
 @since(version = 0.3.0)
 world toy-sites {
   import wasmcloud:keyvalue/store@0.2.0;

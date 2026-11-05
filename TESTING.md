@@ -20,36 +20,29 @@ make doctor
 - [ ] `make tools`: six `ok` lines (wash, nats, wasm-tools, kind, kubectl,
       helm), under a minute on good Wi-Fi.
 - [ ] `make doctor`: every Required line green, ending in `Ready.`
-- [ ] `make up`: copies the prebuilt databases and builds the hostile
-      repository (for `extras/git`), then ends with the cluster, registry and ingress lines and
-      a `stores` line, in about 2 minutes the first time.
+- [ ] `make up`: copies the prebuilt databases, then ends with the cluster,
+      registry and ingress lines and a `stores` line, in about 2 minutes the
+      first time.
       `kubectl config current-context` says `kind-workshop-toolbox`.
 - [ ] `make check-fixtures-db` (maintainers, needs sqlite3): ends with
       `fixtures/talks.db: matches fixtures/talks.sql`.
 - [ ] `export PATH="$PWD/.tools:$PATH"`, then walk steps 1 to 4 by hand from
-      each `steps/*/README.md`, then `extras/kubectl/README.md` and
-      `extras/git/README.md`. Every command
-      runs as written and the output matches the result line under it.
-- [ ] `make prove`: ends with `proofs written:` and the step and extra
-      files. `git diff steps extras` shows nothing: the transcripts are
-      deterministic (pod names are written as `hello-<pod>`, kubectl's
-      ages as `<age>` and step 4's live GitHub answers as
-      `<live data from GitHub>`; the git extra's native control in
-      `extras/git/control-checks.txt` depends on the local git version).
-      `extras/real-model` is not replayed: it needs a real model.
-- [ ] `make verify`: replays steps 1 to 4, `extras/kubectl` and
-      `extras/git` without writing anything and ends with
-      `verify: all N checks passed` (or, when GitHub's unauthenticated
-      limit is used up, `N live GitHub checks skipped`). It checks each result, not the
-      exact text: allowed calls return what they should, each refusal has the
-      expected error and the refusing layer's message (the grant, the tool's
-      own code, or RBAC), the native git control runs the repository's
-      programs while the git tool leaves no marker on the host pod, and both
-      controls revert. A mismatch prints `FAIL`, what was wanted and what came
-      back, and exits nonzero.
-- [ ] Every `$ curl ...` line in `steps/*/expected-output.txt` and
-      `extras/*/expected-output.txt` pastes into a shell and runs as
-      written.
+      each `steps/*/README.md`. Every command runs as written and the output
+      matches the result line under it.
+- [ ] `make prove`: ends with `proofs written:` and the step files.
+      `git diff steps` shows nothing: the transcripts are deterministic
+      (step 4's live GitHub answers are written as
+      `<live data from GitHub>`).
+- [ ] `make verify`: replays steps 1 to 4 without writing anything and ends
+      with `verify: all N checks passed` (or, when GitHub's unauthenticated
+      limit is used up, `N live GitHub checks skipped`). It checks each
+      result, not the exact text: allowed calls return what they should, each
+      refusal has the expected error and the refusing layer's message (the
+      grant, the tool's own code, or the github-api plugin), and step 2's
+      control reverts. A mismatch prints `FAIL`, what was wanted and what
+      came back, and exits nonzero.
+- [ ] Every `$ curl ...` line in `steps/*/expected-output.txt` pastes into a
+      shell and runs as written.
 - [ ] `make clean`: the cluster and the registry container are gone; your
       previous kubectl context still exists (`kubectl config get-contexts`).
 
@@ -59,8 +52,7 @@ make doctor
       `make doctor` on its own; every Required line is green (Docker comes
       from the docker-in-docker feature).
 - [ ] `make up` completes inside the codespace. Note how long it takes.
-- [ ] Steps 1 to 4, `extras/kubectl` and `extras/git` run as written from
-      the codespace terminal (step 2 with the prebuilt curl, step 4's
+- [ ] Steps 1 to 4 run as written from the codespace terminal (step 2 with the prebuilt curl, step 4's
       sign-in with the curl commands its README gives).
 
 ## 3. Build curl yourself
@@ -83,7 +75,7 @@ make doctor
       address, so the unauthenticated limit (60 requests an hour) runs out
       fast. Signed in, each person gets their own 5,000.
 
-## 4a. GitHub sign-in (once the OAuth app's client id is in k8s/values.yaml)
+## 5. GitHub sign-in (once the OAuth app's client id is in k8s/values.yaml)
 
 - [ ] Step 4's chat page: **Sign in with GitHub** shows a code and a link;
       entering the code on github.com turns it into `Signed in to GitHub as
@@ -93,13 +85,3 @@ make doctor
       signed in: still `github-api plugin: only GET requests are allowed`.
 - [ ] **Sign out** returns to `Sign in with GitHub`; applying another
       manifest or restarting the host pod signs you out too.
-
-## 5. Extra: a real model
-
-- [ ] With an API key, or a local model server such as Ollama with
-      `qwen3:4b`, follow `extras/real-model/README.md`. Both manifests come
-      up Ready; the model calls a tool and answers from its result, and the
-      metadata prompt shows the same `access-denied` line as step 2. The
-      wording differs from run to run.
-- [ ] The offline check in that README (the fake endpoint) answers with
-      `(fake-llm) the tool said: ...`.

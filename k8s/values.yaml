@@ -44,13 +44,11 @@ runtime:
       # in keyvalue, so that backend lives on the fixtures host group below.
       #
       # A hostPath volume must lie inside an allowed directory (since v2.11.0);
-      # the default list is empty. The three folders the tools read: the talks
-      # database (sqlite, read only), the hostile repository (git, read only)
-      # and a writable folder for curl's -o.
+      # the default list is empty. The two folders the tools use: the
+      # databases (sqlite, read only) and a writable folder for curl's -o.
       hostPaths:
         allowed:
           - /workshop/sqlite-data
-          - /workshop/repo
           - /workshop/curl-data
       # Node paths (kind extraMounts, see scripts/up.sh) mounted into the host
       # container, so a Workload hostPath volume of these paths resolves.
@@ -58,10 +56,6 @@ runtime:
         - name: sqlite-data
           hostPath:
             path: /workshop/sqlite-data
-            type: Directory
-        - name: repo
-          hostPath:
-            path: /workshop/repo
             type: Directory
         - name: curl-data
           hostPath:
@@ -74,68 +68,35 @@ runtime:
           hostPath:
             path: /workshop/private-data
             type: Directory
-        # extras/kubectl: the cluster CA, so the kube-api plugin can trust the
-        # API server's certificate. Every namespace has it in this ConfigMap.
-        - name: kube-ca
-          configMap:
-            name: kube-root-ca.crt
       volumeMounts:
         - name: sqlite-data
           mountPath: /workshop/sqlite-data
-        - name: repo
-          mountPath: /workshop/repo
         - name: curl-data
           mountPath: /workshop/curl-data
         - name: private-data
           mountPath: /workshop/private-data
           readOnly: true
-        - name: kube-ca
-          mountPath: /etc/kube-ca
-          readOnly: true
-      # Outgoing HTTPS from this host group also trusts the cluster CA. This is
-      # host-group wide: every component and plugin here trusts it, not only
-      # the kube-api plugin.
-      httpClientCaPaths:
-        - /etc/kube-ca/ca.crt
-      # The kube-api host component plugin (extras/kubectl). The platform
-      # installs it on the host group; a workload uses it only by declaring
-      # workshop:toolbox/kube-api in hostInterfaces. It holds the token of a
-      # read-only identity (agent-reader; the service-account-token Secret
-      # kube-api-token, k8s/kube.yaml, read through its `token` label), shared
-      # by any workload on this host group that declares the plugin. It
-      # forwards any method and path, may reach only the API server, and RBAC
-      # on agent-reader decides the rest.
+      # Step 4's github-api host component plugin: GitHub reads for the gh
+      # tool (github-api) and GitHub sign-in for the agent harness
+      # (github-auth). The platform installs it on the host group; a workload
+      # uses it only by declaring both under hostInterfaces. It builds every
+      # URL itself, sends only GET, only to api.github.com and only for the
+      # read paths the gh tool needs, and refuses everything else. Sign-in is
+      # GitHub's device flow, run by the plugin from start to finish with no
+      # scopes; the token stays in the plugin's memory, keyed by the calling
+      # workload's id (the host's wasmcloud:host/identity), and is gone when
+      # the host restarts.
       #
-      # Pinned by digest: the host refuses a plugin whose image digest differs.
-      # scripts/push.sh gives each prebuilt .wasm a reproducible image digest
-      # and prints it; after rebuilding artifacts/kube_api.wasm, copy the new
-      # digest here.
+      # client-id names the GitHub OAuth app (device flow enabled) that
+      # sign-in uses. A client id is public, not a secret. Until it is set,
+      # sign-in reports that it isn't set up and everything else works
+      # signed out. Change it, then `make up` (or helm upgrade) to apply.
+      #
+      # Pinned by digest: the host refuses a plugin whose image digest
+      # differs. scripts/push.sh gives each prebuilt .wasm a reproducible
+      # image digest and prints it; after rebuilding artifacts/github_api.wasm,
+      # copy the new digest here.
       plugins:
-        - id: kube-api
-          image: workshop-toolbox-registry:5000/workshop/kube-api:0.4.0
-          digest: sha256:d09ee3932ad01a175bb3fe83bea969d2898b6abcad7ace1ad93272eb32f0d990
-          pullPolicy: ifNotPresent
-          allowedHosts:
-            - kubernetes.default.svc
-          secretFrom:
-            - kube-api-token
-        # Step 4's github-api host component plugin: GitHub reads for the gh
-        # tool (github-api) and GitHub sign-in for the agent harness
-        # (github-auth). A workload uses it only by declaring both under
-        # hostInterfaces. It builds every URL itself, sends only GET, only to
-        # api.github.com and only for the read paths the gh tool needs, and
-        # refuses everything else. Sign-in is GitHub's device flow, run by the
-        # plugin from start to finish with no scopes; the token stays in the
-        # plugin's memory, keyed by the calling workload's id (the host's
-        # wasmcloud:host/identity), and is gone when the host restarts.
-        #
-        # client-id names the GitHub OAuth app (device flow enabled) that
-        # sign-in uses. A client id is public, not a secret. Until it is set,
-        # sign-in reports that it isn't set up and everything else works
-        # signed out. Change it, then `make up` (or helm upgrade) to apply.
-        #
-        # Pinned by digest, like kube-api: copy the digest scripts/push.sh
-        # prints after rebuilding artifacts/github_api.wasm.
         - id: github-api
           image: workshop-toolbox-registry:5000/workshop/github-api:0.4.0
           digest: sha256:abe18fef947eefc6c5cb9f040ce9011edbe4f78a44711e9f0dd0ee9ce83eb76e

@@ -12,7 +12,7 @@
 # The prebuilt files are checked against artifacts/SHA256SUMS before anything
 # is pushed. Each image is then given a manifest with fixed timestamps, so the
 # same .wasm always has the same image digest. That is what lets
-# k8s/values.yaml pin the kube-api plugin by digest.
+# k8s/values.yaml pin the github-api plugin by digest.
 set -euo pipefail
 source "$(dirname "$0")/env.sh"
 

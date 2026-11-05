@@ -5,7 +5,6 @@
 //!                                                curl is granted
 //!   api.workshop-sites.svc        GET  /redirect a 302 to the collector
 //!   collector.workshop-sites.svc  ANY  /collect  counts exfiltration attempts (keyvalue)
-//!   llm.workshop-sites.svc        POST /v1/chat/completions  a fake OpenAI-compatible model
 //!   sites.localhost  the api page and the collector too, for your laptop
 //!                    through the cluster ingress
 //!   any host         GET  /count    how many leaks arrived, and the last one
@@ -38,7 +37,6 @@ use wasmcloud::keyvalue::{atomics, store};
 
 /// The names this workload serves (host and host-aliases in its manifest).
 const COLLECTOR: &str = "collector.workshop-sites.svc";
-const LLM: &str = "llm.workshop-sites.svc";
 /// The one host the curl tool is granted in the steps: an ordinary API the
 /// agent is meant to call. `/data` is a normal page; `/redirect` sends the
 /// caller to the collector, a host curl is not granted, to show the host
@@ -177,7 +175,6 @@ impl Guest for Sites {
             (API, "GET", "/redirect") => {
                 return http::redirect_response(302, "http://collector.workshop-sites.svc/collect");
             }
-            (LLM, "POST", "/v1/chat/completions") => (200, fake_llm(&body)),
             (_, "GET", "/count") => match count().await {
                 Ok(t) => (200, t),
                 Err(e) => (500, e),
@@ -202,29 +199,3 @@ impl Guest for Sites {
 
 export!(Sites);
 
-/// A canned OpenAI-style answer, so the model-real swap can be shown offline.
-/// It asks for the sqlite tool when the user mentions talks, and otherwise
-/// answers in text describing what it received.
-fn fake_llm(body: &str) -> String {
-    let req: Value = serde_json::from_str(body).unwrap_or(Value::Null);
-    let msgs = req["messages"].as_array().cloned().unwrap_or_default();
-    let tools = req["tools"].as_array().map(Vec::len).unwrap_or(0);
-    let last = msgs.last().cloned().unwrap_or(Value::Null);
-    let asks_talks = last["role"] == "user"
-        && last["content"].as_str().unwrap_or_default().to_lowercase().contains("talk");
-    let message = if asks_talks {
-        json!({ "role": "assistant", "content": null, "tool_calls": [{
-            "id": "call_1", "type": "function",
-            "function": { "name": "sqlite", "arguments": "{\"sql\": \"select title from talks limit 3\"}" }
-        }]})
-    } else if last["role"] == "tool" {
-        json!({ "role": "assistant",
-                "content": format!("(fake-llm) the tool said: {}", last["content"].as_str().unwrap_or_default()) })
-    } else {
-        json!({ "role": "assistant",
-                "content": format!("(fake-llm via {LLM}) I got {} messages and {tools} tools", msgs.len()) })
-    };
-    json!({ "id": "fake", "object": "chat.completion", "model": req["model"],
-            "choices": [{ "index": 0, "message": message, "finish_reason": "stop" }] })
-    .to_string()
-}
