@@ -130,8 +130,14 @@ the workshop needs no internet.
   may apply workloads with RBAC and admission policy.
 * `hostPaths.allowed` is host wide: any workload on a host may mount any
   folder in that list, so admission policy decides who may mount what.
-* Concurrent calls through linked components can borrow a sibling's grants
-  (wasmCloud#5756). The workshop's harness calls its tools one at a time.
+* Concurrent linked calls can run with the wrong component's grants
+  (wasmCloud#5756). The host tracks which component is active in a single
+  slot, which is only correct when linked calls happen one after another. It
+  can go wrong only when one store has several linked calls in flight at
+  once: a harness that runs tool calls in parallel, or a pooled component
+  with `maxConcurrency` above 1. The workshop's components aren't pooled (each
+  request gets a fresh store) and the harness awaits each tool call before the
+  next, so it can't happen here.
 * The chart's NetworkPolicies are off in `k8s/values.yaml` because kindnet on
   kind v0.33.0 dropped their DNS replies. Keep them on in a real cluster.
 
