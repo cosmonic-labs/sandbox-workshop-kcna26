@@ -3,8 +3,8 @@
 //! A model only understands JSON. It is shown a list of tools, each with a
 //! name, a description and a JSON Schema for its arguments, and it answers
 //! with JSON such as {"name": "curl", "arguments": {"arguments": "-s
-//! https://example.com"}}. The tools only understand typed functions such as
-//! `curl::run(RunArgs { arguments })`.
+//! http://api.workshop-sites.svc/data"}}. The tools only understand typed
+//! functions such as `curl::run(RunArgs { arguments })`.
 //!
 //! Something has to translate between the two. A host could do it: read each
 //! tool's WIT, build the definitions the model sees from the WIT's names,
@@ -55,7 +55,7 @@ pub const TOOLS: &[Tool] = &[
                       hosts this tool is granted can be reached.",
         params: &[(
             "arguments",
-            "What you would type after curl, such as -s https://example.com.",
+            "What you would type after curl, such as -s http://api.workshop-sites.svc/data.",
         )],
     },
     // workshop:toolbox/sqlite.query

@@ -140,7 +140,8 @@ fn answer(messages: &[Message], skipped: &[String]) -> String {
         .collect();
     let mut text = if results.is_empty() {
         "Hello! I am the workshop agent running a scripted model. Ask me to run curl, \
-         sqlite, git or kubectl, for example \"list the talks\" or \"curl -s https://example.com\"."
+         sqlite, git or kubectl, for example \"list the talks in sqlite\" or \
+         \"curl -s http://api.workshop-sites.svc/data\"."
             .to_string()
     } else {
         format!("Done. Here is what each step returned: {}", results.join(" | "))
@@ -152,14 +153,18 @@ fn answer(messages: &[Message], skipped: &[String]) -> String {
 }
 
 /// Lines, and sentences within a line (". ", "; ", "? " and "! " split them).
-/// A leading dot-command keeps its dot: ".tables" is one sentence.
+/// A leading dot-command keeps its dot: ".tables" is one sentence. A line that
+/// starts with "sqlite " or "sql " is one sentence too, so a statement list
+/// such as "sqlite attach ... as r; select ... from r.rooms" reaches the tool
+/// whole.
 fn sentences(text: &str) -> Vec<String> {
     let mut out = Vec::new();
     for line in text.lines() {
         let line = line.trim();
         // A whole line that is a dot-command stays intact, so ".schema talks"
         // isn't split on its space into a stray sentence.
-        if line.starts_with('.') {
+        let lower = line.to_lowercase();
+        if line.starts_with('.') || lower.starts_with("sqlite ") || lower.starts_with("sql ") {
             out.push(line.to_string());
             continue;
         }

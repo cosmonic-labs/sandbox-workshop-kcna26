@@ -1,7 +1,8 @@
 //! The agent harness: the part of the agent that runs the loop.
 //!
-//! An agent here is four things working together: this harness, a model, a
-//! set of tools and the storage those tools use. The harness answers HTTP:
+//! An agent here is three things working together: this harness, a model and
+//! a set of tools, each tool with only the grants its manifest entry gives
+//! it. The harness answers HTTP:
 //! send a prompt as the request body (or `?q=`) and it asks the model what to
 //! do, runs the tool the model asks for, feeds the result back, and repeats
 //! until the model answers in text. The response is the whole transcript so
@@ -10,8 +11,8 @@
 //! the transcript as a timeline; curl gets the same text as ever.
 //!
 //! The harness itself holds no capabilities. Its world imports the model and
-//! four labelled tool slots (curl, sqlite, git and kubectl) and nothing else from the
-//! host; whatever a tool can reach is decided by the manifest entry of the
+//! four labelled tool slots (curl, sqlite, git and kubectl) and nothing else
+//! from the host; whatever a tool can reach is decided by the manifest entry of the
 //! component filling that slot. `tools.rs` translates the model's JSON into
 //! typed tool calls and builds the tool definitions the model sees: work a
 //! host could do from the WIT, done by hand here because upstream wasmCloud
