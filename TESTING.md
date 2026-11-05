@@ -21,19 +21,20 @@ make doctor
       helm), under a minute on good Wi-Fi.
 - [ ] `make doctor`: every Required line green, ending in `Ready.`
 - [ ] `make up`: copies the prebuilt databases and builds the hostile
-      repository, then ends with the cluster, registry and ingress lines and
+      repository (for `extras/git`), then ends with the cluster, registry and ingress lines and
       a `stores` line, in about 2 minutes the first time.
       `kubectl config current-context` says `kind-workshop-toolbox`.
 - [ ] `make check-fixtures-db` (maintainers, needs sqlite3): ends with
       `fixtures/talks.db: matches fixtures/talks.sql`.
-- [ ] `export PATH="$PWD/.tools:$PATH"`, then walk steps 1 to 6 by hand from
-      each `steps/*/README.md`. Every command runs as written and the output
-      matches the result line under it.
-- [ ] `make prove`: ends with `proofs written:` and the step files. `git diff
-      steps` shows nothing: the transcripts are deterministic (pod names are
-      written as `hello-<pod>` and kubectl's ages as `<age>`; step 5's native
-      control in `control-checks.txt` depends on the local git version).
-- [ ] `make verify`: replays every step without writing anything and ends
+- [ ] `export PATH="$PWD/.tools:$PATH"`, then walk steps 1 to 4 by hand from
+      each `steps/*/README.md`, then `extras/git/README.md`. Every command
+      runs as written and the output matches the result line under it.
+- [ ] `make prove`: ends with `proofs written:` and the step and extra
+      files. `git diff steps extras` shows nothing: the transcripts are
+      deterministic (pod names are written as `hello-<pod>` and kubectl's
+      ages as `<age>`; the git extra's native control in
+      `extras/git/control-checks.txt` depends on the local git version).
+- [ ] `make verify`: replays steps 1 to 4 and the extras without writing anything and ends
       with `verify: all N checks passed`. It checks each result, not the
       exact text: allowed calls return what they should, each refusal has the
       expected error and the refusing layer's message (the grant, the tool's
@@ -41,8 +42,9 @@ make doctor
       programs while the git tool leaves no marker on the host pod, and both
       controls revert. A mismatch prints `FAIL`, what was wanted and what came
       back, and exits nonzero.
-- [ ] Every `$ curl ...` line in `steps/*/expected-output.txt` pastes into a
-      shell and runs as written.
+- [ ] Every `$ curl ...` line in `steps/*/expected-output.txt` and
+      `extras/git/expected-output.txt` pastes into a shell and runs as
+      written.
 - [ ] `make clean`: the cluster and the registry container are gone; your
       previous kubectl context still exists (`kubectl config get-contexts`).
 
@@ -52,7 +54,8 @@ make doctor
       `make doctor` on its own; every Required line is green (Docker comes
       from the docker-in-docker feature).
 - [ ] `make up` completes inside the codespace. Note how long it takes.
-- [ ] Steps 1, 3, 4 and 5 run as written from the codespace terminal.
+- [ ] Steps 1 to 4 and `extras/git` run as written from the codespace
+      terminal (step 2 with the prebuilt curl).
 
 ## 3. Build curl yourself
 
@@ -60,7 +63,7 @@ make doctor
       "Build your own" section and each "Your build" command: change the
       save message, `make build && make push-build` (prints
       `pushed localhost:15052/workshop/tool-curl:mine`), apply
-      `steps/02-build-curl/workload-mine.yaml`, and confirm the save prompt
+      `steps/02-curl/workload-mine.yaml`, and confirm the save prompt
       answers with your message.
 
 ## 4. In the room
@@ -69,4 +72,4 @@ make doctor
       up` the day before needs no downloads (kind's node image and the chart
       images are cached).
 - [ ] Jumping ahead works: on a fresh `make up`, `kubectl apply -f
-      steps/05-git/workload.yaml` alone, then step 5's commands.
+      steps/04-kubectl/workload.yaml` alone, then step 4's commands.

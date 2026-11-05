@@ -1,0 +1,51 @@
+# Step 1: run the agent with no tools.
+#
+# The agent harness (the component that runs the loop: ask the model, call a
+# tool, repeat) imports a model and four labelled tool slots: curl, sqlite,
+# git and kubectl. The host links each label to the workload component of the
+# same name, so every slot must be filled. Here every slot holds the
+# placeholder, not-installed, which answers that the tool isn't installed. The
+# model is the scripted one: it follows every instruction it reads.
+#
+# Nothing in this workload has a grant: no allowedHosts, no volumes. Later
+# steps put real tools into the slots, each with its own grant: curl in step
+# 2, sqlite in step 3, kubectl in step 4. git is the extra in extras/git.
+
+apiVersion: runtime.wasmcloud.dev/v1alpha1
+kind: WorkloadDeployment
+metadata:
+  name: toolbox-agent
+spec:
+  replicas: 1
+  # The way in: the Service named toolbox-agent, which the platform created
+  # with no selector (k8s/agent-service.yaml). The operator keeps it pointed
+  # at the host pods that run this workload.
+  kubernetes:
+    service:
+      name: toolbox-agent
+  template:
+    spec:
+      # The default host group; the toy sites have one of their own.
+      hostSelector:
+        hostgroup: default
+      hostInterfaces:
+        - namespace: wasi
+          package: http
+          interfaces: [handler]
+          config:
+            host: agent.localhost
+      components:
+        - name: agent
+          image: workshop-toolbox-registry:5000/workshop/agent:0.4.0
+        - name: model
+          image: workshop-toolbox-registry:5000/workshop/model-scripted:0.4.0
+        # Every tool slot holds the placeholder: it answers that the tool
+        # isn't installed, and it has no grants.
+        - name: curl
+          image: workshop-toolbox-registry:5000/workshop/not-installed:0.4.0
+        - name: sqlite
+          image: workshop-toolbox-registry:5000/workshop/not-installed:0.4.0
+        - name: git
+          image: workshop-toolbox-registry:5000/workshop/not-installed:0.4.0
+        - name: kubectl
+          image: workshop-toolbox-registry:5000/workshop/not-installed:0.4.0

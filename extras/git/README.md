@@ -1,6 +1,12 @@
-# Step 5: Now read a hostile repository
+# Extra: Read a hostile repository with git
 
-**Folder:** `steps/05-git`
+**Folder:** `extras/git`
+
+Extra credit: the session doesn't cover this one. It builds on step 4's
+cluster state. Its manifest is `steps/04-kubectl/workload.yaml` with one
+change: the `git` slot, which holds the placeholder in every step, gets the
+real git tool and the repository, read only. The repository is already on
+your cluster: `make up` builds it into `.run/repo` for this extra.
 
 `git` is on [GTFOBins](https://gtfobins.github.io/) because a repository can
 tell git to run a program: a hook, `core.fsmonitor`, `core.pager`, a bang
@@ -82,12 +88,13 @@ client and no socket either, so nothing can reach the network.
 ## Deploy
 
 ```sh
-kubectl apply -f steps/05-git/workload.yaml \
+kubectl apply -f extras/git/workload.yaml \
   && sleep 2 && kubectl wait --for=condition=Ready \
   workloaddeployment/toolbox-agent
 ```
 
-The grant: the repository, read only.
+The same agent as step 4, with the real git tool in its slot. Its grant: the
+repository, read only.
 
 ```yaml
 volumeMounts: [{ name: repo, mountPath: /repo, readOnly: true }]

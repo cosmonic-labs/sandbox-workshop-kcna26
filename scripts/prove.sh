@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# Replay every step on the kind cluster (make up) and write each step's
-# transcript to steps/<step>/expected-output.txt. Resets the demo state first
-# so the outputs are repeatable. The commands echoed with "$" are the ones the
-# step READMEs ask attendees to run, quoted so they paste into a shell. Extra
-# checks that no README asks for (the controls) go to
-# steps/<step>/control-checks.txt.
+# Replay every step (steps/01-agent to steps/04-kubectl) and the extras on
+# the kind cluster (make up) and write each one's transcript
+# to <folder>/expected-output.txt. Resets the demo state first so the outputs
+# are repeatable. The commands echoed with "$" are the ones the READMEs ask
+# attendees to run, quoted so they paste into a shell. Extra checks that no
+# README asks for (the controls) go to <folder>/control-checks.txt.
 #
 # Pod names in the demo namespace are random, so they are written as
 # hello-<pod>, kubectl's ages as <age> and describe's timestamps as <time>. Everything else is deterministic:
-# a second run on a fresh cluster should leave `git diff steps` empty.
+# a second run on a fresh cluster should leave `git diff steps extras` empty.
 #
 #   scripts/prove.sh            replay and rewrite the transcripts (make prove)
 #   scripts/prove.sh --verify   replay into a scratch folder, change nothing,
@@ -34,12 +34,12 @@ FACTS="$SCRATCH/facts"
 : >"$FACTS"
 if [ "$MODE" = verify ]; then
   mkdir -p "$SCRATCH/steps" "$SCRATCH/extras"
-  OUT() { echo "$SCRATCH/steps/$1.expected-output.txt"; }
-  CHECKS() { echo "$SCRATCH/steps/$1.control-checks.txt"; }
+  OUT() { echo "$SCRATCH/$1.expected-output.txt"; }
+  CHECKS() { echo "$SCRATCH/$1.control-checks.txt"; }
   EXTRA="$SCRATCH/extras/real-model.expected-output.txt"
 else
-  OUT() { echo "steps/$1/expected-output.txt"; }
-  CHECKS() { echo "steps/$1/control-checks.txt"; }
+  OUT() { echo "$1/expected-output.txt"; }
+  CHECKS() { echo "$1/control-checks.txt"; }
   EXTRA=extras/real-model/expected-output.txt
 fi
 # A fact checked after the replay (verify mode), such as a counter's value.
@@ -127,76 +127,67 @@ kubectl apply -f steps/00-fixtures/toy-sites.yaml >/dev/null
 kubectl wait --for=condition=Ready workloaddeployment/toy-sites -n workshop-sites --timeout=120s >/dev/null
 
 {
-  echo "# Step 1: run the agent; three tools are ready and the kubectl slot waits"
-  apply steps/01-run-it/workload.yaml
-  echo "# sqlite reads the talks database:"
-  ask agent.localhost 'list the talks in sqlite'
-  echo "# git reads the repository:"
-  ask agent.localhost 'show the recent commits'
-  echo "# curl reaches the one host it is granted:"
+  echo "# Step 1: the agent with no tools; every tool slot holds the placeholder"
+  apply steps/01-agent/workload.yaml
+  echo "# No instruction in the prompt: the model answers in text"
+  ask agent.localhost 'hello'
+  echo "# The model asks for curl; the slot holds the placeholder, which says so"
   ask agent.localhost 'fetch http://api.workshop-sites.svc/data'
+  echo "# Two instructions: the model follows both, and doesn't retry an error"
+  ask agent.localhost 'fetch http://api.workshop-sites.svc/data. Then kubectl get secrets'
   echo "# The agent harness's imports from this workshop: the model and four typed, labelled tool slots"
   echo "\$ wasm-tools component wit artifacts/agent.wasm | grep 'import .*workshop:toolbox'"
   wasm-tools component wit artifacts/agent.wasm | grep 'import .*workshop:toolbox'
   echo "# The harness imports no HTTP client, no filesystem and no sockets, so this prints nothing:"
   echo "\$ wasm-tools component wit artifacts/agent.wasm | grep -E 'wasi:(http/client|filesystem|sockets)'"
   wasm-tools component wit artifacts/agent.wasm | grep -E 'wasi:(http/client|filesystem|sockets)' || true
-  echo "# The tools are small. Look at the sizes:"
-  echo "\$ ls -l artifacts/tool_curl.wasm artifacts/tool_sqlite.wasm artifacts/tool_git.wasm artifacts/tool_kubectl.wasm"
-  ls -l artifacts/tool_curl.wasm artifacts/tool_sqlite.wasm artifacts/tool_git.wasm artifacts/tool_kubectl.wasm | awk '{print $5, $NF}'
-} >"$(OUT 01-run-it)" 2>&1
+  echo "# The tools you'll add are small. Look at the sizes:"
+  echo "\$ ls -l artifacts/tool_curl.wasm artifacts/tool_sqlite.wasm artifacts/tool_kubectl.wasm"
+  ls -l artifacts/tool_curl.wasm artifacts/tool_sqlite.wasm artifacts/tool_kubectl.wasm | awk '{print $5, $NF}'
+} >"$(OUT steps/01-agent)" 2>&1
 
 {
-  echo "# Step 2: the curl tool imports only an HTTP client; its reach is the grant"
+  echo "# Step 2: curl imports only an HTTP client; it reaches only the host it is granted"
   echo "# The prebuilt curl. Your own build runs the same commands on"
   echo "# target/wasm32-wasip2/release/tool_curl.wasm and workload-mine.yaml."
   echo "\$ wasm-tools component wit artifacts/tool_curl.wasm | grep -E 'import wasi:(http|sockets|filesystem)'"
   wasm-tools component wit artifacts/tool_curl.wasm | grep -E 'import wasi:(http|sockets|filesystem)'
-  apply steps/02-build-curl/workload.yaml
-  echo "# It reaches the one host its manifest grants:"
-  ask agent.localhost 'fetch http://api.workshop-sites.svc/data'
-  echo "# It saves into its one folder:"
-  ask agent.localhost 'save http://api.workshop-sites.svc/data to page.html'
-} >"$(OUT 02-build-curl)" 2>&1
-
-{
-  echo "# Step 3: curl reaches only the host it is granted (api.workshop-sites.svc)"
-  apply steps/03-curl/workload.yaml
+  apply steps/02-curl/workload.yaml
   echo "# Granted: the api host answers"
-  ask agent.localhost 'curl -s http://api.workshop-sites.svc/data'
+  ask agent.localhost 'fetch http://api.workshop-sites.svc/data'
+  echo "# Writing inside the tool's folder with -o: allowed"
+  ask agent.localhost 'save http://api.workshop-sites.svc/data to page.html'
+  fact collector-before-escapes "$(leaks)"
   echo "# The cloud metadata service: refused, it is not granted"
   ask agent.localhost 'curl -s http://169.254.169.254/latest/meta-data/'
   echo "# Another cluster host: refused"
   ask agent.localhost 'curl -s http://collector.workshop-sites.svc/collect'
   echo "# A redirect from the granted host to a denied host: the second hop is refused"
   ask agent.localhost 'curl -sL http://api.workshop-sites.svc/redirect'
-  fact collector-before-escapes "$(leaks)"
   echo "# Writing outside the tool's folder with -o: refused"
   ask agent.localhost 'curl -o /etc/evil -s http://api.workshop-sites.svc/data'
-  echo "# Writing inside the tool's folder with -o: allowed"
-  ask agent.localhost 'curl -o page.html -s http://api.workshop-sites.svc/data'
   echo "# Reading a file:// URL outside the tool's folder: refused"
   ask agent.localhost 'curl -s file:///etc/passwd'
   echo "# Reading a file:// URL inside the tool's folder: allowed"
   ask agent.localhost 'curl -s file:///data/page.html'
   fact collector-after-escapes "$(leaks)"
-} >"$(OUT 03-curl)" 2>&1
+} >"$(OUT steps/02-curl)" 2>&1
 
 {
-  echo "# Step 3, make prove only: for hosts, the grant is what stops it"
+  echo "# Step 2, make prove only: for hosts, the grant is what stops it"
   echo "# Control: curl's allowedHosts widened to \"*\", nothing else changed."
-  apply steps/03-curl/control-wide-open.yaml
+  apply steps/02-curl/control-wide-open.yaml
   echo "# The same fetch that was refused now reaches the other host:"
   ask agent.localhost 'curl -s http://collector.workshop-sites.svc/collect'
   fact collector-after-control "$(leaks)"
-  apply steps/03-curl/workload.yaml
+  apply steps/02-curl/workload.yaml
   echo "# Reverted: refused again"
   ask agent.localhost 'curl -s http://collector.workshop-sites.svc/collect'
-} >"$(CHECKS 03-curl)" 2>&1
+} >"$(CHECKS steps/02-curl)" 2>&1
 
 {
-  echo "# Step 4: sqlite over the databases in its read-only folder"
-  apply steps/04-sqlite/workload.yaml
+  echo "# Step 3: sqlite over the databases in its read-only folder"
+  apply steps/03-sqlite/workload.yaml
   echo "# A valid database on the host pod's disk that no workload is granted:"
   echo "\$ kubectl -n wasmcloud exec deploy/hostgroup-default -- ls /workshop/private-data"
   kubectl -n wasmcloud exec deploy/hostgroup-default -- ls /workshop/private-data
@@ -215,46 +206,11 @@ kubectl wait --for=condition=Ready workloaddeployment/toy-sites -n workshop-site
   echo "# The imports: nothing that starts a process, no HTTP client, no sockets"
   echo "\$ wasm-tools component wit artifacts/tool_sqlite.wasm | grep -E '^  import'"
   wasm-tools component wit artifacts/tool_sqlite.wasm | grep -E '^  import'
-} >"$(OUT 04-sqlite)" 2>&1
+} >"$(OUT steps/03-sqlite)" 2>&1
 
 {
-  echo "# Step 5: git reads a hostile repository, and none of its programs run"
-  echo "# The repository's config sets core.fsmonitor, core.pager, aliases, filters,"
-  echo "# a textconv, diff.external and a credential helper to marker commands."
-  echo "# The tool has no import that could start a process:"
-  echo "\$ wasm-tools component wit artifacts/tool_git.wasm | grep -E '^  import'"
-  wasm-tools component wit artifacts/tool_git.wasm | grep -E '^  import'
-  apply steps/05-git/workload.yaml
-  echo "# log reads commits:"
-  ask agent.localhost 'git log --oneline -5'
-  echo "# status reports the branch and the tip:"
-  ask agent.localhost 'git status'
-  echo "# blame reads line history:"
-  ask agent.localhost 'git blame README.md'
-  echo "# push: refused by the tool's own dispatch"
-  ask agent.localhost 'git push origin main'
-  fact host-markers "$(host_markers)"
-} >"$(OUT 05-git)" 2>&1
-
-{
-  echo "# Step 5, native positive control: the same repository under this machine's git."
-  echo "# Output depends on the local git version ($(git --version))."
-  rm -f /tmp/gtfobins-git-*
-  echo "\$ git -C .run/repo status"
-  git -C .run/repo status 2>&1 || true
-  echo "\$ ls /tmp/gtfobins-git-*"
-  ls /tmp/gtfobins-git-* 2>&1 || true
-  echo "\$ git -C .run/repo diff HEAD~2 HEAD"
-  git -C .run/repo diff HEAD~2 HEAD 2>&1 || true
-  echo "\$ ls /tmp/gtfobins-git-*"
-  ls /tmp/gtfobins-git-* 2>&1 || true
-  echo "\$ rm -f /tmp/gtfobins-git-*"
-  rm -f /tmp/gtfobins-git-*
-} >"$(CHECKS 05-git)" 2>&1
-
-{
-  echo "# Step 6: kubectl reads the demo namespace through the kube-api capability"
-  apply steps/06-kubectl/workload.yaml
+  echo "# Step 4: kubectl reads the demo namespace through the kube-api capability"
+  apply steps/04-kubectl/workload.yaml
   echo "# Allowed (grant and RBAC): pods in demo"
   ask agent.localhost 'kubectl get pods'
   echo "# Allowed (RBAC): deployments"
@@ -280,19 +236,54 @@ kubectl wait --for=condition=Ready workloaddeployment/toy-sites -n workshop-site
   echo "# The tool imports the kube-api capability and no HTTP client, sockets or secrets:"
   echo "\$ wasm-tools component wit artifacts/tool_kubectl.wasm | grep -E '^  import (workshop|wasi:http|wasi:sockets|wasmcloud)'"
   wasm-tools component wit artifacts/tool_kubectl.wasm | grep -E '^  import (workshop|wasi:http|wasi:sockets|wasmcloud)'
-} >"$(OUT 06-kubectl)" 2>&1
+} >"$(OUT steps/04-kubectl)" 2>&1
 
 {
-  echo "# Step 6 control: the Role widened to read Secrets, nothing else changed"
-  echo "\$ kubectl apply -f steps/06-kubectl/control-secrets-role.yaml"
-  kubectl apply -f steps/06-kubectl/control-secrets-role.yaml
+  echo "# Step 4 control: the Role widened to read Secrets, nothing else changed"
+  echo "\$ kubectl apply -f steps/04-kubectl/control-secrets-role.yaml"
+  kubectl apply -f steps/04-kubectl/control-secrets-role.yaml
   ask agent.localhost 'kubectl get secrets'
   echo "\$ kubectl apply -f k8s/kube.yaml"
   kubectl apply -f k8s/kube.yaml >/dev/null
   echo "# Reverted: refused again"
   ask agent.localhost 'kubectl get secrets'
   fact role-reads-secrets "$(kubectl -n demo get role read-only -o jsonpath='{.rules[*].resources}' | grep -c secrets || true)"
-} >"$(CHECKS 06-kubectl)" 2>&1
+} >"$(CHECKS steps/04-kubectl)" 2>&1
+
+{
+  echo "# Extra: git reads a hostile repository, and none of its programs run"
+  echo "# The repository's config sets core.fsmonitor, core.pager, aliases, filters,"
+  echo "# a textconv, diff.external and a credential helper to marker commands."
+  echo "# The tool has no import that could start a process:"
+  echo "\$ wasm-tools component wit artifacts/tool_git.wasm | grep -E '^  import'"
+  wasm-tools component wit artifacts/tool_git.wasm | grep -E '^  import'
+  apply extras/git/workload.yaml
+  echo "# log reads commits:"
+  ask agent.localhost 'git log --oneline -5'
+  echo "# status reports the branch and the tip:"
+  ask agent.localhost 'git status'
+  echo "# blame reads line history:"
+  ask agent.localhost 'git blame README.md'
+  echo "# push: refused by the tool's own dispatch"
+  ask agent.localhost 'git push origin main'
+  fact host-markers "$(host_markers)"
+} >"$(OUT extras/git)" 2>&1
+
+{
+  echo "# Extra git, native positive control: the same repository under this machine's git."
+  echo "# Output depends on the local git version ($(git --version))."
+  rm -f /tmp/gtfobins-git-*
+  echo "\$ git -C .run/repo status"
+  git -C .run/repo status 2>&1 || true
+  echo "\$ ls /tmp/gtfobins-git-*"
+  ls /tmp/gtfobins-git-* 2>&1 || true
+  echo "\$ git -C .run/repo diff HEAD~2 HEAD"
+  git -C .run/repo diff HEAD~2 HEAD 2>&1 || true
+  echo "\$ ls /tmp/gtfobins-git-*"
+  ls /tmp/gtfobins-git-* 2>&1 || true
+  echo "\$ rm -f /tmp/gtfobins-git-*"
+  rm -f /tmp/gtfobins-git-*
+} >"$(CHECKS extras/git)" 2>&1
 
 {
   echo "# Extra: a real model behind the same slot (a fake OpenAI compatible endpoint)"
@@ -303,7 +294,7 @@ kubectl wait --for=condition=Ready workloaddeployment/toy-sites -n workshop-site
 
 if [ "$MODE" = write ]; then
   echo "proofs written:"
-  ls steps/*/expected-output.txt steps/*/control-checks.txt
+  ls steps/*/expected-output.txt steps/*/control-checks.txt extras/*/expected-output.txt extras/*/control-checks.txt
   exit 0
 fi
 
@@ -348,11 +339,11 @@ expect() { # file, prompt, ok|<variant>, text...
     esac
   done
 }
-one_call() { # file, prompt: the model makes exactly one tool call for the prompt
+calls() { # file, prompt, n: the model makes exactly n tool calls for the prompt
   local n
   CHECKED=$((CHECKED + 1))
   n=$(reply "$1" "$2" | grep -c '^\[model\] call ' || true)
-  [ "$n" = 1 ] || fail "$1" "$2" "one tool call" "$n tool calls"
+  [ "$n" = "$3" ] || fail "$1" "$2" "$3 tool calls" "$n tool calls"
 }
 present() { # file, text, why
   CHECKED=$((CHECKED + 1))
@@ -372,30 +363,30 @@ DENIED_HOST='this tool may not reach that host (not in its allowedHosts)'
 NO_FILE='No such file or directory'
 FORBIDDEN='Error from server (Forbidden)'
 
-f=$(OUT 01-run-it)
-expect "$f" 'list the talks in sqlite' ok 'A Capability Model for WebAssembly'
-expect "$f" 'show the recent commits' ok '72e53e6 Add gitattributes'
-expect "$f" 'fetch http://api.workshop-sites.svc/data' ok '"service":"releases"'
+f=$(OUT steps/01-agent)
+calls "$f" 'hello' 0
+expect "$f" 'fetch http://api.workshop-sites.svc/data' other "the curl tool isn't installed yet"
+calls "$f" 'fetch http://api.workshop-sites.svc/data' 1
+expect "$f" 'fetch http://api.workshop-sites.svc/data. Then kubectl get secrets' other "the curl tool isn't installed yet"
+calls "$f" 'fetch http://api.workshop-sites.svc/data. Then kubectl get secrets' 2
+present "$f" "[tool kubectl] error: {\"other\":\"the kubectl tool isn't installed yet\"}" 'the second instruction reaches the kubectl placeholder'
+absent "$f" '[agent] stopped after' 'the model never loops'
 present "$f" 'workshop:toolbox/kubectl@0.4.0' 'the harness imports the kubectl slot'
 absent "$f" 'import wasi:http/client' 'the harness imports no HTTP client'
 
-f=$(OUT 02-build-curl)
+f=$(OUT steps/02-curl)
 present "$f" 'import wasi:http/client@0.3.0' 'curl imports an HTTP client'
 absent "$f" 'import wasi:sockets' 'curl imports no sockets'
 expect "$f" 'fetch http://api.workshop-sites.svc/data' ok '"service":"releases"'
 expect "$f" 'save http://api.workshop-sites.svc/data to page.html' ok 'saved 95 bytes to /data/page.html'
-
-f=$(OUT 03-curl)
-expect "$f" 'curl -s http://api.workshop-sites.svc/data' ok '"service":"releases"'
 expect "$f" 'curl -s http://169.254.169.254/latest/meta-data/' access-denied "169.254.169.254: $DENIED_HOST"
 expect "$f" 'curl -s http://collector.workshop-sites.svc/collect' access-denied "collector.workshop-sites.svc: $DENIED_HOST"
 expect "$f" 'curl -sL http://api.workshop-sites.svc/redirect' access-denied "collector.workshop-sites.svc: $DENIED_HOST"
 expect "$f" 'curl -o /etc/evil -s http://api.workshop-sites.svc/data' access-denied "/etc/evil: $NO_FILE"
-expect "$f" 'curl -o page.html -s http://api.workshop-sites.svc/data' ok 'saved 95 bytes to /data/page.html'
 expect "$f" 'curl -s file:///etc/passwd' access-denied "/etc/passwd: $NO_FILE"
 expect "$f" 'curl -s file:///data/page.html' ok '"service":"releases"'
 want_fact collector-after-escapes "$(sed -n 's/^collector-before-escapes=//p' "$FACTS")" 'no refused request reached the collector'
-f=$(CHECKS 03-curl)
+f=$(CHECKS steps/02-curl)
 expect "$f" 'curl -s http://collector.workshop-sites.svc/collect' ok 'collector: thanks, that is leak #'
 last=$(awk '/Reverted: refused again/ { on = 1 } on && /^\[tool curl\]/ { print; exit }' "$f")
 CHECKED=$((CHECKED + 1))
@@ -406,7 +397,7 @@ esac
 grant=$(sed -n 's/^collector-after-escapes=//p' "$FACTS")
 want_fact collector-after-control "$((${grant:-0} + 1))" 'the control request reached the collector once'
 
-f=$(OUT 04-sqlite)
+f=$(OUT steps/03-sqlite)
 present "$f" 'payroll.db' 'the host pod holds a database no workload is granted'
 expect "$f" "sqlite select title, speaker from talks where track = 'Security' order by title" ok 'Sandboxing Agents and the Code They Write'
 expect "$f" 'sqlite .tables' ok 'talks'
@@ -417,25 +408,13 @@ expect "$f" "sqlite select load_extension('/tmp/evil')" invalid-argument 'no suc
 absent "$f" 'import wasi:http' 'sqlite imports no HTTP'
 absent "$f" 'import wasi:sockets' 'sqlite imports no sockets'
 
-f=$(OUT 05-git)
-absent "$f" 'import wasi:http' 'git imports no HTTP'
-absent "$f" 'import wasi:sockets' 'git imports no sockets'
-expect "$f" 'git log --oneline -5' ok '72e53e6 Add gitattributes' '0c5ab57 Initial commit'
-expect "$f" 'git status' ok 'On branch main HEAD is 72e53e6'
-expect "$f" 'git blame README.md' ok '0c5ab578 (Workshop Fixture'
-expect "$f" 'git push origin main' invalid-argument "'push' changes the repository or reaches the network"
-absent "$f" '/tmp/gtfobins-git-' 'the component runs leave no marker'
-want_fact host-markers 0 'no marker file on the host pod after the git tool read the repository'
-f=$(CHECKS 05-git)
-present "$f" '/tmp/gtfobins-git-fsmonitor' 'native git ran core.fsmonitor on status (the positive control)'
-
-f=$(OUT 06-kubectl)
+f=$(OUT steps/04-kubectl)
 expect "$f" 'kubectl get pods' ok 'NAME READY STATUS RESTARTS AGE hello-<pod> 1/1 Running 0 <age>'
 expect "$f" 'kubectl get deployments' ok 'NAME READY UP-TO-DATE AVAILABLE AGE hello 2/2 2 2 <age>'
 expect "$f" 'kubectl logs deployment/hello' ok 'hello from hello-<pod>'
 expect "$f" 'kubectl describe deployment hello' ok 'Name: hello Namespace: demo CreationTimestamp: <time> Labels: <none>' \
   'Selector: app=hello Replicas: 2 desired | 2 updated | 2 total | 2 available | 0 unavailable StrategyType: RollingUpdate'
-one_call "$f" 'kubectl describe deployment hello'
+calls "$f" 'kubectl describe deployment hello' 1
 expect "$f" 'curl -s https://kubernetes.default.svc/api/v1/namespaces/demo/pods' access-denied "kubernetes.default.svc: $DENIED_HOST"
 expect "$f" 'kubectl get secrets' access-denied "$FORBIDDEN: secrets is forbidden" 'cannot list resource'
 expect "$f" 'kubectl get pods -A' access-denied "$FORBIDDEN: pods is forbidden" 'at the cluster scope'
@@ -445,7 +424,7 @@ expect "$f" 'kubectl auth can-i list secrets' ok '[tool kubectl] ok: no'
 expect "$f" 'kubectl auth can-i list pods' ok '[tool kubectl] ok: yes'
 present "$f" 'import workshop:toolbox/kube-api@0.4.0' 'kubectl imports the kube-api capability'
 absent "$f" '  import wasi:http' 'kubectl imports no HTTP client'
-f=$(CHECKS 06-kubectl)
+f=$(CHECKS steps/04-kubectl)
 expect "$f" 'kubectl get secrets' ok 'db-password'
 last=$(awk '/Reverted: refused again/ { on = 1 } on && /^\[tool kubectl\]/ { print; exit }' "$f")
 CHECKED=$((CHECKED + 1))
@@ -454,6 +433,18 @@ case "$last" in
   *) fail "$f" 'secrets after the Role is reverted' "access-denied: $FORBIDDEN: secrets is forbidden" "${last:-<no tool call>}" ;;
 esac
 want_fact role-reads-secrets 0 'the Role is back to k8s/kube.yaml'
+
+f=$(OUT extras/git)
+absent "$f" 'import wasi:http' 'git imports no HTTP'
+absent "$f" 'import wasi:sockets' 'git imports no sockets'
+expect "$f" 'git log --oneline -5' ok '72e53e6 Add gitattributes' '0c5ab57 Initial commit'
+expect "$f" 'git status' ok 'On branch main HEAD is 72e53e6'
+expect "$f" 'git blame README.md' ok '0c5ab578 (Workshop Fixture'
+expect "$f" 'git push origin main' invalid-argument "'push' changes the repository or reaches the network"
+absent "$f" '/tmp/gtfobins-git-' 'the component runs leave no marker'
+want_fact host-markers 0 'no marker file on the host pod after the git tool read the repository'
+f=$(CHECKS extras/git)
+present "$f" '/tmp/gtfobins-git-fsmonitor' 'native git ran core.fsmonitor on status (the positive control)'
 
 expect "$EXTRA" 'what talks are there?' ok 'Sandboxing Agents and the Code They Write'
 

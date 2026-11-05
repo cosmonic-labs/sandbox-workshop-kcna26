@@ -1,21 +1,18 @@
-# Step 2, your build: the same agent as workload.yaml, with the curl you built
-# and pushed (make build && make push-build) as tool-curl:mine. Only the
-# curl entry differs. imagePullPolicy: Always makes the host fetch the tag
-# again whenever the workload starts, so a new push is picked up after you
-# delete and apply this workload.
+# Step 3: give the agent sqlite. The same agent as step 2, with the real
+# sqlite tool in its slot. The sqlite folder holds two databases, main.db
+# (the talks) and rooms.db.
 #
 # The agent harness (the component that runs the loop: ask the model, call a
 # tool, repeat) imports a model and four labelled tool slots: curl, sqlite,
 # git and kubectl. The host links each label to the workload component of the
-# same name, so every slot must be filled. Here curl, sqlite and git have
-# their real tools and the scripted model, so the agent answers straight away;
-# kubectl holds a placeholder until step 6.
+# same name, so every slot must be filled. A slot with no real tool yet holds
+# the placeholder, not-installed, which answers that the tool isn't installed.
 #
 # Each tool reaches only what this manifest grants it:
-#   curl    the hosts in its allowedHosts (api.workshop-sites.svc), and the folder
-#           mounted at /data for -o
+#   curl    the hosts in its allowedHosts (api.workshop-sites.svc), and the
+#           folder mounted at /data for -o
 #   sqlite  the databases (talks, rooms) mounted read only at /data
-#   git     the repository mounted read only at /repo
+#   git, kubectl   placeholders, no grants
 # The harness and the model get nothing: no allowedHosts, no volumes.
 
 apiVersion: runtime.wasmcloud.dev/v1alpha1
@@ -48,8 +45,7 @@ spec:
           image: workshop-toolbox-registry:5000/workshop/model-scripted:0.4.0
         # curl may reach only api.workshop-sites.svc, and writes with -o only into /data.
         - name: curl
-          image: workshop-toolbox-registry:5000/workshop/tool-curl:mine
-          imagePullPolicy: Always
+          image: workshop-toolbox-registry:5000/workshop/tool-curl:0.4.0
           localResources:
             allowedHosts:
               - api.workshop-sites.svc
@@ -64,16 +60,10 @@ spec:
               - name: sqlite-data
                 mountPath: /data
                 readOnly: true
-        # git reads the repository, mounted read only at /repo.
+        # git is the extra in extras/git.
         - name: git
-          image: workshop-toolbox-registry:5000/workshop/tool-git:0.4.0
-          localResources:
-            volumeMounts:
-              - name: repo
-                mountPath: /repo
-                readOnly: true
-        # The kubectl slot waits for step 6: the placeholder answers that the
-        # tool isn't installed yet.
+          image: workshop-toolbox-registry:5000/workshop/not-installed:0.4.0
+        # kubectl arrives in step 4.
         - name: kubectl
           image: workshop-toolbox-registry:5000/workshop/not-installed:0.4.0
       volumes:
@@ -83,6 +73,3 @@ spec:
         - name: sqlite-data
           hostPath:
             path: /workshop/sqlite-data
-        - name: repo
-          hostPath:
-            path: /workshop/repo

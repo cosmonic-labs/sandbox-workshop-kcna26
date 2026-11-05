@@ -2,24 +2,27 @@
 ## Multi-tenant sandboxing for agent harnesses and tools on wasmCloud
 
 A hands-on workshop for KubeCon + CloudNativeCon NA 2026. You `kubectl apply`
-an agent and four tools to your own cluster with **wasmCloud**, a CNCF
-project, then try each tool's most famous escape and watch it fail.
+an agent to your own cluster with **wasmCloud**, a CNCF project, give it
+tools one at a time, then try each tool's most famous escape and watch it
+fail.
 
-The tools are `curl`, `sqlite3`, `git` and `kubectl`. The first three are classics from
+The tools are `curl`, `sqlite3` and `kubectl`, with `git` as extra credit.
+`curl`, `sqlite3` and `git` are classics from
 [GTFOBins](https://gtfobins.github.io/), the catalogue of everyday programs
 that break out of restricted shells. The model is a gullible stand-in that
-does whatever it reads. It never refuses, so every refusal you see comes from
-another layer, and each step names which one:
+does whatever it reads (step 1 explains how it works). It never refuses, so
+every refusal you see comes from another layer, and each step names which
+one:
 
 * **Imports**: what a component can ask the host for at all. None of these
   tools imports a way to start a process, and none imports sockets.
-* **The tool's own code**: this git offers no `push`, and this sqlite3's
-  small shell answers `.shell` itself and has no extension loading compiled
-  in.
+* **The tool's own code**: this sqlite3's small shell answers `.shell`
+  itself and has no extension loading compiled in, and this git offers no
+  `push`.
 * **The grant**: the lines of the manifest that give each tool its folders
   (`volumeMounts`) and its hosts (`allowedHosts`).
 * **RBAC** (role-based access control, the Kubernetes API server's own
-  rules): what the identity behind `kubectl` may do (step 6).
+  rules): what the identity behind `kubectl` may do (step 4).
 
 Each tool starts with nothing and gets only its own grant.
 
@@ -57,18 +60,25 @@ cluster named `workshop-toolbox` and switches your kubectl context to it.
 
 | Step | Folder | What you'll see |
 | --- | --- | --- |
-| 1 | `steps/01-run-it` | The agent and its tools deploy with `kubectl` and answer |
-| 2 | `steps/02-build-curl` | `curl` imports only an HTTP client; its reach is one line of YAML |
-| 3 | `steps/03-curl` | `curl`'s escapes (metadata service, other hosts, redirects, files) refused |
-| 4 | `steps/04-sqlite` | `sqlite3`'s escapes (`.shell`, `ATTACH`, extensions) go nowhere |
-| 5 | `steps/05-git` | A hostile repository names programs to run; native git runs them, the tool can't |
-| 6 | `steps/06-kubectl` | Ordinary `kubectl` through a platform capability; RBAC still decides |
+| 1 | `steps/01-agent` | The agent with no tools: how it and its gullible model work, and that it can use only what its manifest gives it |
+| 2 | `steps/02-curl` | `curl` (prebuilt, or build your own) gets one host; its escapes (metadata service, other hosts, redirects, files) are refused |
+| 3 | `steps/03-sqlite` | `sqlite3`'s escapes (`.shell`, `ATTACH`, extensions) go nowhere |
+| 4 | `steps/04-kubectl` | Ordinary `kubectl` through a platform capability; RBAC still decides |
 
-Steps 1 to 4 tell the whole story; 5 and 6 are for if time allows. Each step
-README has the commands and the output to expect (`expected-output.txt`).
+Each step README has the commands and the output to expect
+(`expected-output.txt`).
 
 **Fell behind?** Every step's manifest is complete, so you can jump to any
 step with its one `kubectl apply`.
+
+### Extra credit
+
+Not covered in the session. Each builds on step 4's cluster state.
+
+| Folder | What you'll see |
+| --- | --- |
+| `extras/git` | A hostile repository names programs to run; native git runs them, the git tool can't |
+| `extras/real-model` | A model that speaks the OpenAI API in the model slot; the grants don't change |
 
 ## Chat in the browser, or use curl
 
@@ -116,8 +126,8 @@ registry.
       harness ──▶ model                             llm
         ├──▶ curl     allowedHosts only ─── HTTP ──▶ (.workshop-sites.svc)
         ├──▶ sqlite   /data, read only
-        ├──▶ git      /repo, read only
-        └──▶ kubectl  kube-api plugin ──▶ API server (RBAC: agent-reader)
+        ├──▶ kubectl  kube-api plugin ──▶ API server (RBAC: agent-reader)
+        └──▶ git      /repo, read only (extras/git)
 ```
 
 * A **component** is a WebAssembly program that starts with no access to
@@ -159,7 +169,8 @@ the workshop needs no internet.
   needs wasi-sdk (`WASI_SDK_PATH`, `CC_wasm32_wasip2`). `make push-build`
   pushes your build to the cluster's registry. A running workload keeps its
   old image until it is recreated.
-* `make prove` replays every step and rewrites each `expected-output.txt`.
+* `make prove` replays steps 1 to 4 and the extras and rewrites each
+  `expected-output.txt`; `make verify` replays them and checks each result.
 * `TESTING.md` is the pre-workshop test checklist.
 * `extras/real-model/` swaps the scripted model for `model-real` (an OpenAI
   compatible endpoint) in the same slot, with no rebuild.

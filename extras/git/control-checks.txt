@@ -1,4 +1,4 @@
-# Step 5, native positive control: the same repository under this machine's git.
+# Extra git, native positive control: the same repository under this machine's git.
 # Output depends on the local git version (git version 2.54.0 (Apple Git-157)).
 $ git -C .run/repo status
 warning: Empty last update token.

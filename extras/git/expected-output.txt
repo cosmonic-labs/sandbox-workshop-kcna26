@@ -1,4 +1,4 @@
-# Step 5: git reads a hostile repository, and none of its programs run
+# Extra: git reads a hostile repository, and none of its programs run
 # The repository's config sets core.fsmonitor, core.pager, aliases, filters,
 # a textconv, diff.external and a credential helper to marker commands.
 # The tool has no import that could start a process:
@@ -21,7 +21,7 @@ $ wasm-tools component wit artifacts/tool_git.wasm | grep -E '^  import'
   import wasi:filesystem/types@0.2.9;
   import wasi:filesystem/preopens@0.2.9;
   import wasi:random/insecure-seed@0.2.9;
-$ kubectl apply -f steps/05-git/workload.yaml && sleep 2 && kubectl wait --for=condition=Ready workloaddeployment/toolbox-agent
+$ kubectl apply -f extras/git/workload.yaml && sleep 2 && kubectl wait --for=condition=Ready workloaddeployment/toolbox-agent
 
 # log reads commits:
 $ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'git log --oneline -5'

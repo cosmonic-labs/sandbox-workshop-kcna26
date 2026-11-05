@@ -1,17 +1,16 @@
-# Step 3: try to make curl escape. The same agent and grants as step 1.
+# Control for step 2, run by make prove only: the same agent with curl's
+# allowedHosts widened to "*", to show the grant is the only thing stopping it.
 #
 # The agent harness (the component that runs the loop: ask the model, call a
 # tool, repeat) imports a model and four labelled tool slots: curl, sqlite,
 # git and kubectl. The host links each label to the workload component of the
-# same name, so every slot must be filled. Here curl, sqlite and git have
-# their real tools and the scripted model, so the agent answers straight away;
-# kubectl holds a placeholder until step 6.
+# same name, so every slot must be filled. A slot with no real tool yet holds
+# the placeholder, not-installed, which answers that the tool isn't installed.
 #
-# Each tool reaches only what this manifest grants it:
-#   curl    the hosts in its allowedHosts (api.workshop-sites.svc), and the folder
-#           mounted at /data for -o
-#   sqlite  the databases (talks, rooms) mounted read only at /data
-#   git     the repository mounted read only at /repo
+# This control differs from steps/02-curl/workload.yaml in one line, curl's
+# allowedHosts:
+#   curl    ANY host ("*"), and the folder mounted at /data for -o
+#   sqlite, git, kubectl   placeholders, no grants
 # The harness and the model get nothing: no allowedHosts, no volumes.
 
 apiVersion: runtime.wasmcloud.dev/v1alpha1
@@ -42,42 +41,25 @@ spec:
           image: workshop-toolbox-registry:5000/workshop/agent:0.4.0
         - name: model
           image: workshop-toolbox-registry:5000/workshop/model-scripted:0.4.0
-        # curl may reach only api.workshop-sites.svc, and writes with -o only into /data.
+        # Control: curl may reach any host. It still writes with -o only into /data.
         - name: curl
           image: workshop-toolbox-registry:5000/workshop/tool-curl:0.4.0
           localResources:
-            allowedHosts:
-              - api.workshop-sites.svc
+            allowedHosts:  # control: widened to everything
+              - "*"
             volumeMounts:
               - name: curl-data
                 mountPath: /data
-        # sqlite reads the databases in /data (talks, rooms), mounted read only.
+        # sqlite arrives in step 3.
         - name: sqlite
-          image: workshop-toolbox-registry:5000/workshop/tool-sqlite:0.4.0
-          localResources:
-            volumeMounts:
-              - name: sqlite-data
-                mountPath: /data
-                readOnly: true
-        # git reads the repository, mounted read only at /repo.
+          image: workshop-toolbox-registry:5000/workshop/not-installed:0.4.0
+        # git is the extra in extras/git.
         - name: git
-          image: workshop-toolbox-registry:5000/workshop/tool-git:0.4.0
-          localResources:
-            volumeMounts:
-              - name: repo
-                mountPath: /repo
-                readOnly: true
-        # The kubectl slot waits for step 6: the placeholder answers that the
-        # tool isn't installed yet.
+          image: workshop-toolbox-registry:5000/workshop/not-installed:0.4.0
+        # kubectl arrives in step 4.
         - name: kubectl
           image: workshop-toolbox-registry:5000/workshop/not-installed:0.4.0
       volumes:
         - name: curl-data
           hostPath:
             path: /workshop/curl-data
-        - name: sqlite-data
-          hostPath:
-            path: /workshop/sqlite-data
-        - name: repo
-          hostPath:
-            path: /workshop/repo

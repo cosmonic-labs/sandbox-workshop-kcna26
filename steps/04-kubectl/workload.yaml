@@ -1,18 +1,17 @@
-# Step 5: read a hostile repository. The same agent and grants as step 1.
+# Step 4: give the agent kubectl.
 #
-# The agent harness (the component that runs the loop: ask the model, call a
-# tool, repeat) imports a model and four labelled tool slots: curl, sqlite,
-# git and kubectl. The host links each label to the workload component of the
-# same name, so every slot must be filled. Here curl, sqlite and git have
-# their real tools and the scripted model, so the agent answers straight away;
-# kubectl holds a placeholder until step 6.
+# The same agent as step 3, with the real kubectl tool in its slot.
+# kubectl gets no allowedHosts, no volumes and no token. Its only way to the
+# cluster is the workshop:toolbox/kube-api interface, declared below under
+# hostInterfaces and served by the kube-api plugin the platform installed on
+# the default host group (k8s/values.yaml). The plugin holds the token of a
+# read-only identity, agent-reader, shared by any workload on this host group
+# that declares the plugin. It forwards any method and path; RBAC on
+# agent-reader (k8s/kube.yaml) decides what kubectl may do. The README's
+# `kubectl delete --raw` sends a write to show it, and `kubectl auth can-i`
+# asks RBAC without trying.
 #
-# Each tool reaches only what this manifest grants it:
-#   curl    the hosts in its allowedHosts (api.workshop-sites.svc), and the folder
-#           mounted at /data for -o
-#   sqlite  the databases (talks, rooms) mounted read only at /data
-#   git     the repository mounted read only at /repo
-# The harness and the model get nothing: no allowedHosts, no volumes.
+# The git slot still holds the placeholder; extras/git fills it.
 
 apiVersion: runtime.wasmcloud.dev/v1alpha1
 kind: WorkloadDeployment
@@ -37,6 +36,11 @@ spec:
           interfaces: [handler]
           config:
             host: agent.localhost
+        # The Kubernetes API, as a capability: the host links it to the
+        # kube-api plugin. kubectl imports it; nothing else here does.
+        - namespace: workshop
+          package: toolbox
+          interfaces: [kube-api]
       components:
         - name: agent
           image: workshop-toolbox-registry:5000/workshop/agent:0.4.0
@@ -59,18 +63,13 @@ spec:
               - name: sqlite-data
                 mountPath: /data
                 readOnly: true
-        # git reads the repository, mounted read only at /repo.
+        # git is the extra in extras/git: the placeholder, no grants.
         - name: git
-          image: workshop-toolbox-registry:5000/workshop/tool-git:0.4.0
-          localResources:
-            volumeMounts:
-              - name: repo
-                mountPath: /repo
-                readOnly: true
-        # The kubectl slot waits for step 6: the placeholder answers that the
-        # tool isn't installed yet.
-        - name: kubectl
           image: workshop-toolbox-registry:5000/workshop/not-installed:0.4.0
+        # kubectl: no grants of its own. It reaches the cluster only through
+        # the kube-api capability above.
+        - name: kubectl
+          image: workshop-toolbox-registry:5000/workshop/tool-kubectl:0.4.0
       volumes:
         - name: curl-data
           hostPath:
@@ -78,6 +77,3 @@ spec:
         - name: sqlite-data
           hostPath:
             path: /workshop/sqlite-data
-        - name: repo
-          hostPath:
-            path: /workshop/repo

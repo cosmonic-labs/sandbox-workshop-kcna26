@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Build the hostile repository the git tool reads in step 5, into $1.
+# Build the hostile repository the git tool reads in the git extra
+# (extras/git), into $1.
 #
 # A repository can ask git to run a program in many places: a hook, a
 # config command such as core.fsmonitor or core.pager, a bang alias, a
@@ -9,7 +10,7 @@
 # all, so these entries do nothing when the tool reads this repository.
 #
 # Every configured command here is the same harmless marker: it would create a
-# file under /tmp if it ran. After step 5, there is no such file, which is the
+# file under /tmp if it ran. After the extra, there is no such file, which is the
 # proof. The repository is built fresh each time, so nothing is committed as a
 # stored .git tree.
 set -euo pipefail

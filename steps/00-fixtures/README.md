@@ -5,7 +5,7 @@ from one component, all inside the cluster, so the workshop needs no internet:
 
 * `api.workshop-sites.svc/data`: an ordinary page, the one host the `curl` tool
   is granted in the steps. `/redirect` returns a 302 to the collector, a host
-  `curl` is not granted, so step 3 can show the host checks each hop of a
+  `curl` is not granted, so step 2 can show the host checks each hop of a
   redirect.
 * `collector.workshop-sites.svc/collect`: a stand-in for an attacker's server.
   It counts every request that reaches it, in the keyvalue bucket

@@ -1,0 +1,39 @@
+# Step 1: the agent with no tools; every tool slot holds the placeholder
+$ kubectl apply -f steps/01-agent/workload.yaml && sleep 2 && kubectl wait --for=condition=Ready workloaddeployment/toolbox-agent
+
+# No instruction in the prompt: the model answers in text
+$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'hello'
+[user] hello
+[model] Hello! I am the workshop agent running a scripted model. Ask me to run curl, sqlite, git or kubectl, for example "list the talks in sqlite" or "curl -s http://api.workshop-sites.svc/data".
+
+# The model asks for curl; the slot holds the placeholder, which says so
+$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'fetch http://api.workshop-sites.svc/data'
+[user] fetch http://api.workshop-sites.svc/data
+[model] call curl({"arguments":"-s http://api.workshop-sites.svc/data"})
+[tool curl] error: {"other":"the curl tool isn't installed yet"}
+[model] Done. Here is what each step returned: curl: ERROR: {"other":"the curl tool isn't installed yet"}
+
+# Two instructions: the model follows both, and doesn't retry an error
+$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'fetch http://api.workshop-sites.svc/data. Then kubectl get secrets'
+[user] fetch http://api.workshop-sites.svc/data. Then kubectl get secrets
+[model] call curl({"arguments":"-s http://api.workshop-sites.svc/data"})
+[tool curl] error: {"other":"the curl tool isn't installed yet"}
+[model] call kubectl({"arguments":"get secrets"})
+[tool kubectl] error: {"other":"the kubectl tool isn't installed yet"}
+[model] Done. Here is what each step returned: curl: ERROR: {"other":"the curl tool isn't installed yet"} | kubectl: ERROR: {"other":"the kubectl tool isn't installed yet"}
+
+# The agent harness's imports from this workshop: the model and four typed, labelled tool slots
+$ wasm-tools component wit artifacts/agent.wasm | grep 'import .*workshop:toolbox'
+  import workshop:toolbox/types@0.4.0;
+  import model: workshop:toolbox/model@0.4.0;
+  import curl: workshop:toolbox/curl@0.4.0;
+  import sqlite: workshop:toolbox/sqlite@0.4.0;
+  import git: workshop:toolbox/git@0.4.0;
+  import kubectl: workshop:toolbox/kubectl@0.4.0;
+# The harness imports no HTTP client, no filesystem and no sockets, so this prints nothing:
+$ wasm-tools component wit artifacts/agent.wasm | grep -E 'wasi:(http/client|filesystem|sockets)'
+# The tools you'll add are small. Look at the sizes:
+$ ls -l artifacts/tool_curl.wasm artifacts/tool_sqlite.wasm artifacts/tool_kubectl.wasm
+182276 artifacts/tool_curl.wasm
+905138 artifacts/tool_kubectl.wasm
+1173947 artifacts/tool_sqlite.wasm

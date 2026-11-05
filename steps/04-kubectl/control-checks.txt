@@ -1,5 +1,5 @@
-# Step 6 control: the Role widened to read Secrets, nothing else changed
-$ kubectl apply -f steps/06-kubectl/control-secrets-role.yaml
+# Step 4 control: the Role widened to read Secrets, nothing else changed
+$ kubectl apply -f steps/04-kubectl/control-secrets-role.yaml
 role.rbac.authorization.k8s.io/read-only configured
 $ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'kubectl get secrets'
 [user] kubectl get secrets

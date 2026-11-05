@@ -1,15 +1,14 @@
-# Step 6: give the agent kubectl.
+# Extra: read a hostile repository. steps/04-kubectl/workload.yaml with one
+# change: the git slot holds the real git tool, which reads the repository
+# mounted read only at /repo.
 #
-# The same agent as step 1, with the real kubectl tool in its fourth slot.
-# kubectl gets no allowedHosts, no volumes and no token. Its only way to the
-# cluster is the workshop:toolbox/kube-api interface, declared below under
-# hostInterfaces and served by the kube-api plugin the platform installed on
-# the default host group (k8s/values.yaml). The plugin holds the token of a
-# read-only identity, agent-reader, shared by any workload on this host group
-# that declares the plugin. It forwards any method and path; RBAC on
-# agent-reader (k8s/kube.yaml) decides what kubectl may do. The README's
-# `kubectl delete --raw` sends a write to show it, and `kubectl auth can-i`
-# asks RBAC without trying.
+# Each tool reaches only what this manifest grants it:
+#   curl     the hosts in its allowedHosts (api.workshop-sites.svc), and the
+#            folder mounted at /data for -o
+#   sqlite   the databases (talks, rooms) mounted read only at /data
+#   git      the repository mounted read only at /repo
+#   kubectl  the kube-api capability only (RBAC: agent-reader)
+# The harness and the model get nothing: no allowedHosts, no volumes.
 
 apiVersion: runtime.wasmcloud.dev/v1alpha1
 kind: WorkloadDeployment

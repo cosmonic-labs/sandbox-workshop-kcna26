@@ -1,5 +1,5 @@
-# Step 4: sqlite over the databases in its read-only folder
-$ kubectl apply -f steps/04-sqlite/workload.yaml && sleep 2 && kubectl wait --for=condition=Ready workloaddeployment/toolbox-agent
+# Step 3: sqlite over the databases in its read-only folder
+$ kubectl apply -f steps/03-sqlite/workload.yaml && sleep 2 && kubectl wait --for=condition=Ready workloaddeployment/toolbox-agent
 
 # A valid database on the host pod's disk that no workload is granted:
 $ kubectl -n wasmcloud exec deploy/hostgroup-default -- ls /workshop/private-data

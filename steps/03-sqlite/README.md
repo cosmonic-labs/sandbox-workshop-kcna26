@@ -1,6 +1,6 @@
-# Step 4: Now try sqlite3's escapes
+# Step 3: Give the agent sqlite, then try its escapes
 
-**Folder:** `steps/04-sqlite`
+**Folder:** `steps/03-sqlite`
 
 `sqlite3` is on [GTFOBins](https://gtfobins.github.io/) for three things:
 `.shell`, which starts a shell; `ATTACH`, which opens any database file on
@@ -13,13 +13,14 @@ turns `.tables` and `.schema` into SQL and answers `.shell` itself.
 ## Deploy
 
 ```sh
-kubectl apply -f steps/04-sqlite/workload.yaml \
+kubectl apply -f steps/03-sqlite/workload.yaml \
   && sleep 2 && kubectl wait --for=condition=Ready \
   workloaddeployment/toolbox-agent
 ```
 
-The grant: one folder, read only, holding two databases (`main.db`, the
-talks, and `rooms.db`).
+The same agent as step 2, with the real sqlite tool in its slot. Its grant:
+one folder, read only, holding two databases (`main.db`, the talks, and
+`rooms.db`).
 
 ```yaml
 volumeMounts: [{ name: sqlite-data, mountPath: /data, readOnly: true }]

@@ -1,6 +1,6 @@
-# Step 6: Give the agent kubectl
+# Step 4: Give the agent kubectl
 
-**Folder:** `steps/06-kubectl`
+**Folder:** `steps/04-kubectl`
 
 `kubectl` is the tool a platform team least wants an agent to have. Here the
 agent gets it, and two layers decide what it can do: the wasmCloud grant and
@@ -32,12 +32,12 @@ refused, because the capability carries one request and one answer.
 ## Deploy
 
 ```sh
-kubectl apply -f steps/06-kubectl/workload.yaml \
+kubectl apply -f steps/04-kubectl/workload.yaml \
   && sleep 2 && kubectl wait --for=condition=Ready \
   workloaddeployment/toolbox-agent
 ```
 
-The same agent as step 1, with the real tool in its fourth slot and one new
+The same agent as step 3, with the real tool in its kubectl slot and one new
 entry under `hostInterfaces`:
 
 ```yaml
@@ -185,7 +185,7 @@ RBAC was the only thing refusing the secrets. Widen the Role to read them,
 with nothing else changed:
 
 ```sh
-kubectl apply -f steps/06-kubectl/control-secrets-role.yaml
+kubectl apply -f steps/04-kubectl/control-secrets-role.yaml
 curl -s -H 'Host: agent.localhost' \
   http://127.0.0.1:18180/ \
   -d 'kubectl get secrets'

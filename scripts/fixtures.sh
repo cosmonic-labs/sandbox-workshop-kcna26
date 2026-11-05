@@ -4,8 +4,9 @@
 #   .run/sqlite-data/main.db   the talks database, a copy of fixtures/talks.db
 #   .run/sqlite-data/rooms.db  a second database the sqlite tool may attach (fixtures/rooms.db)
 #   .run/private-data/payroll.db  a database on the host pod that no workload is
-#                              granted (fixtures/payroll.db), for step 4's ATTACH
-#   .run/repo                  the hostile git repository (fixtures/make-hostile-repo.sh)
+#                              granted (fixtures/payroll.db), for step 3's ATTACH
+#   .run/repo                  the hostile git repository (fixtures/make-hostile-repo.sh),
+#                              for the git extra (extras/git)
 #   .run/curl-data             an empty folder curl may write into with -o
 #
 # The databases are committed prebuilt (fixtures/*.db, built from the .sql

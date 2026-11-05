@@ -63,7 +63,7 @@ spec:
               - name: repo
                 mountPath: /repo
                 readOnly: true
-        # The kubectl slot: step 6 installs the real tool.
+        # The kubectl slot: step 4 installs the real tool.
         - name: kubectl
           image: workshop-toolbox-registry:5000/workshop/not-installed:0.4.0
       volumes:
