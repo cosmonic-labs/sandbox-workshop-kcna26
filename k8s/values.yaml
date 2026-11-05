@@ -19,11 +19,13 @@ gateway:
 networkPolicy:
   enabled: false
 runtime:
-  # The all-features host image carries host component plugins, which the
-  # kube-api plugin (extras/kubectl) needs. The default release image does
-  # not.
+  # The all-features host image is wash built with the host-component-plugins
+  # feature, which step 4's github-api plugin needs. The default release image
+  # (2.12.0) exits at startup when given a plugin image ("require a wash build
+  # with the `host-component-plugins` feature"). Pinned by digest: the
+  # multi-platform index of ghcr.io/wasmcloud/wash:2.12.0-all-features.
   image:
-    tag: 2.12.0-all-features
+    tag: 2.12.0-all-features@sha256:b899dfa82e191ac31521d1985e6af25f200932025ab2760c9910a39c70dfdd4a
   # The workshop registry is plain HTTP on the kind network. The chart's
   # ociCaPaths is the safer choice for a real registry: this flag turns off
   # TLS for every registry the host pulls from.

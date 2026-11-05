@@ -5,7 +5,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 export PATH="$ROOT/.tools:$PATH"
 export WASH="${WASH:-$ROOT/.tools/wash}"          # pinned wash v2.12.0 (oci push)
 export WASMCLOUD_VERSION=2.12.0                    # wash, chart, and the host image
-                                                   # (2.12.0-all-features, k8s/values.yaml)
+                                                   # (2.12.0-all-features by digest, k8s/values.yaml)
 export CLUSTER=workshop-toolbox                    # kind cluster name
 export RUN_DIR="$ROOT/.run"
 # The registry container on the kind network, and its port on the laptop.
