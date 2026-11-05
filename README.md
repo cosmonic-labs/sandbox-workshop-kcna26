@@ -115,10 +115,10 @@ registry.
             ┌────────────────────────────────┴───────────────┐
             ▼                                                ▼
   host pod, group "default"                       host pod, group "fixtures"
-    workload toolbox-agent                          toy sites: api, collector,
-      harness ──▶ model                             llm
+    workload toolbox-agent                          toy sites: api, collector
+      harness ──▶ model
         ├──▶ sign-in  github-api plugin ──▶ github.com (device flow)
-        ├──▶ curl     allowedHosts only ─── HTTP ──▶ (.workshop-sites.svc)
+        ├──▶ curl     allowedHosts only ──▶ api.workshop-sites.svc, /data for -o
         ├──▶ sqlite   /data, read only
         └──▶ gh       github-api plugin ──▶ api.github.com (GET, allowlisted paths)
 ```

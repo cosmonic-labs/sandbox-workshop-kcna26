@@ -35,5 +35,5 @@ $ wasm-tools component wit artifacts/agent.wasm | grep -E 'wasi:(http/client|fil
 # The tools you'll add are small. Look at the sizes:
 $ ls -l artifacts/tool_curl.wasm artifacts/tool_sqlite.wasm artifacts/tool_gh.wasm
 182276 artifacts/tool_curl.wasm
-297695 artifacts/tool_gh.wasm
+297582 artifacts/tool_gh.wasm
 1173947 artifacts/tool_sqlite.wasm

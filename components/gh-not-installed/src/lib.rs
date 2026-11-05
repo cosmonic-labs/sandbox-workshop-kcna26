@@ -5,7 +5,7 @@
 //! unlabelled: until a workload declares the github-api plugin (step 4),
 //! something in the workload has to export it, or the harness could not
 //! start. Only one component may, so this is a separate image from
-//! not-installed, which sits behind several slots at once.
+//! not-installed, which sits behind the curl and sqlite slots at once.
 
 wit_bindgen::generate!({
     path: "../../wit",

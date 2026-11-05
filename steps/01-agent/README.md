@@ -142,7 +142,7 @@ ls -l artifacts/tool_curl.wasm artifacts/tool_sqlite.wasm artifacts/tool_gh.wasm
 ```
 
 `curl` is about 180 KB (182,276 bytes), `sqlite3` about 1.2 MB (1,173,947)
-and `gh` about 300 KB (297,695). These are the component files only;
+and `gh` about 300 KB (297,582). These are the component files only;
 the wasmCloud host that runs them is a separate, long-running pod.
 
 Full transcript: [`expected-output.txt`](expected-output.txt).

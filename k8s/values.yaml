@@ -101,7 +101,7 @@ runtime:
       plugins:
         - id: github-api
           image: workshop-toolbox-registry:5000/workshop/github-api:0.4.0
-          digest: sha256:abe18fef947eefc6c5cb9f040ce9011edbe4f78a44711e9f0dd0ee9ce83eb76e
+          digest: sha256:26c2843b874929ca104874ae5da36b4cdd09c404481bd60d4f56e6b5a950d073
           pullPolicy: ifNotPresent
           allowedHosts:
             - github.com
