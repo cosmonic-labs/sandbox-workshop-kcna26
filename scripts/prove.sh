@@ -2,27 +2,73 @@
 # Replay every step on the kind cluster (make up) and write each step's
 # transcript to steps/<step>/expected-output.txt. Resets the demo state first
 # so the outputs are repeatable. The commands echoed with "$" are the ones the
-# step READMEs ask attendees to run. Extra checks that no README asks for (the
-# wide-open control) go to steps/<step>/control-checks.txt.
+# step READMEs ask attendees to run, quoted so they paste into a shell. Extra
+# checks that no README asks for (the controls) go to
+# steps/<step>/control-checks.txt.
+#
+# Pod names in the demo namespace are random, so they are written as
+# hello-<pod>. Everything else is deterministic: a second run on a fresh
+# cluster should leave `git diff steps` empty.
 set -euo pipefail
 source "$(dirname "$0")/env.sh"
 cd "$ROOT"
 URL="http://$HOST_HTTP"
 OUT() { echo "steps/$1/expected-output.txt"; }
 CHECKS() { echo "steps/$1/control-checks.txt"; }
+# What the READMEs tell attendees to type. prove itself waits more precisely
+# (rollout below), so a slow machine can't record a reply from the old version.
 WAIT='sleep 2 && kubectl wait --for=condition=Ready workloaddeployment/toolbox-agent'
 kubectl config use-context "kind-$CLUSTER" >/dev/null
 
+# A prompt as a shell word: single quotes, unless it holds one, then double
+# quotes with \ " $ and ` escaped. This is how the READMEs write them.
+shell_quote() {
+  case "$1" in
+    *"'"*) printf '"%s"' "$(printf '%s' "$1" | sed -e 's/[\\"$`]/\\&/g')" ;;
+    *) printf "'%s'" "$1" ;;
+  esac
+}
+# Random pod names, as a placeholder.
+normalize() { sed -E 's/hello-[a-z0-9]{6,10}-[a-z0-9]{5}/hello-<pod>/g'; }
+
 ask() { # host, prompt
-  echo "\$ curl -s -H 'Host: $1' $URL/ -d '$2'"
-  curl -s -m 30 -H "Host: $1" "$URL/" -d "$2"
+  echo "\$ curl -s -H 'Host: $1' $URL/ -d $(shell_quote "$2")"
+  curl -s -m 30 -H "Host: $1" "$URL/" -d "$2" | normalize
   echo
 }
-apply() { # manifest: apply it and wait until every workload in it is ready
+
+# Wait until a WorkloadDeployment runs the version just applied: its current
+# replica set is the new one when the spec changed (a new generation), that
+# replica set is the only one left, every one of its workloads is Ready, and
+# no workload from an older replica set remains to answer a request.
+rollout() { # namespace, name, generation before the apply, replica set before
+  local ns=$1 name=$2 gen0=$3 rs0=$4 gen rs want ready others
+  gen=$(kubectl -n "$ns" get workloaddeployment "$name" -o jsonpath='{.metadata.generation}')
+  for _ in $(seq 1 240); do
+    rs=$(kubectl -n "$ns" get workloaddeployment "$name" -o jsonpath='{.status.currentReplicaSet.name}' 2>/dev/null || true)
+    if [ -n "$rs" ] && { [ "$gen" = "$gen0" ] || [ "$rs" != "$rs0" ]; }; then
+      want=$(kubectl -n "$ns" get workloaddeployment "$name" -o jsonpath='{.spec.replicas}')
+      ready=$(kubectl -n "$ns" get workloads -l "runtime.wasmcloud.dev/workload-replicaset=$rs" \
+        -o jsonpath='{range .items[*]}{.status.conditions[?(@.type=="Ready")].status}{"\n"}{end}' | grep -c '^True$' || true)
+      others=$(kubectl -n "$ns" get workloads -o name | grep "/$name-" | grep -vc "/$rs-" || true)
+      if [ "$ready" = "${want:-1}" ] && [ "$others" = 0 ]; then return 0; fi
+    fi
+    sleep 0.5
+  done
+  echo "timed out waiting for $ns/$name to roll out (generation $gen, replica set ${rs:-none})" >&2
+  return 1
+}
+
+apply() { # manifest with one WorkloadDeployment: apply it and wait for the new version
+  local ns name gen0 rs0
   echo "\$ kubectl apply -f $1 && $WAIT"
+  ns=$(sed -n 's/^  namespace: //p' "$1" | head -1)
+  ns=${ns:-default}
+  name=$(sed -n 's/^  name: //p' "$1" | head -1)
+  gen0=$(kubectl -n "$ns" get workloaddeployment "$name" -o jsonpath='{.metadata.generation}' 2>/dev/null || echo 0)
+  rs0=$(kubectl -n "$ns" get workloaddeployment "$name" -o jsonpath='{.status.currentReplicaSet.name}' 2>/dev/null || true)
   kubectl apply -f "$1" >/dev/null
-  sleep 3
-  kubectl wait --for=condition=Ready workloaddeployment --all --all-namespaces --timeout=120s >/dev/null
+  rollout "$ns" "$name" "$gen0" "$rs0"
   echo
 }
 
@@ -35,7 +81,7 @@ kubectl apply -f steps/00-fixtures/toy-sites.yaml >/dev/null
 kubectl wait --for=condition=Ready workloaddeployment/toy-sites -n workshop-sites --timeout=120s >/dev/null
 
 {
-  echo "# Step 1: run the agent and its three tools"
+  echo "# Step 1: run the agent; three tools are ready and the kubectl slot waits"
   apply steps/01-run-it/workload.yaml
   echo "# sqlite reads the talks database:"
   ask agent.localhost 'list the talks in sqlite'
@@ -43,7 +89,7 @@ kubectl wait --for=condition=Ready workloaddeployment/toy-sites -n workshop-site
   ask agent.localhost 'show the recent commits'
   echo "# curl reaches the one host it is granted:"
   ask agent.localhost 'fetch http://api.workshop-sites.svc/data'
-  echo "# The agent harness's imports from this workshop: the model and three typed, labelled tool slots"
+  echo "# The agent harness's imports from this workshop: the model and four typed, labelled tool slots"
   echo "\$ wasm-tools component wit artifacts/agent.wasm | grep 'import .*workshop:toolbox'"
   wasm-tools component wit artifacts/agent.wasm | grep 'import .*workshop:toolbox'
   echo "# The harness imports no HTTP client, no filesystem and no sockets, so this prints nothing:"

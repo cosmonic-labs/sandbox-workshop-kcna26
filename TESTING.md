@@ -29,7 +29,11 @@ make doctor
       each `steps/*/README.md`. Every command runs as written and the output
       matches the result line under it.
 - [ ] `make prove`: ends with `proofs written:` and the step files. `git diff
-      steps` shows nothing: the transcripts are deterministic.
+      steps` shows nothing: the transcripts are deterministic (pod names are
+      written as `hello-<pod>`; step 5's native control in
+      `control-checks.txt` depends on the local git version).
+- [ ] Every `$ curl ...` line in `steps/*/expected-output.txt` pastes into a
+      shell and runs as written.
 - [ ] `make clean`: the cluster and the registry container are gone; your
       previous kubectl context still exists (`kubectl config get-contexts`).
 
