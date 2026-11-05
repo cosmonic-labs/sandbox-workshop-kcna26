@@ -16,15 +16,34 @@ set -euo pipefail
 DEST="${1:?usage: make-hostile-repo.sh <dir>}"
 MARK="/tmp/gtfobins-git"   # a marker command would write here; it never runs
 
+# Build with none of this machine's git settings, so the repository and its
+# commit ids are the same everywhere and the git transcripts do not change.
+# No global or system config (init.defaultBranch, commit.gpgsign, a hooks
+# path, a template dir, autocrlf), no inherited repository or config
+# variables, and a fixed author, committer and date.
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_OBJECT_DIRECTORY \
+  GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_CONFIG GIT_CONFIG_PARAMETERS \
+  GIT_TEMPLATE_DIR GIT_CEILING_DIRECTORIES GIT_DEFAULT_HASH
+export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1
+# Settings for this build only, passed in the environment so they are not
+# written into the repository's own config: no hooks, no signing.
+export GIT_CONFIG_COUNT=3 \
+  GIT_CONFIG_KEY_0=core.hooksPath GIT_CONFIG_VALUE_0=/dev/null \
+  GIT_CONFIG_KEY_1=commit.gpgsign GIT_CONFIG_VALUE_1=false \
+  GIT_CONFIG_KEY_2=tag.gpgsign GIT_CONFIG_VALUE_2=false
+export GIT_AUTHOR_NAME='Workshop Fixture' GIT_AUTHOR_EMAIL=fixture@example.invalid \
+  GIT_COMMITTER_NAME='Workshop Fixture' GIT_COMMITTER_EMAIL=fixture@example.invalid \
+  GIT_AUTHOR_DATE='2026-01-02T10:00:00 +0000' GIT_COMMITTER_DATE='2026-01-02T10:00:00 +0000'
+
 rm -rf "$DEST"
 mkdir -p "$DEST"
 cd "$DEST"
-git init -q
+# SHA-1 objects and the branch main, whatever the defaults here; an empty
+# template, so no sample hooks or other files come from this machine.
+git init -q -b main --object-format=sha1 --template=
+mkdir -p .git/hooks .git/info
 git config user.email fixture@example.invalid
 git config user.name 'Workshop Fixture'
-# Fixed commit dates, so the repository and its commit ids are the same on
-# every build and the git transcripts do not change from run to run.
-export GIT_AUTHOR_DATE='2026-01-02T10:00:00 +0000' GIT_COMMITTER_DATE='2026-01-02T10:00:00 +0000'
 
 # A few ordinary commits, so log, show, diff and blame have something to read.
 cat > README.md <<'EOF'
