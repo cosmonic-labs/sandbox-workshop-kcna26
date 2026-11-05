@@ -2,13 +2,19 @@
 
 **Folder:** `steps/02-build-curl`
 
-`curl` is a component like any other. What it can reach isn't in its code. It
-is the `allowedHosts` line in the manifest, which this step sets to one host.
+`curl` is a component like any other. Its code decides how it reaches the
+network: through the host's HTTP client, with no sockets of its own. Which
+hosts it may reach isn't in its code. It is the `allowedHosts` line in the
+manifest, which this step sets to one host.
 
-You can build `curl` yourself (path A) or use the prebuilt one (path B). Both
-end with the same grant.
+Everyone can use the **prebuilt** curl in `artifacts/`, and every command
+below shows that first. If you have Rust, you can **build your own** instead;
+each command then has a second form for your build. Both end with the same
+grant.
 
-## Path A: build it yourself
+## Build your own (optional)
+
+Skip this section to use the prebuilt curl.
 
 You need Rust 1.98.1 with the `wasm32-wasip2` target (`make doctor` checks).
 `curl` is pure Rust, so no C toolchain is needed.
@@ -22,19 +28,41 @@ make build
 make push-build
 ```
 
-`make push-build` pushes your build as `tool-curl:mine`, a tag of its own.
-The prebuilt tool keeps its tag, `tool-curl:0.4.0`, so later steps are not
+`make build` writes `target/wasm32-wasip2/release/tool_curl.wasm`.
+`make push-build` pushes it as `tool-curl:mine`, a tag of its own. The
+prebuilt tool keeps its tag, `tool-curl:0.4.0`, so later steps are not
 affected.
 
-Look inside your build. `wasm-tools component wit` prints a component's
-interface: what it imports from the host and what it exports.
+## Look inside
+
+`wasm-tools component wit` prints a component's interface: what it imports
+from the host and what it exports.
+
+Prebuilt:
+
+```sh
+wasm-tools component wit artifacts/tool_curl.wasm \
+  | grep -E 'import wasi:(http|sockets|filesystem)'
+```
+
+Your build:
 
 ```sh
 wasm-tools component wit target/wasm32-wasip2/release/tool_curl.wasm \
   | grep -E 'import wasi:(http|sockets|filesystem)'
 ```
 
-Deploy the agent with your curl in its `curl` slot:
+## Deploy
+
+Prebuilt:
+
+```sh
+kubectl apply -f steps/02-build-curl/workload.yaml \
+  && sleep 2 && kubectl wait --for=condition=Ready \
+  workloaddeployment/toolbox-agent
+```
+
+Your build:
 
 ```sh
 kubectl apply -f steps/02-build-curl/workload-mine.yaml \
@@ -47,26 +75,9 @@ kubectl apply -f steps/02-build-curl/workload-mine.yaml \
 `kubectl delete workloaddeployment toolbox-agent` and apply again, so the host
 fetches the new push.
 
-## Path B: use the prebuilt curl
-
-Look inside the prebuilt tool:
-
-```sh
-wasm-tools component wit artifacts/tool_curl.wasm \
-  | grep -E 'import wasi:(http|sockets|filesystem)'
-```
-
-Deploy:
-
-```sh
-kubectl apply -f steps/02-build-curl/workload.yaml \
-  && sleep 2 && kubectl wait --for=condition=Ready \
-  workloaddeployment/toolbox-agent
-```
-
 ## What the imports say
 
-Both builds print the same four lines:
+The prebuilt curl and your build print the same four lines:
 
 ```
   import wasi:http/types@0.3.0;
@@ -112,11 +123,11 @@ curl -s -H 'Host: agent.localhost' \
   -d 'save http://api.workshop-sites.svc/data to page.html'
 ```
 
-The prebuilt tool answers `saved 95 bytes to /data/page.html`. Your build
+The prebuilt curl answers `saved 95 bytes to /data/page.html`. Your build
 answers with the message you wrote, which shows your code is the one running.
 
 Step 3 goes back to the prebuilt curl and tries everywhere else. To keep your
 own build in later steps, change the `curl` image in that step's manifest to
 `tool-curl:mine`.
 
-Full transcript (path B): [`expected-output.txt`](expected-output.txt).
+Full transcript (prebuilt curl): [`expected-output.txt`](expected-output.txt).

@@ -49,8 +49,9 @@ make doctor
 ## 3. Build curl yourself
 
 - [ ] With Rust 1.98.1 and the `wasm32-wasip2` target, follow step 2's
-      path A: change the save message, `make build && make push-build`
-      (prints `pushed localhost:15052/workshop/tool-curl:mine`), apply
+      "Build your own" section and each "Your build" command: change the
+      save message, `make build && make push-build` (prints
+      `pushed localhost:15052/workshop/tool-curl:mine`), apply
       `steps/02-build-curl/workload-mine.yaml`, and confirm the save prompt
       answers with your message.
 
