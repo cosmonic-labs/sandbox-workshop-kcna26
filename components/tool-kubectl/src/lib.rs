@@ -129,17 +129,23 @@ async fn logs(client: Client, target: &str, ns: &str) -> kube::Result<String> {
     let Some(name) = target.strip_prefix("deployment/").or_else(|| target.strip_prefix("deploy/")) else {
         return pods.logs(target, &LogParams::default()).await;
     };
-    let deploy = Api::<Deployment>::namespaced(client, ns).get(name).await?;
+    // Read as dynamic objects: typed Deployment and Pod lists would pull
+    // their whole deserializers into the component.
+    let ar = ApiResource::erase::<Deployment>(&());
+    let deploy = Api::<DynamicObject>::namespaced_with(client.clone(), ns, &ar).get(name).await?;
     let selector = deploy
-        .spec
-        .selector
-        .match_labels
-        .unwrap_or_default()
-        .iter()
-        .map(|(k, v)| format!("{k}={v}"))
-        .collect::<Vec<_>>()
-        .join(",");
-    let mut names: Vec<String> = pods
+        .data
+        .pointer("/spec/selector/matchLabels")
+        .and_then(|v| v.as_object())
+        .map(|m| {
+            m.iter()
+                .map(|(k, v)| format!("{k}={}", v.as_str().unwrap_or_default()))
+                .collect::<Vec<_>>()
+                .join(",")
+        })
+        .unwrap_or_default();
+    let pod_ar = ApiResource::erase::<Pod>(&());
+    let mut names: Vec<String> = Api::<DynamicObject>::namespaced_with(client, ns, &pod_ar)
         .list(&ListParams::default().labels(&selector))
         .await?
         .items
