@@ -13,6 +13,7 @@
 //!     curl <args>                    -> curl   {arguments: <args>}
 //!     sqlite <sql>  /  sql <sql>     -> sqlite {sql: <sql>}
 //!     git <args>                     -> git    {arguments: <args>}
+//!     kubectl <args>                 -> kubectl {arguments: <args>}
 //!     a line that starts with "."    -> sqlite {sql: <line>}   (a dot-command)
 //!
 //!   A plainer request, mapped to one of the tools:
@@ -20,6 +21,7 @@
 //!     save <url> to <file>           -> curl   {arguments: "-o <file> -s <url>"}
 //!     list the talks / what talks    -> sqlite {sql: "select ... from talks ..."}
 //!     show the log / recent commits  -> git    {arguments: "log --oneline -5"}
+//!     list the pods / what pods      -> kubectl {arguments: "get pods"}
 //!
 //! It plans calls from the conversation in order and returns the first one it
 //! has not issued yet. When nothing is left it answers in text.
@@ -81,8 +83,11 @@ fn instructions(text: &str) -> Vec<(String, Value)> {
     let mut out = Vec::new();
     for sentence in sentences(text) {
         let lower = sentence.to_lowercase();
-        // The tool's own command line, passed straight through.
-        if let Some(rest) = after(&sentence, "curl ") {
+        // The tool's own command line, passed straight through. kubectl comes
+        // first: "kubectl get pods" also contains "get ".
+        if let Some(rest) = after(&sentence, "kubectl ") {
+            out.push(("kubectl".into(), json!({ "arguments": rest.trim() })));
+        } else if let Some(rest) = after(&sentence, "curl ") {
             out.push(("curl".into(), json!({ "arguments": rest.trim() })));
         } else if let Some(rest) = after(&sentence, "sqlite ").or_else(|| after(&sentence, "sql ")) {
             out.push(("sqlite".into(), json!({ "sql": rest.trim() })));
@@ -114,6 +119,8 @@ fn instructions(text: &str) -> Vec<(String, Value)> {
             ));
         } else if lower.contains("recent commit") || lower.contains("show the log") || lower.contains("git log") || lower.contains("latest commit") {
             out.push(("git".into(), json!({ "arguments": "log --oneline -5" })));
+        } else if lower.contains("list the pods") || lower.contains("what pods") || lower.contains("which pods") {
+            out.push(("kubectl".into(), json!({ "arguments": "get pods" })));
         }
     }
     out
@@ -133,7 +140,8 @@ fn answer(messages: &[Message], skipped: &[String]) -> String {
         .collect();
     let mut text = if results.is_empty() {
         "Hello! I am the workshop agent running a scripted model. Ask me to run curl, \
-         sqlite or git, for example \"list the talks\" or \"curl -s https://example.com\"."
+         sqlite, git or kubectl, for example \"list the talks in sqlite\" or \
+         \"curl -s http://api.workshop-sites.svc/data\"."
             .to_string()
     } else {
         format!("Done. Here is what each step returned: {}", results.join(" | "))
@@ -145,14 +153,18 @@ fn answer(messages: &[Message], skipped: &[String]) -> String {
 }
 
 /// Lines, and sentences within a line (". ", "; ", "? " and "! " split them).
-/// A leading dot-command keeps its dot: ".tables" is one sentence.
+/// A leading dot-command keeps its dot: ".tables" is one sentence. A line that
+/// starts with "sqlite " or "sql " is one sentence too, so a statement list
+/// such as "sqlite attach ... as r; select ... from r.rooms" reaches the tool
+/// whole.
 fn sentences(text: &str) -> Vec<String> {
     let mut out = Vec::new();
     for line in text.lines() {
         let line = line.trim();
         // A whole line that is a dot-command stays intact, so ".schema talks"
         // isn't split on its space into a stray sentence.
-        if line.starts_with('.') {
+        let lower = line.to_lowercase();
+        if line.starts_with('.') || lower.starts_with("sqlite ") || lower.starts_with("sql ") {
             out.push(line.to_string());
             continue;
         }
@@ -187,7 +199,7 @@ fn trim_punct(s: &str) -> &str {
         .trim_start_matches(['"', '\'', '('])
 }
 
-/// Replace HTML tags with line breaks so a planted page reads as text.
+/// Replace HTML tags with line breaks so an HTML page reads as text.
 fn strip_tags(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
     let mut in_tag = false;

@@ -1,8 +1,9 @@
 -- The database the sqlite tool reads in steps 1 and 4.
 --
 -- A small, invented conference schedule, so a query reads well on a slide and
--- no real person's data is involved. scripts/fixtures.sh builds main.db from
--- this file, so the database is never committed as a binary blob.
+-- no real person's data is involved. This is the source of fixtures/talks.db,
+-- which is committed prebuilt so attendees need no sqlite3. After a change
+-- here, run `make fixtures-db` and commit the .db and fixtures/SHA256SUMS.
 
 create table talks (
   id       integer primary key,

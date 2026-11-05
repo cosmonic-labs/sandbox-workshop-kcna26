@@ -20,14 +20,21 @@ make doctor
 - [ ] `make tools`: six `ok` lines (wash, nats, wasm-tools, kind, kubectl,
       helm), under a minute on good Wi-Fi.
 - [ ] `make doctor`: every Required line green, ending in `Ready.`
-- [ ] `make up`: builds the fixtures, ends with the cluster, registry and
-      ingress lines and a `stores` line, in about 2 minutes the first time.
+- [ ] `make up`: copies the prebuilt databases and builds the hostile
+      repository, then ends with the cluster, registry and ingress lines and
+      a `stores` line, in about 2 minutes the first time.
       `kubectl config current-context` says `kind-workshop-toolbox`.
+- [ ] `make check-fixtures-db` (maintainers, needs sqlite3): ends with
+      `fixtures/talks.db: matches fixtures/talks.sql`.
 - [ ] `export PATH="$PWD/.tools:$PATH"`, then walk steps 1 to 6 by hand from
       each `steps/*/README.md`. Every command runs as written and the output
-      matches the **Expected** block.
+      matches the result line under it.
 - [ ] `make prove`: ends with `proofs written:` and the step files. `git diff
-      steps` shows nothing: the transcripts are deterministic.
+      steps` shows nothing: the transcripts are deterministic (pod names are
+      written as `hello-<pod>`; step 5's native control in
+      `control-checks.txt` depends on the local git version).
+- [ ] Every `$ curl ...` line in `steps/*/expected-output.txt` pastes into a
+      shell and runs as written.
 - [ ] `make clean`: the cluster and the registry container are gone; your
       previous kubectl context still exists (`kubectl config get-contexts`).
 
@@ -41,9 +48,11 @@ make doctor
 
 ## 3. Build curl yourself
 
-- [ ] With Rust 1.98.1 and the `wasm32-wasip2` target: `make build && make
-      push-build`, then recreate the step 3 workload and confirm curl still
-      refuses the denied hosts.
+- [ ] With Rust 1.98.1 and the `wasm32-wasip2` target, follow step 2's
+      path A: change the save message, `make build && make push-build`
+      (prints `pushed localhost:15052/workshop/tool-curl:mine`), apply
+      `steps/02-build-curl/workload-mine.yaml`, and confirm the save prompt
+      answers with your message.
 
 ## 4. In the room
 

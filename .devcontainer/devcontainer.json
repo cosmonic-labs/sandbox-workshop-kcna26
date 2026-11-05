@@ -1,5 +1,5 @@
 {
-  "name": "Multi-tenant agents on Kubernetes",
+  "name": "Sandboxing on Kubernetes with WebAssembly",
   "build": {
     "dockerfile": "Dockerfile",
     "context": "..",

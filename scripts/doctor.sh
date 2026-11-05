@@ -11,7 +11,7 @@
 set -uo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TOOLS="$ROOT/.tools"
-WASH_VERSION=2.11.0
+WASH_VERSION=2.12.0
 RUST_VERSION=1.98.1
 
 if [ -t 1 ] && [ -z "${NO_COLOR:-}" ]; then
@@ -118,9 +118,10 @@ else
     "fix: stop that program, or pick another port: HOST_HTTP=127.0.0.1:18190 make up"
 fi
 
+if command -v sha256sum >/dev/null 2>&1; then sumcmd="sha256sum -c"; else sumcmd="shasum -a 256 -c"; fi
+
 # Prebuilt components.
 if [ -f "$ROOT/artifacts/SHA256SUMS" ]; then
-  if command -v sha256sum >/dev/null 2>&1; then sumcmd="sha256sum -c"; else sumcmd="shasum -a 256 -c"; fi
   # SHA256SUMS lists repo-relative paths (artifacts/<name>.wasm).
   if (cd "$ROOT" && $sumcmd artifacts/SHA256SUMS >/dev/null 2>&1); then
     ok "prebuilt components in artifacts/ match SHA256SUMS"
@@ -133,6 +134,14 @@ else
   fail "artifacts/SHA256SUMS is missing" "fix: git checkout -- artifacts"
 fi
 
+# Prebuilt databases (scripts/fixtures.sh copies them into .run for kind).
+if (cd "$ROOT" && $sumcmd fixtures/SHA256SUMS >/dev/null 2>&1); then
+  ok "prebuilt databases in fixtures/ match SHA256SUMS"
+else
+  fail "prebuilt databases in fixtures/ do not match fixtures/SHA256SUMS" \
+    "fix: git checkout -- fixtures    (restores the committed files)"
+fi
+
 section "Optional"
 
 p=$(find_tool wasm-tools)
@@ -140,6 +149,14 @@ if [ -n "$p" ]; then
   ok "wasm-tools $("$p" --version 2>/dev/null | awk '{print $2}') (lists a component's imports)"
 else
   opt "wasm-tools is missing: needed for make prove and step 1's 'look inside'" "fix: make tools"
+fi
+
+# sqlite3, only for maintainers who rebuild fixtures/*.db (make fixtures-db).
+if command -v sqlite3 >/dev/null 2>&1; then
+  ok "sqlite3 (only for make fixtures-db; the workshop uses the prebuilt fixtures/*.db)"
+else
+  opt "sqlite3 is missing: only needed for make fixtures-db; the workshop uses the prebuilt fixtures/*.db" \
+    "fix: $(pkg_hint 'brew install sqlite' 'sudo apt-get install -y sqlite3')"
 fi
 
 # Rust, only to build the components yourself. RUSTUP_AUTO_INSTALL=0 stops
@@ -157,6 +174,9 @@ if command -v rustup >/dev/null 2>&1; then
     opt "Rust $RUST_VERSION is not installed (only needed to build; the prebuilt artifacts/ work without it)" \
       "fix: rustup toolchain install $RUST_VERSION --target wasm32-wasip2"
   fi
+elif [ -x "${CARGO_HOME:-$HOME/.cargo}/bin/rustup" ]; then
+  opt "Rust is installed in ${CARGO_HOME:-$HOME/.cargo}/bin, but that folder is not on your PATH (only needed to build)" \
+    "fix: source \"${CARGO_HOME:-$HOME/.cargo}/env\"    (add that line to your shell profile to keep it)"
 else
   opt "Rust (rustup) was not found on your PATH (only needed to build; the prebuilt artifacts/ work without it)" \
     "fix: see https://rustup.rs, then: rustup toolchain install $RUST_VERSION --target wasm32-wasip2"
