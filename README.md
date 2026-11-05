@@ -29,14 +29,18 @@ outside the repo and nothing needs sudo.
 ## Set up
 
 ```sh
-make tools     # download the pinned tools into .tools/
-make doctor    # check this machine; changes nothing
-make up        # kind cluster and the wasmCloud chart, about 2 minutes the first time
+git clone https://github.com/cosmonic-labs/agent-tools-workshop
+cd agent-tools-workshop
+make tools                         # download the pinned tools into .tools/
+export PATH="$PWD/.tools:$PATH"    # use those tools in this terminal
+make doctor                        # check this machine; changes nothing
+make up                            # kind cluster and the wasmCloud chart, about 2 minutes the first time
 ```
 
-In a new terminal, run `export PATH="$PWD/.tools:$PATH"` so `kubectl` is the
-pinned one. `make up` creates a kind cluster named `workshop-toolbox` and
-switches your kubectl context to it.
+Every command in the steps runs from the `agent-tools-workshop` folder. In
+each new terminal, `cd` there and run the `export PATH` line again, so
+`kubectl` and `wasm-tools` are the pinned ones. `make up` creates a kind
+cluster named `workshop-toolbox` and switches your kubectl context to it.
 
 ## Steps
 

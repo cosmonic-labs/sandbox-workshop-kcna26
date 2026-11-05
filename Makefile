@@ -8,6 +8,8 @@
 #   make build       build the curl tool (needs Rust 1.98.1 + wasm32-wasip2)
 #   make build-all   build every component, including sqlite and git (needs wasi-sdk)
 #   make kubectl     build the kubectl tool (its own crate: tokio_unstable stays scoped to it)
+#   make fixtures-db rebuild fixtures/*.db from their .sql (maintainers; needs sqlite3)
+#   make check-fixtures-db  the committed .db files match their checksums and sources
 #   make prove       replay every step on the cluster, rewrite steps/*/expected-output.txt
 #   make down        changes nothing; make clean deletes the cluster and the registry
 #
@@ -16,7 +18,7 @@
 SHELL := /bin/bash
 .DEFAULT_GOAL := help
 
-.PHONY: help tools doctor up push-build build build-all kubectl prove down clean
+.PHONY: help tools doctor up push-build build build-all kubectl fixtures-db check-fixtures-db prove down clean
 
 help:
 	@sed -n 's/^#   //p' $(firstword $(MAKEFILE_LIST))
@@ -49,6 +51,12 @@ build-all: kubectl
 # applies only when cargo runs from that directory.
 kubectl:
 	cd components/tool-kubectl && CARGO_BUILD_JOBS=$${CARGO_BUILD_JOBS:-4} cargo build --release --target wasm32-wasip2 --target-dir ../../target
+
+fixtures-db:
+	@./scripts/fixtures-db.sh build
+
+check-fixtures-db:
+	@./scripts/fixtures-db.sh check
 
 prove:
 	@./scripts/prove.sh
