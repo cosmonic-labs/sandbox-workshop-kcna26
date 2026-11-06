@@ -9,7 +9,7 @@
 //!
 //! build.rs renders the Markdown when the component is built, so the component
 //! holds finished pages. It imports no files, no sockets and no HTTP client. It runs on
-//! the fixtures host group (k8s/guide.yaml), beside the toy sites.
+//! the demo-sites host group (k8s/guide.yaml), beside the demo websites.
 
 wit_bindgen::generate!({
     path: "../../wit",

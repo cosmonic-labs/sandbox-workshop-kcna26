@@ -90,7 +90,7 @@ else
     ok "Docker is running ($((mem / 1000000000)) GB for containers)"
   fi
 fi
-for t in kind kubectl helm nats; do
+for t in kind kubectl helm; do
   p=$(find_tool "$t")
   if [ -n "$p" ]; then ok "$t ($p)"; else fail "$t is missing" "fix: make tools"; fi
 done
@@ -155,12 +155,12 @@ if [ -f "$ROOT/artifacts/guide.wasm" ]; then
   fi
 fi
 
-# Prebuilt databases (scripts/fixtures.sh copies them into .run for kind).
-if (cd "$ROOT" && $sumcmd fixtures/SHA256SUMS >/dev/null 2>&1); then
-  ok "prebuilt databases in fixtures/ match SHA256SUMS"
+# Prebuilt databases (scripts/stage-data.sh copies them into .run for kind).
+if (cd "$ROOT" && $sumcmd databases/SHA256SUMS >/dev/null 2>&1); then
+  ok "prebuilt databases in databases/ match SHA256SUMS"
 else
-  fail "prebuilt databases in fixtures/ do not match fixtures/SHA256SUMS" \
-    "fix: git checkout -- fixtures    (restores the committed files)"
+  fail "prebuilt databases in databases/ do not match databases/SHA256SUMS" \
+    "fix: git checkout -- databases    (restores the committed files)"
 fi
 
 section "Optional"
@@ -172,11 +172,11 @@ else
   opt "wasm-tools is missing: needed for make prove and step 1's 'look inside'" "fix: make tools"
 fi
 
-# sqlite3, only for maintainers who rebuild fixtures/*.db (make fixtures-db).
+# sqlite3, only for maintainers who rebuild databases/*.db (make databases).
 if command -v sqlite3 >/dev/null 2>&1; then
-  ok "sqlite3 (only for make fixtures-db; the workshop uses the prebuilt fixtures/*.db)"
+  ok "sqlite3 (only for make databases; the workshop uses the prebuilt databases/*.db)"
 else
-  opt "sqlite3 is missing: only needed for make fixtures-db; the workshop uses the prebuilt fixtures/*.db" \
+  opt "sqlite3 is missing: only needed for make databases; the workshop uses the prebuilt databases/*.db" \
     "fix: $(pkg_hint 'brew install sqlite' 'sudo apt-get install -y sqlite3')"
 fi
 

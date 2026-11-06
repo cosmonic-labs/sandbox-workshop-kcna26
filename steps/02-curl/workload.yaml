@@ -10,7 +10,7 @@
 # the tool isn't installed.
 #
 # Each tool reaches only what this manifest grants it:
-#   curl    the hosts in its allowedHosts (api.workshop-sites.svc), and the
+#   curl    the hosts in its allowedHosts (api.demo-sites.svc), and the
 #           folder mounted at /data for -o
 #   sqlite, gh   placeholders, no grants
 # The harness and the model get nothing: no allowedHosts, no volumes.
@@ -29,7 +29,7 @@ spec:
       name: toolbox-agent
   template:
     spec:
-      # The default host group; the toy sites have one of their own.
+      # The default host group; the demo websites have one of their own.
       hostSelector:
         hostgroup: default
       hostInterfaces:
@@ -43,12 +43,12 @@ spec:
           image: workshop-toolbox-registry:5000/workshop/agent:0.4.0
         - name: model
           image: workshop-toolbox-registry:5000/workshop/model-scripted:0.4.0
-        # curl may reach only api.workshop-sites.svc, and writes with -o only into /data.
+        # curl may reach only api.demo-sites.svc, and writes with -o only into /data.
         - name: curl
           image: workshop-toolbox-registry:5000/workshop/tool-curl:0.4.0
           localResources:
             allowedHosts:
-              - api.workshop-sites.svc
+              - api.demo-sites.svc
             volumeMounts:
               - name: curl-data
                 mountPath: /data

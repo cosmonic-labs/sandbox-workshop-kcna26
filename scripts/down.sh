@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Nothing destructive by default. Pass --all to delete the kind cluster
-# (and with it the keyvalue data) and the registry container.
+# and the registry container.
 set -uo pipefail
 source "$(dirname "$0")/env.sh"
 if [ "${1:-}" = "--all" ]; then

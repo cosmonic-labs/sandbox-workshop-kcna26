@@ -2,8 +2,8 @@
 -- host pod's own filesystem at /workshop/private-data/payroll.db, where native
 -- sqlite3 on that machine would attach it. No workload mounts it, and the
 -- host's hostPaths list doesn't allow it, so the component can't see it.
--- Invented data. Source of fixtures/payroll.db; after a change here, run
--- `make fixtures-db` and commit the .db and fixtures/SHA256SUMS.
+-- Invented data. Source of databases/payroll.db; after a change here, run
+-- `make databases` and commit the .db and databases/SHA256SUMS.
 
 create table salaries (
   name    text primary key,

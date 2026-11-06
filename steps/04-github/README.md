@@ -94,16 +94,25 @@ Signed in to GitHub as <you>
 ```
 
 Open the link in any browser, on any device, enter the code and approve.
-`make github-sign-out` signs out. The same with curl:
+`make github-sign-out` signs out.
+
+The same with curl. Start sign-in, which prints the code and the link:
 
 ```sh
 curl -s -X POST -H 'Host: agent.localhost' http://127.0.0.1:18180/github/sign-in
-curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/github/status
-curl -s -X POST -H 'Host: agent.localhost' http://127.0.0.1:18180/github/sign-out
 ```
 
-The first prints the code and the link. Enter the code, then the second
-prints `{"login":"<you>","state":"signed-in"}`. The third signs out.
+Enter the code, then check; this prints `{"login":"<you>","state":"signed-in"}`:
+
+```sh
+curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/github/status
+```
+
+Sign out:
+
+```sh
+curl -s -X POST -H 'Host: agent.localhost' http://127.0.0.1:18180/github/sign-out
+```
 
 Use the browser when you can. GitHub lets one OAuth app start only 50 device
 flow sign-ins an hour, for everyone using it, and a full room would run
@@ -186,7 +195,7 @@ curl -s -H 'Host: agent.localhost' \
 ```
 
 `access-denied: api.github.com: this tool may not reach that host`. Signed
-in or not, curl's `allowedHosts` is the toy API host alone, and curl holds no
+in or not, curl's `allowedHosts` is the demo API host alone, and curl holds no
 token anyway. Nor is there a token file for it to read: the plugin keeps the
 token in its memory and writes it nowhere, and curl's only folder is `/data`.
 

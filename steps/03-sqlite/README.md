@@ -96,8 +96,8 @@ On your laptop, native sqlite3 attaches the same file (optional, needs
 sqlite3):
 
 ```sh
-sqlite3 fixtures/talks.db \
-  "attach 'file:fixtures/payroll.db?immutable=1' as p; select name, salary from p.salaries"
+sqlite3 databases/talks.db \
+  "attach 'file:databases/payroll.db?immutable=1' as p; select name, salary from p.salaries"
 ```
 
 **5. .shell has nothing to start:** `sqlite .shell id`

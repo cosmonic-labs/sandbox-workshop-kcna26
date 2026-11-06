@@ -8,8 +8,8 @@
 #   make build       build the curl tool (needs Rust 1.98.1 + wasm32-wasip2)
 #   make build-all   build every component, including sqlite (needs wasi-sdk)
 #   make guide       rebuild artifacts/guide.wasm from the READMEs (after editing one)
-#   make fixtures-db rebuild fixtures/*.db from their .sql (maintainers; needs sqlite3)
-#   make check-fixtures-db  the committed .db files match their checksums and sources
+#   make databases rebuild databases/*.db from their .sql (maintainers; needs sqlite3)
+#   make check-databases  the committed .db files match their checksums and sources
 #   make prove       replay steps 1 to 4 on the cluster, rewrite their expected-output.txt
 #   make verify      replay the same, change nothing, check each result is what it should be
 #   make github-sign-in   sign step 4's agent in to GitHub from the terminal (code flow, for Codespaces)
@@ -21,7 +21,7 @@
 SHELL := /bin/bash
 .DEFAULT_GOAL := help
 
-.PHONY: help tools doctor up push-build build build-all guide fixtures-db check-fixtures-db prove verify github-sign-in github-sign-out down clean
+.PHONY: help tools doctor up push-build build build-all guide databases check-databases prove verify github-sign-in github-sign-out down clean
 
 help:
 	@sed -n 's/^#   //p' $(firstword $(MAKEFILE_LIST))
@@ -60,11 +60,11 @@ guide:
 	  | sort -k2 >artifacts/SHA256SUMS.new && mv artifacts/SHA256SUMS.new artifacts/SHA256SUMS
 	@echo "artifacts/guide.wasm and artifacts/SHA256SUMS updated; make up deploys it"
 
-fixtures-db:
-	@./scripts/fixtures-db.sh build
+databases:
+	@./scripts/databases.sh build
 
-check-fixtures-db:
-	@./scripts/fixtures-db.sh check
+check-databases:
+	@./scripts/databases.sh check
 
 prove:
 	@./scripts/prove.sh

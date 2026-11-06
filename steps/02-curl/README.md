@@ -27,15 +27,20 @@ You need Rust 1.98.1 with the `wasm32-wasip2` target (`make doctor` checks).
 
 To make it yours, open `components/tool-curl/src/lib.rs` and change the
 message `"saved {} bytes to {path}\n"`, for example to
-`"saved {} bytes to {path} (built by me)\n"`. Then build and push:
+`"saved {} bytes to {path} (built by me)\n"`. Then build it, which writes
+`target/wasm32-wasip2/release/tool_curl.wasm`:
 
 ```sh
 make build
+```
+
+Push it as `tool-curl:mine`, a tag of its own:
+
+```sh
 make push-build
 ```
 
-`make build` writes `target/wasm32-wasip2/release/tool_curl.wasm`.
-`make push-build` pushes it as `tool-curl:mine`, a tag of its own. The
+The
 prebuilt tool keeps its tag, `tool-curl:0.4.0`, so later steps are not
 affected.
 
@@ -101,7 +106,7 @@ in both manifests: one host, one folder.
 ```yaml
 - name: curl
   localResources:
-    allowedHosts: [api.workshop-sites.svc]
+    allowedHosts: [api.demo-sites.svc]
     volumeMounts: [{ name: curl-data, mountPath: /data }]
 ```
 
@@ -125,23 +130,23 @@ The messages are the tool's choice. What gets through is the host's.
 Type each prompt into the chat at http://agent.localhost:18180, or run the
 curl command under it.
 
-**1. Fetch the granted host:** `fetch http://api.workshop-sites.svc/data`
+**1. Fetch the granted host:** `fetch http://api.demo-sites.svc/data`
 
 ```sh
 curl -s -H 'Host: agent.localhost' \
   http://127.0.0.1:18180/ \
-  -d 'fetch http://api.workshop-sites.svc/data'
+  -d 'fetch http://api.demo-sites.svc/data'
 ```
 
 The prompt that got "isn't installed yet" in step 1. The host is in curl's
-`allowedHosts`, so the toy site answers.
+`allowedHosts`, so the demo API answers.
 
-**2. Save a page into the tool's folder:** `save http://api.workshop-sites.svc/data to page.html`
+**2. Save a page into the tool's folder:** `save http://api.demo-sites.svc/data to page.html`
 
 ```sh
 curl -s -H 'Host: agent.localhost' \
   http://127.0.0.1:18180/ \
-  -d 'save http://api.workshop-sites.svc/data to page.html'
+  -d 'save http://api.demo-sites.svc/data to page.html'
 ```
 
 The model turns this into `curl -o page.html`. The prebuilt curl answers
@@ -161,32 +166,32 @@ curl -s -H 'Host: agent.localhost' \
 
 On most clouds this address hands out credentials. The host refuses it before anything leaves.
 
-**4. Other cluster hosts are refused:** `curl -s http://collector.workshop-sites.svc/collect`
+**4. An attacker's server is refused:** `curl -s http://attacker.demo-sites.svc/collect`
 
 ```sh
 curl -s -H 'Host: agent.localhost' \
   http://127.0.0.1:18180/ \
-  -d 'curl -s http://collector.workshop-sites.svc/collect'
+  -d 'curl -s http://attacker.demo-sites.svc/collect'
 ```
 
-The collector stands in for an attacker's server. It is on the network, but not in curl's grant, so the host refuses it.
+`attacker.demo-sites.svc` stands in for an attacker's server. It is on the network and would answer, but it isn't in curl's grant, so the host refuses the request before it leaves.
 
-**5. A redirect can't sneak past:** `curl -sL http://api.workshop-sites.svc/redirect`
+**5. A redirect can't sneak past:** `curl -sL http://api.demo-sites.svc/redirect`
 
 ```sh
 curl -s -H 'Host: agent.localhost' \
   http://127.0.0.1:18180/ \
-  -d 'curl -sL http://api.workshop-sites.svc/redirect'
+  -d 'curl -sL http://api.demo-sites.svc/redirect'
 ```
 
-The granted host redirects to the collector. The host checks every hop, including the one you didn't type, and refuses the second.
+The granted host redirects to the attacker's server. The host checks every hop, including the one you didn't type, and refuses the second.
 
-**6. Writing outside /data fails:** `curl -o /etc/evil -s http://api.workshop-sites.svc/data`
+**6. Writing outside /data fails:** `curl -o /etc/evil -s http://api.demo-sites.svc/data`
 
 ```sh
 curl -s -H 'Host: agent.localhost' \
   http://127.0.0.1:18180/ \
-  -d 'curl -o /etc/evil -s http://api.workshop-sites.svc/data'
+  -d 'curl -o /etc/evil -s http://api.demo-sites.svc/data'
 ```
 
 This curl sees one folder, so `/etc` doesn't exist for it. The filesystem
@@ -216,7 +221,7 @@ the filesystem it is given holds only that one folder.
 
 **For hosts, the grant is what stops it.** `make prove` also runs a control
 with `allowedHosts` widened to `*` (`control-wide-open.yaml`), and the same
-request to the collector then goes through (`control-checks.txt`). The tool
+request to the attacker's server then goes through (`control-checks.txt`). The tool
 didn't change; only its grant did.
 
 The later steps use the prebuilt curl. To keep your own build, change the

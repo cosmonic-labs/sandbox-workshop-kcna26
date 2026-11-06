@@ -149,7 +149,7 @@ fn answer(messages: &[Message], skipped: &[String]) -> String {
     let mut text = if results.is_empty() {
         "Hello! I am the workshop agent running a scripted model. Ask me to run curl, \
          sqlite or gh, for example \"list the talks in sqlite\" or \
-         \"curl -s http://api.workshop-sites.svc/data\"."
+         \"curl -s http://api.demo-sites.svc/data\"."
             .to_string()
     } else {
         format!("Done. Here is what each step returned: {}", results.join(" | "))

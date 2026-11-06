@@ -49,7 +49,7 @@ interface curl {
   /// Arguments for `run`.
   record run-args {
     /// What you would type after `curl`, such as
-    /// `-s -H "Accept: application/json" http://api.workshop-sites.svc/data`.
+    /// `-s -H "Accept: application/json" http://api.demo-sites.svc/data`.
     arguments: string,
   }
 
@@ -299,8 +299,7 @@ interface model {
 
 // ---------------------------------------------------------------------------
 // Worlds: what each component imports and exports. Everything is WASI 0.3:
-// the functions above are async, HTTP is wasi:http@0.3.0, and storage is
-// wasmCloud's async keyvalue interface.
+// the functions above are async and HTTP is wasi:http@0.3.0.
 // ---------------------------------------------------------------------------
 
 /// The agent harness. It answers HTTP and imports one model, one labelled
@@ -387,13 +386,11 @@ world gh-not-installed {
   export github-auth;
 }
 
-/// Test fixture, not part of the toolbox: the ordinary API page and the
-/// exfiltration collector, served from one HTTP component on the names of
-/// the Services in k8s/sites.yaml.
+/// Not part of the toolbox: the demo websites (an ordinary API page and a
+/// stand-in for an attacker's server), served from one HTTP component on
+/// the names of the Services in k8s/sites.yaml.
 @since(version = 0.3.0)
-world toy-sites {
-  import wasmcloud:keyvalue/store@0.2.0;
-  import wasmcloud:keyvalue/atomics@0.2.0;
+world demo-sites {
   export wasi:http/handler@0.3.0;
 }
 

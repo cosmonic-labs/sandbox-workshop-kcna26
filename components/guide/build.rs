@@ -40,7 +40,7 @@ struct Page {
     title: String,
     /// The title without "Step N: ".
     short: String,
-    /// 1 to 9 for steps/0N-*; none for the home page and steps/00-fixtures.
+    /// 1 to 9 for steps/0N-*; none for the home page and steps/00-demo-sites.
     step: Option<u32>,
     /// The first paragraph of prose, for the step list on the home page.
     summary: String,
@@ -318,7 +318,7 @@ fn step_list(pages: &[Page]) -> String {
         .unwrap();
     }
     o.push_str(
-        "</ol><p class=\"self\">This guide is itself a sandboxed component, on your cluster's fixtures \
+        "</ol><p class=\"self\">This guide is itself a sandboxed component, on your cluster's demo-sites \
          host group: it serves HTTP and imports no files, no sockets and no HTTP client. Its pages \
          were rendered from the READMEs when it was built.</p></nav>",
     );
@@ -383,7 +383,7 @@ fn rewrite_link(root: &Path, pages: &[Page], cur: &str, dest: &str) -> String {
 
 /// Inline code that names a step folder or a repo file: where it should link.
 fn code_target(root: &Path, pages: &[Page], cur: &str, s: &str) -> Option<String> {
-    const DIRS: [&str; 8] = ["steps", "k8s", "components", "wit", "scripts", "fixtures", "artifacts", "docs"];
+    const DIRS: [&str; 8] = ["steps", "k8s", "components", "wit", "scripts", "databases", "artifacts", "docs"];
     const EXTS: [&str; 10] = ["yaml", "yml", "txt", "md", "rs", "wit", "sh", "sql", "toml", "html"];
     if s.is_empty() || s.contains(char::is_whitespace) || s.starts_with(['.', '/', '-']) || s.contains("://") {
         return None;

@@ -67,6 +67,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "demo-sites"
+version = "0.1.0"
+dependencies = [
+ "wit-bindgen",
+]
+
+[[package]]
 name = "digest"
 version = "0.10.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -522,14 +529,6 @@ name = "tool-sqlite"
 version = "0.1.0"
 dependencies = [
  "rusqlite",
- "wit-bindgen",
-]
-
-[[package]]
-name = "toy-sites"
-version = "0.1.0"
-dependencies = [
- "serde_json",
  "wit-bindgen",
 ]
 

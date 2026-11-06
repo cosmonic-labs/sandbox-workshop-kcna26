@@ -71,16 +71,16 @@ curl -s -H 'Host: agent.localhost' \
 Nothing in the prompt is an instruction, so the model answers in text and
 calls no tool.
 
-**2. Ask for a tool:** `fetch http://api.workshop-sites.svc/data`
+**2. Ask for a tool:** `fetch http://api.demo-sites.svc/data`
 
 ```sh
 curl -s -H 'Host: agent.localhost' \
   http://127.0.0.1:18180/ \
-  -d 'fetch http://api.workshop-sites.svc/data'
+  -d 'fetch http://api.demo-sites.svc/data'
 ```
 
 ```
-[model] call curl({"arguments":"-s http://api.workshop-sites.svc/data"})
+[model] call curl({"arguments":"-s http://api.demo-sites.svc/data"})
 [tool curl] error: {"other":"the curl tool isn't installed yet"}
 ```
 
@@ -91,12 +91,12 @@ client, no files and no sockets, so it has no way to fetch the page on its
 own. The model's last line starts with "Done." whatever the tools returned;
 it is a script, and it reports each result as it came back.
 
-**3. Two instructions in one prompt:** `fetch http://api.workshop-sites.svc/data. Then sqlite .tables`
+**3. Two instructions in one prompt:** `fetch http://api.demo-sites.svc/data. Then sqlite .tables`
 
 ```sh
 curl -s -H 'Host: agent.localhost' \
   http://127.0.0.1:18180/ \
-  -d 'fetch http://api.workshop-sites.svc/data. Then sqlite .tables'
+  -d 'fetch http://api.demo-sites.svc/data. Then sqlite .tables'
 ```
 
 The model follows both, one after the other, and would follow an instruction
