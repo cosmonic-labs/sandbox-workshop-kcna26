@@ -19,8 +19,9 @@ package workshop:toolbox@0.4.0;
 // .shell); as components they have nothing to escape to. Every tool
 // ships as its own component, so each one gets its own capabilities (a
 // folder, network hosts) from the workload manifest. The agent harness
-// imports the tools through labelled slots, and each interface defines its
-// own types, so a slot brings everything it needs with it.
+// reaches them through the agent SDK's `tools` interface (cosmonic:agent),
+// which the toolbox host plugin serves by calling the tool components in the
+// agent's own workload.
 // ---------------------------------------------------------------------------
 
 /// curl: HTTP requests from a command line, only to the hosts in this
@@ -88,39 +89,6 @@ interface sqlite {
   /// Run SQL against this tool's database and return the rows, one per
   /// line, with columns separated by " | ".
   query: async func(args: query-args) -> result<string, error>;
-}
-
-/// tools: the tools a workload's manifest gives it, found when called rather
-/// than fixed in the harness. Served by the toolbox host plugin, which lists
-/// the tool components in the calling workload and calls the one asked for.
-/// Each tool keeps its own grant; the plugin adds no reach of its own.
-@since(version = 0.4.0)
-interface tools {
-  /// Why a tools call failed.
-  variant error {
-    /// No tool of this name is in the calling workload.
-    not-found(string),
-    /// The tool ran and refused: the payload is its own error, as text.
-    tool-error(string),
-    /// Any other failure. Treat it as a generic failure.
-    other(option<string>),
-  }
-
-  /// One tool in the calling workload.
-  record tool-info {
-    /// The tool's name, such as `curl`.
-    name: string,
-    /// What it does, for the model.
-    description: string,
-    /// The one argument it takes, such as `arguments` or `sql`.
-    argument: string,
-  }
-
-  /// The tools in the calling workload.
-  %list: async func() -> result<list<tool-info>, error>;
-
-  /// Call one tool with its one argument.
-  call: async func(name: string, argument: string) -> result<string, error>;
 }
 
 /// gh: read pull requests on GitHub from a command line, like GitHub's own
@@ -335,20 +303,18 @@ interface model {
 // the functions above are async and HTTP is wasi:http@0.3.0.
 // ---------------------------------------------------------------------------
 
-/// The agent harness. It answers HTTP and imports one model, one labelled
-/// slot per tool, and GitHub sign-in, and nothing else. Each label names the
-/// workload component that fills it, so the manifest, not the harness code,
-/// decides which component (and which capabilities) sits behind each slot.
-/// Sign-in is unlabelled: the github-api plugin serves it in a workload that
-/// declares it (step 4), and the gh slot's placeholder answers it before
-/// that. The harness never imports github-api, so it can't read GitHub
-/// itself.
+/// The agent harness. It answers HTTP and imports one model, the agent SDK's
+/// `tools` (cosmonic:agent), and GitHub sign-in, and nothing else. `tools`
+/// lists and calls the tool
+/// components the workload's manifest gives it, so the manifest, not the
+/// harness code, decides which tools (and which capabilities) the agent has.
+/// The github-api plugin serves sign-in in a workload that declares it
+/// (step 4), and sign-in-placeholder answers it before that. The harness
+/// never imports github-api, so it can't read GitHub itself.
 @since(version = 0.4.0)
 world agent {
   import model: model;
-  import curl: curl;
-  import sqlite: sqlite;
-  import gh: gh;
+  import cosmonic:agent/tools@0.4.1;
   import github-auth;
   export wasi:http/handler@0.3.0;
 }
@@ -398,24 +364,11 @@ world github-api-plugin {
   export github-auth;
 }
 
-/// The placeholder that fills the curl and sqlite slots until a step installs
-/// the real tool. One image exports both interfaces, and every function
-/// returns an error saying the tool isn't installed yet.
+/// The placeholder for GitHub sign-in until step 4. The harness imports
+/// sign-in, so until a workload declares the github-api plugin something in
+/// the workload has to export it; this answers "not in this step".
 @since(version = 0.4.0)
-world not-installed {
-  export curl;
-  export sqlite;
-}
-
-/// The placeholder for the gh slot until step 4. It answers the gh tool's
-/// interface with "not installed yet", and GitHub sign-in with "not in this
-/// step", so the harness can start before any workload declares the
-/// github-api plugin. A separate image from not-installed: the harness's
-/// sign-in import is unlabelled, so only one component in a workload may
-/// export it.
-@since(version = 0.4.0)
-world gh-not-installed {
-  export gh;
+world sign-in-placeholder {
   export github-auth;
 }
 
@@ -435,18 +388,14 @@ world guide {
   export wasi:http/handler@0.3.0;
 }
 
-/// The toolbox host plugin (spike): serves `tools` to a workload by calling
-/// the tool components in that same workload.
+/// The toolbox host plugin: serves the agent SDK's `tools` interface to a
+/// workload by calling the typed tool components in that same workload.
+@since(version = 0.4.0)
 world toolbox-plugin {
   import curl;
   import sqlite;
+  import gh;
   import wasmcloud:host/identity@0.1.6;
   import wasmcloud:host/workload-call@0.1.6;
-  export tools;
-}
-
-/// Spike probe: answers HTTP by exercising `tools`.
-world tools-probe {
-  import tools;
-  export wasi:http/handler@0.3.0;
+  export cosmonic:agent/tools@0.4.1;
 }

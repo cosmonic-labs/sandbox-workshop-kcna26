@@ -124,7 +124,7 @@ runtime:
         # workload by calling the tool components in that same workload.
         - id: toolbox
           image: workshop-toolbox-registry:5000/workshop/toolbox-plugin:0.4.0
-          digest: sha256:5a7b456471ac2b4f2b27c637db40049cd4236e606b91374fa4534076f1feff8e
+          digest: sha256:1850819e07ffca711527fabdc85b67f55999c6c62174f97bc6c34c439e7eb797
           pullPolicy: ifNotPresent
     # The mock sites (mock-sites) get a host group of their own, in
     # their own namespace, so the Services in k8s/sites.yaml can select its

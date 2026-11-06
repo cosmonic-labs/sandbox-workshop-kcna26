@@ -1,5 +1,5 @@
 [package]
-name = "tools-probe"
+name = "sign-in-placeholder"
 edition.workspace = true
 version.workspace = true
 publish.workspace = true
@@ -9,3 +9,4 @@ crate-type = ["cdylib"]
 
 [dependencies]
 wit-bindgen.workspace = true
+

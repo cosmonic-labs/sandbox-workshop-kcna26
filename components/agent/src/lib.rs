@@ -13,9 +13,10 @@
 //! full, where the text transcript cuts each to one line of 300 characters.
 //!
 //! The harness itself holds no capabilities. Its world imports the model,
-//! three labelled tool slots (curl, sqlite and gh) and GitHub sign-in, and
-//! nothing else from the host; whatever a tool can reach is
-//! decided by the manifest entry of the component filling that slot.
+//! the agent SDK's `tools` (cosmonic:agent) and GitHub sign-in, and nothing
+//! else from the host. `tools` is served by the toolbox host plugin, which lists the tool components in this
+//! workload and calls the one asked for; whatever a tool can reach is decided
+//! by that component's own manifest entry.
 //!
 //! Sign-in is the one thing the harness does besides the loop, and it passes
 //! every part of it to github-auth. The page's "Sign in with GitHub" opens
@@ -27,10 +28,9 @@
 //! `/github/status` run the code flow (GitHub's device flow) for a terminal,
 //! and `/github/sign-out` forgets the sign-in. The plugin keeps the token;
 //! the harness sees at most the single-use code, a code to enter and the
-//! signed-in login. `tools.rs` translates the model's JSON into
-//! typed tool calls and builds the tool definitions the model sees: work a
-//! host could do from the WIT, done by hand here because upstream wasmCloud
-//! doesn't do it yet.
+//! signed-in login. `tools.rs` turns the plugin's tool list into the
+//! tool definitions the model sees, and the model's calls back into calls on
+//! the plugin.
 
 wit_bindgen::generate!({
     path: "../../wit",
@@ -43,7 +43,6 @@ mod http;
 mod tools;
 
 use exports::wasi::http::handler::Guest;
-use tools::{Args, TOOLS};
 use wasi::http::types::{ErrorCode, Method, Request, Response};
 use workshop::toolbox::github_auth::{self, SignInStatus};
 use workshop::toolbox::types::{Completion, Message, ToolDef};
@@ -301,15 +300,12 @@ fn clip(s: &str, max: usize) -> (&str, bool) {
 
 async fn run(prompt: &str) -> Vec<Step> {
     let mut out = Vec::new();
-    // Every function in the table is offered to the model. A slot that has
-    // no real tool yet answers with a "not installed" error when called.
-    let defs: Vec<ToolDef> = TOOLS
+    // The model is offered exactly the tools this workload's manifest gives
+    // the agent, as the toolbox plugin lists them.
+    let offered = tools::list().await;
+    let defs: Vec<ToolDef> = offered
         .iter()
-        .map(|t| ToolDef {
-            name: t.name.into(),
-            description: t.description.into(),
-            parameters: t.schema(),
-        })
+        .map(|t| ToolDef { name: t.name.clone(), description: t.description.clone(), parameters: tools::schema(t) })
         .collect();
 
     let mut messages = vec![Message {
@@ -327,13 +323,9 @@ async fn run(prompt: &str) -> Vec<Step> {
             }
             Ok(Completion::Call(call)) => {
                 out.push(Step::Call { tool: call.name.clone(), args: call.arguments.clone() });
-                if !TOOLS.iter().any(|t| t.name == call.name) {
-                    out.push(Step::Note(format!("no tool named '{}'", call.name)));
-                    return out;
-                }
                 let args: serde_json::Value =
                     serde_json::from_str(&call.arguments).unwrap_or_default();
-                let result = match tools::call(&call.name, &Args(args.clone())).await {
+                let result = match tools::call(out.len(), &call.name, &args).await {
                     Ok(ok) => {
                         out.push(Step::Result { tool: call.name.clone(), ok: true, text: ok.clone() });
                         ok

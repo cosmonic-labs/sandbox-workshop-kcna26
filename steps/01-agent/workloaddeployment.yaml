@@ -1,16 +1,17 @@
 # Step 1: run the agent with no tools.
 #
 # The agent harness (the component that runs the loop: ask the model, call a
-# tool, repeat) imports a model and three labelled tool slots: curl, sqlite
-# and gh. The host links each label to the workload component of the same
-# name, so every slot must be filled. Here every slot holds a placeholder
-# (not-installed, or gh-not-installed for gh), which answers that the tool
-# isn't installed. The model is the scripted one: it follows every
-# instruction it reads.
+# tool, repeat) imports a model and the agent SDK's `tools` interface
+# (cosmonic:agent). The toolbox plugin, which the platform installed on the
+# default host group (k8s/values.yaml), serves `tools`: it lists the tool
+# components in this workload and calls the one the model asks for. A tool
+# is in the agent's toolbox when its interface is listed under
+# hostInterfaces below and a component here exports it.
 #
-# Nothing in this workload has a grant: no allowedHosts, no volumes. Later
-# steps put real tools into the slots, each with its own grant: curl in step
-# 2, sqlite in step 3, gh in step 4.
+# No tool is listed, so the agent's toolbox is empty, and nothing in this
+# workload has a grant: no allowedHosts, no volumes. Later steps add real
+# tools, each with its own grant: curl in step 2, sqlite in step 3, gh in
+# step 4.
 
 apiVersion: runtime.wasmcloud.dev/v1alpha1
 kind: WorkloadDeployment
@@ -35,19 +36,15 @@ spec:
           interfaces: [handler]
           config:
             host: agent.localhost
+        - namespace: cosmonic
+          package: agent
+          interfaces: [tools]
       components:
         - name: agent
           image: workshop-toolbox-registry:5000/workshop/agent:0.4.0
         - name: model
           image: workshop-toolbox-registry:5000/workshop/model-scripted:0.4.0
-        # Every tool slot holds the placeholder: it answers that the tool
-        # isn't installed, and it has no grants.
-        - name: curl
-          image: workshop-toolbox-registry:5000/workshop/not-installed:0.4.0
-        - name: sqlite
-          image: workshop-toolbox-registry:5000/workshop/not-installed:0.4.0
-        # The gh slot's placeholder is its own image: it also answers GitHub
-        # sign-in, which the harness imports, until step 4 declares the
-        # plugin that provides it.
-        - name: gh
-          image: workshop-toolbox-registry:5000/workshop/gh-not-installed:0.4.0
+        # GitHub sign-in, which the harness imports, answers "not in this
+        # step" until step 4 declares the plugin that provides it.
+        - name: sign-in
+          image: workshop-toolbox-registry:5000/workshop/sign-in-placeholder:0.4.0

@@ -1,10 +1,10 @@
 # Step 4: give the agent a real job, triaging pull requests on GitHub.
 #
-# The same agent as step 3, with the real gh tool in its slot and one new
-# entry under hostInterfaces. gh gets no allowedHosts, no volumes and no
-# token. Its only way to GitHub is workshop:toolbox/github-api, served by the
-# github-api plugin the platform installed on the default host group
-# (k8s/values.yaml). The plugin sends only GET, only to api.github.com, only
+# The same agent as step 3, with the real gh tool, and gh and the github-api
+# capability added under hostInterfaces. gh gets no allowedHosts, no volumes
+# and no token. Its only way to GitHub is workshop:toolbox/github-api,
+# served by the github-api plugin the platform installed on the default host
+# group (k8s/values.yaml). The plugin sends only GET, only to api.github.com, only
 # for the read paths gh needs, and refuses everything else. The harness
 # imports github-auth from the same plugin for the chat page's "Sign in with
 # GitHub": the plugin runs the sign-in and keeps the token in its own
@@ -40,13 +40,18 @@ spec:
           interfaces: [handler]
           config:
             host: agent.localhost
-        # GitHub, as two capabilities the host links to the github-api plugin
-        # the platform installed on the default host group (k8s/values.yaml):
-        # github-api, which the gh tool imports, and github-auth (sign-in),
-        # which the agent harness imports. Nothing else here imports either.
+        # The agent's toolbox, served by the toolbox plugin.
+        - namespace: cosmonic
+          package: agent
+          interfaces: [tools]
+        # The tools in it (curl, sqlite, gh), and GitHub as two capabilities
+        # the host links to the github-api plugin: github-api, which the gh
+        # tool imports, and github-auth (sign-in), which the harness imports.
+        # Both plugins are installed on the default host group
+        # (k8s/values.yaml).
         - namespace: workshop
           package: toolbox
-          interfaces: [github-api, github-auth]
+          interfaces: [curl, sqlite, gh, github-api, github-auth]
       components:
         - name: agent
           image: workshop-toolbox-registry:5000/workshop/agent:0.4.0
