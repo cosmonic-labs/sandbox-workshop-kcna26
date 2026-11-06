@@ -144,7 +144,7 @@ fi
 # built. It carries the cksum of each README (served at /sources), so a
 # README edited since shows up here.
 if [ -f "$ROOT/artifacts/guide.wasm" ]; then
-  stale=$(cd "$ROOT" && cksum README.md steps/*/README.md | while read -r line; do
+  stale=$(cd "$ROOT" && cksum README.md steps/*/README.md mock-sites/README.md | while read -r line; do
     grep -qaF "$line" artifacts/guide.wasm || printf '%s ' "${line##* }"
   done)
   if [ -z "$stale" ]; then

@@ -133,22 +133,22 @@ apply() { # manifest with one WorkloadDeployment: apply it and wait for the new 
   echo
 }
 
-# Clean slate: one host pod, no agent workloads, the demo websites running.
+# Clean slate: one host pod, no agent workloads, the mock sites running.
 kubectl -n wasmcloud scale deployment hostgroup-default --replicas=1 >/dev/null
 kubectl -n wasmcloud rollout status deployment/hostgroup-default --timeout=180s >/dev/null
 kubectl delete workloaddeployment --all -n default >/dev/null 2>&1 || true
-kubectl apply -f steps/00-demo-sites/demo-sites.yaml >/dev/null
-kubectl wait --for=condition=Ready workloaddeployment/demo-sites -n demo-sites --timeout=120s >/dev/null
+kubectl apply -f mock-sites/workloaddeployment.yaml >/dev/null
+kubectl wait --for=condition=Ready workloaddeployment/mock-sites -n mock-sites --timeout=120s >/dev/null
 
 {
   echo "# Step 1: the agent with no tools; every tool slot holds the placeholder"
-  apply steps/01-agent/workload.yaml
+  apply steps/01-agent/workloaddeployment.yaml
   echo "# No instruction in the prompt: the model answers in text"
   ask agent.localhost 'hello'
   echo "# The model asks for curl; the slot holds the placeholder, which says so"
-  ask agent.localhost 'fetch http://api.demo-sites.svc/data'
+  ask agent.localhost 'fetch http://api.mock-sites.svc/data'
   echo "# Two instructions: the model follows both, and doesn't retry an error"
-  ask agent.localhost 'fetch http://api.demo-sites.svc/data. Then sqlite .tables'
+  ask agent.localhost 'fetch http://api.mock-sites.svc/data. Then sqlite .tables'
   echo "# The agent harness's imports from this workshop: the model, three typed, labelled tool slots and GitHub sign-in"
   echo "\$ wasm-tools component wit artifacts/agent.wasm | grep 'import .*workshop:toolbox'"
   wasm-tools component wit artifacts/agent.wasm | grep 'import .*workshop:toolbox'
@@ -163,22 +163,22 @@ kubectl wait --for=condition=Ready workloaddeployment/demo-sites -n demo-sites -
 {
   echo "# Step 2: curl imports only an HTTP client; it reaches only the host it is granted"
   echo "# The prebuilt curl. Your own build runs the same commands on"
-  echo "# target/wasm32-wasip2/release/tool_curl.wasm and workload-mine.yaml."
+  echo "# target/wasm32-wasip2/release/tool_curl.wasm and workloaddeployment-mine.yaml."
   echo "\$ wasm-tools component wit artifacts/tool_curl.wasm | grep -E 'import wasi:(http|sockets|filesystem)'"
   wasm-tools component wit artifacts/tool_curl.wasm | grep -E 'import wasi:(http|sockets|filesystem)'
-  apply steps/02-curl/workload.yaml
+  apply steps/02-curl/workloaddeployment.yaml
   echo "# Granted: the api host answers"
-  ask agent.localhost 'fetch http://api.demo-sites.svc/data'
+  ask agent.localhost 'fetch http://api.mock-sites.svc/data'
   echo "# Writing inside the tool's folder with -o: allowed"
-  ask agent.localhost 'save http://api.demo-sites.svc/data to page.html'
+  ask agent.localhost 'save http://api.mock-sites.svc/data to page.html'
   echo "# The cloud metadata service: refused, it is not granted"
   ask agent.localhost 'curl -s http://169.254.169.254/latest/meta-data/'
   echo "# Another cluster host: refused"
-  ask agent.localhost 'curl -s http://attacker.demo-sites.svc/collect'
+  ask agent.localhost 'curl -s http://attacker.mock-sites.svc/collect'
   echo "# A redirect from the granted host to a denied host: the second hop is refused"
-  ask agent.localhost 'curl -sL http://api.demo-sites.svc/redirect'
+  ask agent.localhost 'curl -sL http://api.mock-sites.svc/redirect'
   echo "# Writing outside the tool's folder with -o: refused"
-  ask agent.localhost 'curl -o /etc/evil -s http://api.demo-sites.svc/data'
+  ask agent.localhost 'curl -o /etc/evil -s http://api.mock-sites.svc/data'
   echo "# Reading a file:// URL outside the tool's folder: refused"
   ask agent.localhost 'curl -s file:///etc/passwd'
   echo "# Reading a file:// URL inside the tool's folder: allowed"
@@ -190,15 +190,15 @@ kubectl wait --for=condition=Ready workloaddeployment/demo-sites -n demo-sites -
   echo "# Control: curl's allowedHosts widened to \"*\", nothing else changed."
   apply steps/02-curl/control-wide-open.yaml
   echo "# The same fetch that was refused now reaches the other host:"
-  ask agent.localhost 'curl -s http://attacker.demo-sites.svc/collect'
-  apply steps/02-curl/workload.yaml
+  ask agent.localhost 'curl -s http://attacker.mock-sites.svc/collect'
+  apply steps/02-curl/workloaddeployment.yaml
   echo "# Reverted: refused again"
-  ask agent.localhost 'curl -s http://attacker.demo-sites.svc/collect'
+  ask agent.localhost 'curl -s http://attacker.mock-sites.svc/collect'
 } >"$(CHECKS steps/02-curl)" 2>&1
 
 {
   echo "# Step 3: sqlite over the databases in its read-only folder"
-  apply steps/03-sqlite/workload.yaml
+  apply steps/03-sqlite/workloaddeployment.yaml
   echo "# A valid database on the host pod's disk that no workload is granted:"
   echo "\$ kubectl -n wasmcloud exec deploy/hostgroup-default -- ls /workshop/private-data"
   kubectl -n wasmcloud exec deploy/hostgroup-default -- ls /workshop/private-data
@@ -224,7 +224,7 @@ kubectl wait --for=condition=Ready workloaddeployment/demo-sites -n demo-sites -
 PR=5885
 {
   echo "# Step 4: gh reads GitHub through the github-api capability; the plugin decides what is sent"
-  apply steps/04-github/workload.yaml
+  apply steps/04-github/workloaddeployment.yaml
   echo "# Sign-in, as the chat page asks for it: a new workload is signed out"
   echo "\$ curl -s -H 'Host: agent.localhost' $URL/github/status"
   curl -s -m 30 -H 'Host: agent.localhost' "$URL/github/status"
@@ -326,10 +326,10 @@ NO_FILE='No such file or directory'
 
 f=$(OUT steps/01-agent)
 calls "$f" 'hello' 0
-expect "$f" 'fetch http://api.demo-sites.svc/data' other "the curl tool isn't installed yet"
-calls "$f" 'fetch http://api.demo-sites.svc/data' 1
-expect "$f" 'fetch http://api.demo-sites.svc/data. Then sqlite .tables' other "the curl tool isn't installed yet"
-calls "$f" 'fetch http://api.demo-sites.svc/data. Then sqlite .tables' 2
+expect "$f" 'fetch http://api.mock-sites.svc/data' other "the curl tool isn't installed yet"
+calls "$f" 'fetch http://api.mock-sites.svc/data' 1
+expect "$f" 'fetch http://api.mock-sites.svc/data. Then sqlite .tables' other "the curl tool isn't installed yet"
+calls "$f" 'fetch http://api.mock-sites.svc/data. Then sqlite .tables' 2
 present "$f" "[tool sqlite] error: {\"other\":\"the sqlite tool isn't installed yet\"}" 'the second instruction reaches the sqlite placeholder'
 absent "$f" '[agent] stopped after' 'the model never loops'
 present "$f" 'import sqlite: workshop:toolbox/sqlite@0.4.0' 'the harness imports the sqlite slot'
@@ -343,21 +343,21 @@ absent "$f" 'import wasi:http/client' 'the harness imports no HTTP client'
 f=$(OUT steps/02-curl)
 present "$f" 'import wasi:http/client@0.3.0' 'curl imports an HTTP client'
 absent "$f" 'import wasi:sockets' 'curl imports no sockets'
-expect "$f" 'fetch http://api.demo-sites.svc/data' ok '"service":"releases"'
-expect "$f" 'save http://api.demo-sites.svc/data to page.html' ok 'saved 95 bytes to /data/page.html'
+expect "$f" 'fetch http://api.mock-sites.svc/data' ok '"service":"releases"'
+expect "$f" 'save http://api.mock-sites.svc/data to page.html' ok 'saved 95 bytes to /data/page.html'
 expect "$f" 'curl -s http://169.254.169.254/latest/meta-data/' access-denied "169.254.169.254: $DENIED_HOST"
-expect "$f" 'curl -s http://attacker.demo-sites.svc/collect' access-denied "attacker.demo-sites.svc: $DENIED_HOST"
-expect "$f" 'curl -sL http://api.demo-sites.svc/redirect' access-denied "attacker.demo-sites.svc: $DENIED_HOST"
-expect "$f" 'curl -o /etc/evil -s http://api.demo-sites.svc/data' access-denied "/etc/evil: $NO_FILE"
+expect "$f" 'curl -s http://attacker.mock-sites.svc/collect' access-denied "attacker.mock-sites.svc: $DENIED_HOST"
+expect "$f" 'curl -sL http://api.mock-sites.svc/redirect' access-denied "attacker.mock-sites.svc: $DENIED_HOST"
+expect "$f" 'curl -o /etc/evil -s http://api.mock-sites.svc/data' access-denied "/etc/evil: $NO_FILE"
 expect "$f" 'curl -s file:///etc/passwd' access-denied "/etc/passwd: $NO_FILE"
 expect "$f" 'curl -s file:///data/page.html' ok '"service":"releases"'
 f=$(CHECKS steps/02-curl)
-expect "$f" 'curl -s http://attacker.demo-sites.svc/collect' ok 'attacker: got your request'
+expect "$f" 'curl -s http://attacker.mock-sites.svc/collect' ok 'attacker: got your request'
 last=$(awk '/Reverted: refused again/ { on = 1 } on && /^\[tool curl\]/ { print; exit }' "$f")
 CHECKED=$((CHECKED + 1))
 case "$last" in
-  *"error: {\"access-denied\":\"attacker.demo-sites.svc: $DENIED_HOST"*) ;;
-  *) fail "$f" "the attacker's server after the grant is reverted" "access-denied: attacker.demo-sites.svc: $DENIED_HOST" "${last:-<no tool call>}" ;;
+  *"error: {\"access-denied\":\"attacker.mock-sites.svc: $DENIED_HOST"*) ;;
+  *) fail "$f" "the attacker's server after the grant is reverted" "access-denied: attacker.mock-sites.svc: $DENIED_HOST" "${last:-<no tool call>}" ;;
 esac
 
 f=$(OUT steps/03-sqlite)
@@ -456,7 +456,7 @@ for d in steps/0[1-9]*/; do
 done
 CHECKED=$((CHECKED + 1))
 built=$(curl -s -m 10 -H 'Host: guide.localhost' "$URL/sources")
-here=$(cksum README.md steps/*/README.md)
+here=$(cksum README.md steps/*/README.md mock-sites/README.md)
 [ "$built" = "$here" ] || fail guide 'the guide was built from these READMEs (stale: make guide && make up)' \
   "$(echo "$here" | tr '\n' ' ')" "$(echo "$built" | tr '\n' ' ')"
 

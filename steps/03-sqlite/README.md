@@ -13,7 +13,7 @@ turns `.tables` and `.schema` into SQL and answers `.shell` itself.
 ## Deploy
 
 ```sh
-kubectl apply -f steps/03-sqlite/workload.yaml \
+kubectl apply -f steps/03-sqlite/workloaddeployment.yaml \
   && sleep 2 && kubectl wait --for=condition=Ready \
   workloaddeployment/toolbox-agent
 ```
@@ -44,7 +44,15 @@ kubectl -n wasmcloud exec deploy/hostgroup-default -- ls -l /workshop/private-da
 Type each prompt into the chat at http://agent.localhost:18180, or run the
 curl command under it.
 
-**1. Ordinary SQL works:** `sqlite select title, speaker from talks where track = 'Security' order by title`
+**1. Ordinary SQL works** 
+
+In the chat:
+
+```
+sqlite select title, speaker from talks where track = 'Security' order by title
+```
+
+In your terminal or Codespaces:
 
 ```sh
 curl -s -H 'Host: agent.localhost' \
@@ -54,7 +62,15 @@ curl -s -H 'Host: agent.localhost' \
 
 The SQLite engine reads the talks database.
 
-**2. A dot-command works:** `sqlite .tables`
+**2. A dot-command works** 
+
+In the chat:
+
+```
+sqlite .tables
+```
+
+In your terminal or Codespaces:
 
 ```sh
 curl -s -H 'Host: agent.localhost' \
@@ -66,7 +82,13 @@ The tool's shell turns `.tables` into a query on SQLite's schema table.
 
 **3. ATTACH a database inside the grant: it works**
 
-`sqlite attach 'file:/data/rooms.db?immutable=1' as r; select name, seats from r.rooms`
+In the chat:
+
+```
+sqlite attach 'file:/data/rooms.db?immutable=1' as r; select name, seats from r.rooms
+```
+
+In your terminal or Codespaces:
 
 ```sh
 curl -s -H 'Host: agent.localhost' \
@@ -79,7 +101,13 @@ takes no locks, which a read-only folder can't hold.
 
 **4. ATTACH a database outside the grant: refused**
 
-`sqlite attach 'file:/workshop/private-data/payroll.db?immutable=1' as p; select name, salary from p.salaries`
+In the chat:
+
+```
+sqlite attach 'file:/workshop/private-data/payroll.db?immutable=1' as p; select name, salary from p.salaries
+```
+
+In your terminal or Codespaces:
 
 ```sh
 curl -s -H 'Host: agent.localhost' \
@@ -100,7 +128,15 @@ sqlite3 databases/talks.db \
   "attach 'file:databases/payroll.db?immutable=1' as p; select name, salary from p.salaries"
 ```
 
-**5. .shell has nothing to start:** `sqlite .shell id`
+**5. .shell has nothing to start** 
+
+In the chat:
+
+```
+sqlite .shell id
+```
+
+In your terminal or Codespaces:
 
 ```sh
 curl -s -H 'Host: agent.localhost' \
@@ -111,7 +147,15 @@ curl -s -H 'Host: agent.localhost' \
 The tool's own shell code answers this: "there is no shell here". That
 message is the tool's choice. The reason it couldn't do otherwise is below.
 
-**6. load_extension doesn't exist:** `sqlite select load_extension('/tmp/evil')`
+**6. load_extension doesn't exist** 
+
+In the chat:
+
+```
+sqlite select load_extension('/tmp/evil')
+```
+
+In your terminal or Codespaces:
 
 ```sh
 curl -s -H 'Host: agent.localhost' \

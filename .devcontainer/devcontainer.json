@@ -19,7 +19,7 @@
   ],
   "portsAttributes": {
     "18180": {
-      "label": "workshop ingress (agents and demo websites; use curl with a Host header)",
+      "label": "workshop ingress (agents and mock sites; use curl with a Host header)",
       "onAutoForward": "silent"
     },
     "15052": {

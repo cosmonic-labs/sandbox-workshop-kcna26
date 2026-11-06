@@ -65,7 +65,7 @@ make doctor
       "Build your own" section and each "Your build" command: change the
       save message, `make build && make push-build` (prints
       `pushed localhost:15052/workshop/tool-curl:mine`), apply
-      `steps/02-curl/workload-mine.yaml`, and confirm the save prompt
+      `steps/02-curl/workloaddeployment-mine.yaml`, and confirm the save prompt
       answers with your message.
 
 ## 4. In the room
@@ -74,7 +74,7 @@ make doctor
       up` the day before needs no downloads (kind's node image and the chart
       images are cached).
 - [ ] Jumping ahead works: on a fresh `make up`, `kubectl apply -f
-      steps/04-github/workload.yaml` alone, then step 4's commands.
+      steps/04-github/workloaddeployment.yaml` alone, then step 4's commands.
 - [ ] Conference Wi-Fi and GitHub: everyone in the room shares one IP
       address, so the unauthenticated limit (60 requests an hour) runs out
       fast. Signed in, each person gets their own 5,000.

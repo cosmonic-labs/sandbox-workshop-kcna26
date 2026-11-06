@@ -1,42 +1,25 @@
 # Sandboxing on Kubernetes with WebAssembly
 ## Agent harnesses and tools on wasmCloud
 
-A hands-on workshop for KubeCon + CloudNativeCon NA 2026. You `kubectl apply`
-an agent to your own cluster with **wasmCloud**, a CNCF project, give it
-tools one at a time, then try each tool's most famous escape and watch it
-fail. Then you give it a real job: triaging pull requests on GitHub, signed
-in with your own account if you like.
+In this hands-on workshop for KubeCon + CloudNativeCon NA 2026, you will: 
 
-On your own machine, after `make up`, read these steps in your browser at
-http://guide.localhost:18180, with a Copy button on every command. In
-Codespaces, read them here.
+* Deploy a sandboxed agent to your own cluster with **wasmCloud**, a CNCF project 
+* Give the agent `curl` and `sqlite3` tools, then try each tool's most famous escapes and watch them
+fail 
+* Give your agent a real job, triaging pull requests on GitHub (optionally signed
+in with your own account)
 
-The tools are `curl`, `sqlite3` and `gh` (GitHub's command line). `curl` and
-`sqlite3` are classics from [GTFOBins](https://gtfobins.github.io/), the
-catalogue of everyday programs that break out of restricted shells. The model is a gullible stand-in that
-does whatever it reads (step 1 explains how it works). It never refuses, so
-every refusal you see comes from another layer, and each step names which
-one:
+On your own machine, after `make up`, you can read these steps in your browser at
+http://guide.localhost:18180, with a Copy button on every command. 
 
-* **Imports**: what a component can ask the host for at all. None of these
-  tools imports a way to start a process, and none imports sockets.
-* **The tool's own code**: this sqlite3's small shell answers `.shell`
-  itself and has no extension loading compiled in, and this gh offers no
-  command that writes.
-* **The grant**: the lines of the manifest that give each tool its folders
-  (`volumeMounts`) and its hosts (`allowedHosts`).
-* **A platform plugin's own rules**: the GitHub capability behind `gh` sends
-  only reads, only to `api.github.com`, only for the paths `gh` needs, and
-  keeps your sign-in to itself (step 4).
-
-Each tool starts with nothing and gets only its own grant.
+In Codespaces, follow the raw README files in each `/steps/` directory.
 
 ## Requirements
 
-* Docker (Docker Desktop, OrbStack or Podman) with 4 GB or more of memory for
+* Docker (Docker Desktop, OrbStack, or Podman) with 4 GB or more of memory for
   containers, on macOS or Linux. On Windows, use WSL2.
 * Or nothing at all: GitHub Codespaces (see below).
-* About 1 GB of downloads. Do them before the conference: `make tools && make up`.
+* About 1 GB for toolchains and dependencies, installed with `make tools && make up`.
 * For step 4, the internet, and optionally a GitHub account to sign in with.
 * Optional, to build `curl` yourself in step 2: Rust 1.98.1 with the
   `wasm32-wasip2` target, and one `make build` beforehand to fetch the
@@ -97,7 +80,7 @@ cluster named `workshop-toolbox` and switches your kubectl context to it.
 | 3 | `steps/03-sqlite` | `sqlite3`'s escapes (`.shell`, `ATTACH`, extensions) go nowhere |
 | 4 | `steps/04-github` | A real job: triage wasmCloud's pull requests with `gh`, signed in or not; the GitHub capability refuses writes, and the token never leaves the platform |
 
-Each step README has the commands and the output to expect
+Each step includes the commands and the output to expect
 (`expected-output.txt`).
 
 **Fell behind?** Every step's manifest is complete, so you can jump to any
@@ -142,11 +125,11 @@ registry.
                                              │
             ┌────────────────────────────────┴───────────────┐
             ▼                                                ▼
-  host pod, group "default"                       host pod, group "demo-sites"
-    workload toolbox-agent                          demo websites: api, attacker; the guide
+  host pod, group "default"                       host pod, group "mock-sites"
+    workload toolbox-agent                          mock sites: api, attacker; the guide
       harness ──▶ model
         ├──▶ sign-in  github-api plugin ──▶ github.com (OAuth, no scopes)
-        ├──▶ curl     allowedHosts only ──▶ api.demo-sites.svc, /data for -o
+        ├──▶ curl     allowedHosts only ──▶ api.mock-sites.svc, /data for -o
         ├──▶ sqlite   /data, read only
         └──▶ gh       github-api plugin ──▶ api.github.com (GET, allowlisted paths)
 ```
@@ -163,30 +146,17 @@ registry.
   send back the result. It has no network or files of its own; each tool gets
   only what its entry in the manifest grants.
 
-The demo websites (`steps/00-demo-sites`) are fake websites inside the
+The mock sites (`mock-sites`) are fake websites inside the
 cluster, so steps 1 to 3 need no internet. One is an ordinary API, the host
-`curl` is allowed to reach. The other, `attacker.demo-sites.svc`, plays the
+`curl` is allowed to reach. The other, `attacker.mock-sites.svc`, plays the
 server of someone who has hijacked your agent: the place an instruction
 planted in a web page or a database would tell the agent to send what it can
 read. It is a real server on the cluster network and it answers anything sent
 to it, so when a request to it is refused, the agent's grants are the only
 thing that stopped the leak.
 
-## Known limits (wasmCloud v2.12.0)
+## Notes and caveats
 
-* Workloads on one host are separated by the WebAssembly runtime alone. For
-  mutually hostile tenants, use separate host groups or nodes, and decide who
-  may apply workloads with RBAC and admission policy.
-* `hostPaths.allowed` is host wide: any workload on a host may mount any
-  folder in that list, so admission policy decides who may mount what.
-* Concurrent linked calls can run with the wrong component's grants
-  (wasmCloud#5756). The host tracks which component is active in a single
-  slot, which is only correct when linked calls happen one after another. It
-  can go wrong only when one store has several linked calls in flight at
-  once: a harness that runs tool calls in parallel, or a pooled component
-  with `maxConcurrency` above 1. The workshop's components aren't pooled (each
-  request gets a fresh store) and the harness awaits each tool call before the
-  next, so it can't happen here.
 * The github-api plugin keeps each sign-in in its memory, keyed by the
   workload's id, and nothing clears the entry when a workload goes away: a
   replaced workload's token stays in the plugin's memory, unused, until the
@@ -198,51 +168,10 @@ thing that stopped the leak.
   set up for 18180 refuses; use `make github-sign-in` there. The
   authorization code passes through the agent harness on its way to the
   plugin: it works once and only with the plugin's PKCE verifier and client
-  secret, and the harness never sees a token.
-* The chart's NetworkPolicies are off in `k8s/values.yaml` because kindnet on
-  kind v0.33.0 dropped their DNS replies. Keep them on in a real cluster.
-
-## For maintainers
-
-* `make build` builds `curl`; `make build-all` rebuilds every component and
-  needs wasi-sdk (`WASI_SDK_PATH`, `CC_wasm32_wasip2`). `make push-build`
-  pushes your build to the cluster's registry. A running workload keeps its
-  old image until it is recreated.
-* `make prove` replays steps 1 to 4 and rewrites each `expected-output.txt`;
-  `make verify` replays them and checks each result. Step 4 calls GitHub (7 requests a run): its live answers are masked in the
-  transcript and checked for shape, and verify skips them (SKIP) when
-  GitHub's unauthenticated limit of 60 an hour is used up.
-* **GitHub sign-in** (step 4) needs a GitHub OAuth app. Create one in
-  GitHub under Settings, Developer settings, OAuth Apps, New OAuth App. Any
-  name and homepage URL will do, but the **Authorization callback URL** must
-  be exactly `http://agent.localhost:18180/github/callback`: GitHub sends the
-  browser back there, and refuses any other address. Tick **Enable Device
-  Flow** too, for `make github-sign-in` (the Codespaces path). Scopes are not
-  part of the app: they are asked for at sign-in, and the plugin asks for
-  none. Then, in `k8s/values.yaml` under the `github-api` plugin's `config`,
-  set `client-id` to the app's Client ID and `client-secret` to a client
-  secret generated on the app's page (Generate a new client secret), and run
-  `make up` again (or the `helm upgrade` in `scripts/up.sh`). Until both are
-  set, sign-in says it isn't set up and step 4 works signed out.
-* The client secret is committed on purpose, as GitHub's CLI commits its own
+  secret, and the harness never sees a token. 
+* The GitHub client secret is committed on purpose, as GitHub's CLI commits its own
   (`cli/cli`, `internal/authflow/flow.go`). It identifies the app and gets
   no token without a person approving, and PKCE binds each code to the
-  plugin that asked for it. Generate a new secret after the event and delete
-  the old one; anyone running an older clone then gets "GitHub would not
-  trade the code" until they pull.
-* The browser flow is the main sign-in because the device flow allows only
-  50 sign-ins an hour for the whole OAuth app, which one room of attendees
-  would use up. Signed out, GitHub allows 60 API requests an hour per IP
-  address (one conference Wi-Fi); signed in, 5,000 per person.
-* After rebuilding `artifacts/github_api.wasm`, copy the digest
-  `scripts/push.sh` prints into `k8s/values.yaml`: the host refuses a plugin
-  whose digest differs.
-* The guide at http://guide.localhost:18180 (`components/guide`) is this
-  README and each step's README rendered when the component is built, so
-  after editing a README run `make guide` (it rebuilds
-  `artifacts/guide.wasm` and its line in `SHA256SUMS`), then `make up`.
-  `make doctor` and `make verify` say when the guide is older than the
-  READMEs.
-* `TESTING.md` is the pre-workshop test checklist.
-* The tool interfaces are in `wit/toolbox.wit`; the harness's tool table is
-  `components/agent/src/tools.rs`.
+  plugin that asked for it. 
+* The chart's NetworkPolicies are off in `k8s/values.yaml` because kindnet on
+  kind v0.33.0 dropped their DNS replies. Keep them on in a real cluster.

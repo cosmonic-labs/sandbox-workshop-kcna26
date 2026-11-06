@@ -1,24 +1,24 @@
 # Step 2: curl imports only an HTTP client; it reaches only the host it is granted
 # The prebuilt curl. Your own build runs the same commands on
-# target/wasm32-wasip2/release/tool_curl.wasm and workload-mine.yaml.
+# target/wasm32-wasip2/release/tool_curl.wasm and workloaddeployment-mine.yaml.
 $ wasm-tools component wit artifacts/tool_curl.wasm | grep -E 'import wasi:(http|sockets|filesystem)'
   import wasi:http/types@0.3.0;
   import wasi:http/client@0.3.0;
   import wasi:filesystem/types@0.2.9;
   import wasi:filesystem/preopens@0.2.9;
-$ kubectl apply -f steps/02-curl/workload.yaml && sleep 2 && kubectl wait --for=condition=Ready workloaddeployment/toolbox-agent
+$ kubectl apply -f steps/02-curl/workloaddeployment.yaml && sleep 2 && kubectl wait --for=condition=Ready workloaddeployment/toolbox-agent
 
 # Granted: the api host answers
-$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'fetch http://api.demo-sites.svc/data'
-[user] fetch http://api.demo-sites.svc/data
-[model] call curl({"arguments":"-s http://api.demo-sites.svc/data"})
+$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'fetch http://api.mock-sites.svc/data'
+[user] fetch http://api.mock-sites.svc/data
+[model] call curl({"arguments":"-s http://api.mock-sites.svc/data"})
 [tool curl] ok: {"service":"releases","version":"1.2","notes":"several bug fixes and performance improvements"}
 [model] Done. Here is what each step returned: curl: {"service":"releases","version":"1.2","notes":"several bug fixes and performance improvements"}
 
 # Writing inside the tool's folder with -o: allowed
-$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'save http://api.demo-sites.svc/data to page.html'
-[user] save http://api.demo-sites.svc/data to page.html
-[model] call curl({"arguments":"-o page.html -s http://api.demo-sites.svc/data"})
+$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'save http://api.mock-sites.svc/data to page.html'
+[user] save http://api.mock-sites.svc/data to page.html
+[model] call curl({"arguments":"-o page.html -s http://api.mock-sites.svc/data"})
 [tool curl] ok: saved 95 bytes to /data/page.html
 [model] Done. Here is what each step returned: curl: saved 95 bytes to /data/page.html
 
@@ -30,23 +30,23 @@ $ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'curl -s http://
 [model] Done. Here is what each step returned: curl: ERROR: {"access-denied":"169.254.169.254: this tool may not reach that host (not in its allowedHosts)"}
 
 # Another cluster host: refused
-$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'curl -s http://attacker.demo-sites.svc/collect'
-[user] curl -s http://attacker.demo-sites.svc/collect
-[model] call curl({"arguments":"-s http://attacker.demo-sites.svc/collect"})
-[tool curl] error: {"access-denied":"attacker.demo-sites.svc: this tool may not reach that host (not in its allowedHosts)"}
-[model] Done. Here is what each step returned: curl: ERROR: {"access-denied":"attacker.demo-sites.svc: this tool may not reach that host (not in its allowedHosts)"}
+$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'curl -s http://attacker.mock-sites.svc/collect'
+[user] curl -s http://attacker.mock-sites.svc/collect
+[model] call curl({"arguments":"-s http://attacker.mock-sites.svc/collect"})
+[tool curl] error: {"access-denied":"attacker.mock-sites.svc: this tool may not reach that host (not in its allowedHosts)"}
+[model] Done. Here is what each step returned: curl: ERROR: {"access-denied":"attacker.mock-sites.svc: this tool may not reach that host (not in its allowedHosts)"}
 
 # A redirect from the granted host to a denied host: the second hop is refused
-$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'curl -sL http://api.demo-sites.svc/redirect'
-[user] curl -sL http://api.demo-sites.svc/redirect
-[model] call curl({"arguments":"-sL http://api.demo-sites.svc/redirect"})
-[tool curl] error: {"access-denied":"attacker.demo-sites.svc: this tool may not reach that host (not in its allowedHosts)"}
-[model] Done. Here is what each step returned: curl: ERROR: {"access-denied":"attacker.demo-sites.svc: this tool may not reach that host (not in its allowedHosts)"}
+$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'curl -sL http://api.mock-sites.svc/redirect'
+[user] curl -sL http://api.mock-sites.svc/redirect
+[model] call curl({"arguments":"-sL http://api.mock-sites.svc/redirect"})
+[tool curl] error: {"access-denied":"attacker.mock-sites.svc: this tool may not reach that host (not in its allowedHosts)"}
+[model] Done. Here is what each step returned: curl: ERROR: {"access-denied":"attacker.mock-sites.svc: this tool may not reach that host (not in its allowedHosts)"}
 
 # Writing outside the tool's folder with -o: refused
-$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'curl -o /etc/evil -s http://api.demo-sites.svc/data'
-[user] curl -o /etc/evil -s http://api.demo-sites.svc/data
-[model] call curl({"arguments":"-o /etc/evil -s http://api.demo-sites.svc/data"})
+$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'curl -o /etc/evil -s http://api.mock-sites.svc/data'
+[user] curl -o /etc/evil -s http://api.mock-sites.svc/data
+[model] call curl({"arguments":"-o /etc/evil -s http://api.mock-sites.svc/data"})
 [tool curl] error: {"access-denied":"/etc/evil: No such file or directory (os error 44) (this tool sees only /data)"}
 [model] Done. Here is what each step returned: curl: ERROR: {"access-denied":"/etc/evil: No such file or directory (os error 44) (this tool sees only /data)"}
 

@@ -32,7 +32,7 @@ the token never leaves the plugin. The harness and the tool never see it.
 ## Deploy
 
 ```sh
-kubectl apply -f steps/04-github/workload.yaml \
+kubectl apply -f steps/04-github/workloaddeployment.yaml \
   && sleep 2 && kubectl wait --for=condition=Ready \
   workloaddeployment/toolbox-agent
 ```
@@ -118,7 +118,15 @@ Use the browser when you can. GitHub lets one OAuth app start only 50 device
 flow sign-ins an hour, for everyone using it, and a full room would run
 through that. The browser flow has no such limit.
 
-**2. The open pull requests** (allowed): `triage the open PRs in wasmCloud/wasmCloud`
+**2. The open pull requests** (allowed) 
+
+In the chat:
+
+```
+triage the open PRs in wasmCloud/wasmCloud
+```
+
+In your terminal or Codespaces:
 
 ```sh
 curl -s -H 'Host: agent.localhost' \
@@ -135,10 +143,18 @@ The model turns this into `gh pr list -R wasmCloud/wasmCloud --limit 10`:
 Each line is one pull request: number, title, author, branches, last
 update, and labels and requested reviewers when there are any.
 
-**3. One pull request** (allowed): `gh pr view 5885`
+**3. One pull request** (allowed) 
+
+In the chat:
+
+```
+gh pr view 5885
+```
 
 Pick any number from your list. The commands here use #5885, which is
 merged, so it reads the same for everyone.
+
+In your terminal or Codespaces:
 
 ```sh
 curl -s -H 'Host: agent.localhost' \
@@ -154,7 +170,15 @@ State, author, branches, whether it can merge, its size, labels, who was
 asked to review and what each reviewer decided, then the description. Add
 `--comments` for the conversation and review comments.
 
-**4. Its checks** (allowed): `gh pr checks 5885`
+**4. Its checks** (allowed) 
+
+In the chat:
+
+```
+gh pr checks 5885
+```
+
+In your terminal or Codespaces:
 
 ```sh
 curl -s -H 'Host: agent.localhost' \
@@ -168,7 +192,15 @@ curl -s -H 'Host: agent.localhost' \
 
 Failures come first, so a red pull request shows why at the top.
 
-**5. Its diff** (allowed): `gh pr diff 5885`
+**5. Its diff** (allowed) 
+
+In the chat:
+
+```
+gh pr diff 5885
+```
+
+In your terminal or Codespaces:
 
 ```sh
 curl -s -H 'Host: agent.localhost' \
@@ -185,8 +217,15 @@ result to one line of 300 characters; the model reads all of it. The chat
 page shows the whole result, and draws a diff as one: each file's header,
 added lines in green with their `+`, removed lines in red with their `-`.
 
-**6. curl straight at GitHub** (refused: the grant):
-`curl -s https://api.github.com/repos/wasmCloud/wasmCloud/pulls`
+**6. curl straight at GitHub** (refused: the grant)
+
+In the chat:
+
+```
+curl -s https://api.github.com/repos/wasmCloud/wasmCloud/pulls
+```
+
+In your terminal or Codespaces:
 
 ```sh
 curl -s -H 'Host: agent.localhost' \
@@ -195,12 +234,19 @@ curl -s -H 'Host: agent.localhost' \
 ```
 
 `access-denied: api.github.com: this tool may not reach that host`. Signed
-in or not, curl's `allowedHosts` is the demo API host alone, and curl holds no
+in or not, curl's `allowedHosts` is the mock API host alone, and curl holds no
 token anyway. Nor is there a token file for it to read: the plugin keeps the
 token in its memory and writes it nowhere, and curl's only folder is `/data`.
 
-**7. A write, through the capability** (refused: the plugin):
-`gh api -X POST /repos/wasmCloud/wasmCloud/issues/5885/comments`
+**7. A write, through the capability** (refused: the plugin)
+
+In the chat:
+
+```
+gh api -X POST /repos/wasmCloud/wasmCloud/issues/5885/comments
+```
+
+In your terminal or Codespaces:
 
 ```sh
 curl -s -H 'Host: agent.localhost' \
@@ -217,7 +263,7 @@ before it looks for a token. A read outside the allowlist is refused the
 same way. `gh api /user`, which would say whose token it is, gets
 `github-api plugin: /user is not on this plugin's path allowlist`.
 
-**8. What the tool can touch** (the imports):
+**8. What the tool can touch** (the imports)
 
 ```sh
 wasm-tools component wit artifacts/tool_gh.wasm \

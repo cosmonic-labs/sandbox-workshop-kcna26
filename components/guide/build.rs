@@ -33,6 +33,8 @@ const GITHUB_ICON: &str = "<path fill=\"currentColor\" d=\"M8 0C3.58 0 0 3.58 0 
 const CHAT_ICON: &str = "<path fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linejoin=\"round\" d=\"M2.5 3.2h11v7.6H7.2L4.3 13.3v-2.5H2.5z\"/>";
 const WEB_ICON: &str = "<g fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.3\"><circle cx=\"8\" cy=\"8\" r=\"6.3\"/><path d=\"M1.7 8h12.6M8 1.7c-2.2 2.4-2.2 10.2 0 12.6M8 1.7c2.2 2.4 2.2 10.2 0 12.6\"/></g>";
 const CHAT: &str = "http://agent.localhost:18180";
+/// Folders with a README that the guide serves but that are not steps.
+const NOT_STEPS: [&str; 1] = ["mock-sites"];
 
 struct Page {
     /// The README's folder, relative to the repo root: "" or "steps/01-agent".
@@ -44,7 +46,7 @@ struct Page {
     title: String,
     /// The title without "Step N: ".
     short: String,
-    /// 1 to 9 for steps/0N-*; none for the home page and steps/00-demo-sites.
+    /// 1 to 9 for steps/0N-*; none for the home page and NOT_STEPS.
     step: Option<u32>,
     /// The first paragraph of prose, for the step list on the home page.
     summary: String,
@@ -65,6 +67,12 @@ fn main() {
     steps.sort();
     dirs.extend(steps);
     rerun(&root.join("steps"));
+    // Pages that are not steps, after the steps.
+    for d in NOT_STEPS {
+        if root.join(d).join("README.md").is_file() {
+            dirs.push(d.to_string());
+        }
+    }
 
     let mut pages: Vec<Page> = dirs.iter().map(|d| load(&root, d)).collect();
     // A step's line in the home page's step list: its row in README.md's
@@ -260,7 +268,7 @@ fn nav(pages: &[Page], cur: usize) -> String {
         )
         .unwrap();
     }
-    // The pages that are not steps (steps/00-demo-sites) stay out of the list:
+    // The pages that are not steps (NOT_STEPS) stay out of the list:
     // the README and step 2 link to them where they matter.
     let link = |href: &str, icon: &str, label: &str| {
         format!(
@@ -323,7 +331,7 @@ fn step_list(pages: &[Page]) -> String {
         .unwrap();
     }
     o.push_str(
-        "</ol><p class=\"self\">This guide is itself a sandboxed component, on your cluster's demo-sites \
+        "</ol><p class=\"self\">This guide is itself a sandboxed component, on your cluster's mock-sites \
          host group: it serves HTTP and imports no files, no sockets and no HTTP client. Its pages \
          were rendered from the READMEs when it was built.</p></nav>",
     );
@@ -388,7 +396,7 @@ fn rewrite_link(root: &Path, pages: &[Page], cur: &str, dest: &str) -> String {
 
 /// Inline code that names a step folder or a repo file: where it should link.
 fn code_target(root: &Path, pages: &[Page], cur: &str, s: &str) -> Option<String> {
-    const DIRS: [&str; 8] = ["steps", "k8s", "components", "wit", "scripts", "databases", "artifacts", "docs"];
+    const DIRS: [&str; 9] = ["steps", "mock-sites", "k8s", "components", "wit", "scripts", "databases", "artifacts", "docs"];
     const EXTS: [&str; 10] = ["yaml", "yml", "txt", "md", "rs", "wit", "sh", "sql", "toml", "html"];
     if s.is_empty() || s.contains(char::is_whitespace) || s.starts_with(['.', '/', '-']) || s.contains("://") {
         return None;

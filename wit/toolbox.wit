@@ -49,7 +49,7 @@ interface curl {
   /// Arguments for `run`.
   record run-args {
     /// What you would type after `curl`, such as
-    /// `-s -H "Accept: application/json" http://api.demo-sites.svc/data`.
+    /// `-s -H "Accept: application/json" http://api.mock-sites.svc/data`.
     arguments: string,
   }
 
@@ -386,11 +386,11 @@ world gh-not-installed {
   export github-auth;
 }
 
-/// Not part of the toolbox: the demo websites (an ordinary API page and a
+/// Not part of the toolbox: the mock sites (an ordinary API page and a
 /// stand-in for an attacker's server), served from one HTTP component on
 /// the names of the Services in k8s/sites.yaml.
 @since(version = 0.3.0)
-world demo-sites {
+world mock-sites {
   export wasi:http/handler@0.3.0;
 }
 

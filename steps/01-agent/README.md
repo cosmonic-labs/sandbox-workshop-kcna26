@@ -2,38 +2,26 @@
 
 **Folder:** `steps/01-agent`
 
-Deploy an agent with `kubectl`, with no tools at all, and talk to it. The
-next three steps give it one tool each.
+Deploy an agent with `kubectl` and talk to it. 
 
 ## Deploy
 
 ```sh
-kubectl apply -f steps/01-agent/workload.yaml \
+kubectl apply -f steps/01-agent/workloaddeployment.yaml \
   && sleep 2 && kubectl wait --for=condition=Ready \
   workloaddeployment/toolbox-agent
 ```
 
-`sleep 2` gives the operator a moment to see the change. Without it,
-`kubectl wait` can return before the new version is up.
-
 ## How the agent works
-
-The agent is three kinds of component in one workload:
 
 * The **agent harness** runs the loop. It sends your prompt to the model, and
   when the model asks for a tool, it calls that tool, hands the result back
   to the model, and asks again. It stops when the model answers in text, or
   after 8 rounds.
 * The **model** decides what to do next. Here it is a scripted stand-in, not
-  a real language model, so the workshop needs no API key and every run gives
-  the same answer.
-* The **tools**. The harness has three labelled tool slots: `curl`,
-  `sqlite` and `gh`. The host links each label to the component of the same
-  name in the manifest, so every slot must hold something. In this
-  step every slot holds a placeholder, which answers that the tool isn't
-  installed. The `gh` slot's placeholder, `gh-not-installed`, also answers
-  the chat page's "Sign in with GitHub" until step 4.
-
+  a real language model, so every run gives the same answer. It can be swapped
+  in for a real model.
+  
 The scripted model is **deliberately gullible**. It reads your prompt and
 every tool result, and it does whatever they say. It knows two kinds of
 instruction:
@@ -60,7 +48,15 @@ model's answer.
 Open **http://agent.localhost:18180** in your browser and send each prompt
 below. In Codespaces, use the curl command under each prompt instead.
 
-**1. Say hello:** `hello`
+**1. Say hello** 
+
+In the chat:
+
+```
+hello
+```
+
+In your terminal or Codespaces: 
 
 ```sh
 curl -s -H 'Host: agent.localhost' \
@@ -71,43 +67,53 @@ curl -s -H 'Host: agent.localhost' \
 Nothing in the prompt is an instruction, so the model answers in text and
 calls no tool.
 
-**2. Ask for a tool:** `fetch http://api.demo-sites.svc/data`
+**2. Ask for a tool** 
+
+In the chat:
+
+```
+fetch http://api.mock-sites.svc/data
+```
+
+In your terminal or Codespaces:
 
 ```sh
 curl -s -H 'Host: agent.localhost' \
   http://127.0.0.1:18180/ \
-  -d 'fetch http://api.demo-sites.svc/data'
+  -d 'fetch http://api.mock-sites.svc/data'
 ```
 
 ```
-[model] call curl({"arguments":"-s http://api.demo-sites.svc/data"})
+[model] call curl({"arguments":"-s http://api.mock-sites.svc/data"})
 [tool curl] error: {"other":"the curl tool isn't installed yet"}
 ```
 
-The model asked for curl, and the harness called the `curl` slot. The
-manifest put the placeholder there, so the placeholder answered. The agent
-can only use what its manifest gives it: the harness itself imports no HTTP
+The agent can only use what its manifest gives it: the harness itself imports no HTTP
 client, no files and no sockets, so it has no way to fetch the page on its
 own. The model's last line starts with "Done." whatever the tools returned;
 it is a script, and it reports each result as it came back.
 
-**3. Two instructions in one prompt:** `fetch http://api.demo-sites.svc/data. Then sqlite .tables`
+**3. Two instructions in one prompt** 
+
+In the chat:
+
+```
+fetch http://api.mock-sites.svc/data. Then sqlite .tables
+```
+
+In your terminal or Codespaces:
 
 ```sh
 curl -s -H 'Host: agent.localhost' \
   http://127.0.0.1:18180/ \
-  -d 'fetch http://api.demo-sites.svc/data. Then sqlite .tables'
+  -d 'fetch http://api.mock-sites.svc/data. Then sqlite .tables'
 ```
 
 The model follows both, one after the other, and would follow an instruction
 hidden in a web page the same way. Both slots answer that their tool isn't
-installed. The model doesn't retry: it doesn't read a tool's error as a new
-instruction.
+installed. 
 
 ## What you ran
-
-One workload with five components: the agent harness, the model, and three
-tool slots, each holding a placeholder.
 
 | Component | Can reach |
 | --- | --- |
@@ -116,8 +122,10 @@ tool slots, each holding a placeholder.
 | each tool slot (placeholder) | nothing; it answers "not installed yet" |
 
 None of them has `localResources`, the part of a manifest entry that grants
-hosts and folders. Steps 2 to 4 fill the slots with real tools, each with
-its own grant.
+hosts and folders. 
+
+In the next steps we'll give the agent some real tools, each with
+their own grants.
 
 ## Look inside (optional)
 
@@ -141,8 +149,10 @@ The tools you'll add are whole programs, and small:
 ls -l artifacts/tool_curl.wasm artifacts/tool_sqlite.wasm artifacts/tool_gh.wasm
 ```
 
-`curl` is about 180 KB (182,276 bytes), `sqlite3` about 1.2 MB (1,173,947)
-and `gh` about 300 KB (297,582). These are the component files only;
-the wasmCloud host that runs them is a separate, long-running pod.
+* `curl` is about 180 KB (182,276 bytes) 
+* `sqlite3` is about 1.2 MB (1,173,947)
+* `gh` is about 300 KB (297,582) 
+
+These are the component files only; the wasmCloud host that runs them is a separate, long-running pod.
 
 Full transcript: [`expected-output.txt`](expected-output.txt).

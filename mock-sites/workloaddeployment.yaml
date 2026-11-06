@@ -1,0 +1,31 @@
+# Mock sites for an ordinary API and an attacker's server.
+#
+# It runs in its own namespace on its own host group (hostSelector), never on
+# the agent's host pod. The agent reaches it the ordinary way, by the
+# Kubernetes Services in k8s/sites.yaml: api.mock-sites.svc and
+# attacker.mock-sites.svc. The host routes a request by its Host header, so
+# this workload serves those names (host and host-aliases).
+#
+# A caller still needs the name in its own allowedHosts: the host checks every
+# outgoing request against that list before it leaves.
+apiVersion: runtime.wasmcloud.dev/v1alpha1
+kind: WorkloadDeployment
+metadata:
+  name: mock-sites
+  namespace: mock-sites
+spec:
+  replicas: 1
+  template:
+    spec:
+      hostSelector:
+        hostgroup: mock-sites
+      hostInterfaces:
+        - namespace: wasi
+          package: http
+          interfaces: [handler]
+          config:
+            host: api.mock-sites.svc
+            host-aliases: attacker.mock-sites.svc
+      components:
+        - name: mock-sites
+          image: workshop-toolbox-registry:5000/workshop/mock-sites:0.4.0

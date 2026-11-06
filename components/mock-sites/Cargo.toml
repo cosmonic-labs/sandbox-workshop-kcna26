@@ -1,5 +1,5 @@
 [package]
-name = "demo-sites"
+name = "mock-sites"
 edition.workspace = true
 version.workspace = true
 publish.workspace = true

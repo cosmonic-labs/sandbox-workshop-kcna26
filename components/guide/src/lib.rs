@@ -1,15 +1,15 @@
-//! The workshop guide: README.md and each steps/*/README.md as web pages, at
-//! http://guide.localhost:18180 on the attendee's cluster.
+//! The workshop guide: README.md, each steps/*/README.md and mock-sites/README.md
+//! as web pages, at http://guide.localhost:18180 on the attendee's cluster.
 //!
 //!   GET /                  the overview (README.md) and the step list
-//!   GET /steps/<folder>/   that folder's README.md
+//!   GET /steps/<folder>/   that folder's README.md (and /mock-sites/)
 //!   GET /guide.css         the one stylesheet every page uses
 //!   GET /sources           the cksum of each README the pages were built from,
 //!                          so make verify can tell a stale guide
 //!
 //! build.rs renders the Markdown when the component is built, so the component
 //! holds finished pages. It imports no files, no sockets and no HTTP client. It runs on
-//! the demo-sites host group (k8s/guide.yaml), beside the demo websites.
+//! the mock-sites host group (k8s/guide.yaml), beside the mock sites.
 
 wit_bindgen::generate!({
     path: "../../wit",

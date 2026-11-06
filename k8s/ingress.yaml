@@ -6,7 +6,7 @@
 # selector (k8s/agent-service.yaml); the runtime operator keeps its endpoints
 # pointed at the host pods that run the agent, so a request never lands on a
 # host pod without it. guide.localhost (the workshop guide) goes to the
-# demo-sites host group; any other name falls back to the default host group's
+# mock-sites host group; any other name falls back to the default host group's
 # own Service. A real cluster does this with its ingress
 # controller or Gateway API; here it is a plain nginx. The agent's endpoints
 # appear only once a step is applied, so nginx looks names up per request
@@ -34,7 +34,7 @@ data:
     server {
       listen 80;
       server_name guide.localhost;
-      location / { proxy_pass http://hostgroup-demo-sites.demo-sites.svc.cluster.local; }
+      location / { proxy_pass http://hostgroup-mock-sites.mock-sites.svc.cluster.local; }
     }
 ---
 apiVersion: apps/v1

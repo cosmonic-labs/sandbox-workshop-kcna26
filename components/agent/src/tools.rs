@@ -3,7 +3,7 @@
 //! A model only understands JSON. It is shown a list of tools, each with a
 //! name, a description and a JSON Schema for its arguments, and it answers
 //! with JSON such as {"name": "curl", "arguments": {"arguments": "-s
-//! http://api.demo-sites.svc/data"}}. The tools only understand typed
+//! http://api.mock-sites.svc/data"}}. The tools only understand typed
 //! functions such as `curl::run(RunArgs { arguments })`.
 //!
 //! Something has to translate between the two. A host could do it: read each
@@ -55,7 +55,7 @@ pub const TOOLS: &[Tool] = &[
                       hosts this tool is granted can be reached.",
         params: &[(
             "arguments",
-            "What you would type after curl, such as -s http://api.demo-sites.svc/data.",
+            "What you would type after curl, such as -s http://api.mock-sites.svc/data.",
         )],
     },
     // workshop:toolbox/sqlite.query

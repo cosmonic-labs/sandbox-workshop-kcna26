@@ -1,28 +1,28 @@
-# The demo websites' namespace and the names agents call them by.
+# The mock sites' namespace and the names agents call them by.
 #
-# The demo-sites host group (k8s/values.yaml) runs its host pods in this
-# namespace, and the demo-sites workload runs on it. Each Service below is an
+# The mock-sites host group (k8s/values.yaml) runs its host pods in this
+# namespace, and the mock-sites workload runs on it. Each Service below is an
 # ordinary ClusterIP Service on port 80 that selects those host pods, so
-# http://api.demo-sites.svc reaches the demo-sites host over the cluster
+# http://api.mock-sites.svc reaches the mock-sites host over the cluster
 # network like any other Service. The host sends the request to the workload
-# that serves its Host header (steps/00-demo-sites/demo-sites.yaml).
+# that serves its Host header (mock-sites/workloaddeployment.yaml).
 #
 # Created before the chart, which expects a host group's namespace to exist.
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: demo-sites
+  name: mock-sites
 ---
 # A stand-in for an attacker's server: on the network, never granted.
 apiVersion: v1
 kind: Service
 metadata:
   name: attacker
-  namespace: demo-sites
+  namespace: mock-sites
 spec:
   selector:
     wasmcloud.com/name: hostgroup
-    wasmcloud.com/hostgroup: demo-sites
+    wasmcloud.com/hostgroup: mock-sites
   ports:
     - { name: http, port: 80, targetPort: 80 }
 ---
@@ -32,10 +32,10 @@ apiVersion: v1
 kind: Service
 metadata:
   name: api
-  namespace: demo-sites
+  namespace: mock-sites
 spec:
   selector:
     wasmcloud.com/name: hostgroup
-    wasmcloud.com/hostgroup: demo-sites
+    wasmcloud.com/hostgroup: mock-sites
   ports:
     - { name: http, port: 80, targetPort: 80 }

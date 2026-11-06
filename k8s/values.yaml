@@ -2,11 +2,11 @@
 # one host pod each.
 #
 #   default     the agent (namespace wasmcloud)
-#   demo-sites  the demo websites and the guide (namespace demo-sites, k8s/sites.yaml)
+#   mock-sites  the mock sites and the guide (namespace mock-sites, k8s/sites.yaml)
 #
 # Local routing (localBypassRouting) is off on both. With it on, any workload
 # on a host may claim any hostname with localRoute and receive a share of the
-# other workloads' requests to it. So the agent reaches the demo websites the
+# other workloads' requests to it. So the agent reaches the mock sites the
 # ordinary way: cluster DNS and a Kubernetes Service.
 gateway:
   # Deprecated upstream; HTTP reaches the host pods through k8s/ingress.yaml.
@@ -120,11 +120,11 @@ runtime:
           config:
             client-id: Ov23liN4pgXbvHJYd83G
             client-secret: 9728ab4cc69121ce7e38da40d446e402e94d83ce
-    # The demo websites (steps/00-demo-sites) get a host group of their own, in
+    # The mock sites (mock-sites) get a host group of their own, in
     # their own namespace, so the Services in k8s/sites.yaml can select its
-    # pods. Workloads land here only by asking: hostSelector hostgroup: demo-sites.
-    - name: demo-sites
-      namespace: demo-sites
+    # pods. Workloads land here only by asking: hostSelector hostgroup: mock-sites.
+    - name: mock-sites
+      namespace: mock-sites
       replicas: 1
       http:
         enabled: true

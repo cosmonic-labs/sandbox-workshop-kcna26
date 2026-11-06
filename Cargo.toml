@@ -10,7 +10,7 @@ members = [
   "components/tool-curl",
   "components/tool-gh",
   "components/tool-sqlite",
-  "components/demo-sites",
+  "components/mock-sites",
 ]
 
 [workspace.package]

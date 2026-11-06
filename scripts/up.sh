@@ -3,11 +3,11 @@
 #   kind              a one-node Kubernetes cluster in Docker (context kind-workshop-toolbox)
 #   registry:2        an OCI registry container on the kind network
 #   runtime-operator  the upstream wasmCloud chart, v2.12.0: operator, NATS and
-#                     two host groups (default for the agents, demo-sites for the
-#                     demo websites and the guide), one host pod each
-#   demo-sites        the demo websites' namespace and Services (k8s/sites.yaml)
+#                     two host groups (default for the agents, mock-sites for the
+#                     mock sites and the guide), one host pod each
+#   mock-sites        the mock sites' namespace and Services (k8s/sites.yaml)
 #   agent Service     the way in to the agent (k8s/agent-service.yaml)
-#   guide             the steps as web pages (k8s/guide.yaml), on the demo-sites group
+#   guide             the steps as web pages (k8s/guide.yaml), on the mock-sites group
 # then push the prebuilt components (or SRC=<dir>). 127.0.0.1:18180 reaches the
 # host pods through a small ingress (k8s/ingress.yaml) that kind maps to your
 # laptop and that picks the host group by Host header, so every step's curl
@@ -75,12 +75,12 @@ fi
 docker network connect kind "$REGISTRY_CONTAINER" 2>/dev/null || true
 REGISTRY="localhost:$KIND_REGISTRY_PORT" "$ROOT/scripts/push.sh" "${SRC:-$ROOT/artifacts}"
 
-# The demo-sites host group runs in demo-sites, which must exist first.
+# The mock-sites host group runs in mock-sites, which must exist first.
 K apply -f "$ROOT/k8s/sites.yaml" >/dev/null
 helm --kube-context "$CTX" upgrade --install wasmcloud "$ROOT/.upstream/charts/runtime-operator" \
   --namespace wasmcloud --create-namespace -f "$ROOT/k8s/values.yaml" --wait --timeout 10m
 K -n wasmcloud rollout status deploy/hostgroup-default --timeout 5m >/dev/null
-K -n demo-sites rollout status deploy/hostgroup-demo-sites --timeout 5m >/dev/null
+K -n mock-sites rollout status deploy/hostgroup-mock-sites --timeout 5m >/dev/null
 
 # The ingress image is loaded into the node so nothing pulls it at the
 # workshop. It is pulled by its pinned digest (scripts/env.sh), which Docker
@@ -96,24 +96,24 @@ K apply -f "$ROOT/k8s/agent-service.yaml" >/dev/null
 K apply -f "$ROOT/k8s/ingress.yaml" >/dev/null
 K -n wasmcloud rollout status deploy/workshop-ingress --timeout 3m >/dev/null
 
-# The demo websites (the api page and the attacker's server) run from the
-# start, on the demo-sites host group. A host pulls an image when a workload
+# The mock sites (the api page and the attacker's server) run from the
+# start, on the mock-sites host group. A host pulls an image when a workload
 # starts, and the tag above is the same on every run, so recreate them to pick
 # up what was just pushed.
-K -n demo-sites delete workloaddeployment demo-sites --ignore-not-found --wait=true >/dev/null
-K apply -f "$ROOT/steps/00-demo-sites/demo-sites.yaml" >/dev/null
-K -n demo-sites wait --for=condition=Ready workloaddeployment/demo-sites --timeout=180s >/dev/null || true
+K -n mock-sites delete workloaddeployment mock-sites --ignore-not-found --wait=true >/dev/null
+K apply -f "$ROOT/mock-sites/workloaddeployment.yaml" >/dev/null
+K -n mock-sites wait --for=condition=Ready workloaddeployment/mock-sites --timeout=180s >/dev/null || true
 # The workshop guide (k8s/guide.yaml), on the same host group, recreated
 # for the same reason.
-K -n demo-sites delete workloaddeployment guide --ignore-not-found --wait=true >/dev/null
+K -n mock-sites delete workloaddeployment guide --ignore-not-found --wait=true >/dev/null
 K apply -f "$ROOT/k8s/guide.yaml" >/dev/null
-K -n demo-sites wait --for=condition=Ready workloaddeployment/guide --timeout=180s >/dev/null || true
+K -n mock-sites wait --for=condition=Ready workloaddeployment/guide --timeout=180s >/dev/null || true
 for _ in $(seq 1 30); do
   curl -s -o /dev/null -m 2 "http://$HOST_HTTP/" && break; sleep 1
 done
 
 K get pods -n wasmcloud
-K get pods -n demo-sites
+K get pods -n mock-sites
 echo
 echo "cluster   kubectl context $CTX"
 echo "registry  $REGISTRY_CONTAINER:5000 inside the cluster (127.0.0.1:$KIND_REGISTRY_PORT from here)"
