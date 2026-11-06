@@ -150,8 +150,8 @@ kubectl wait --for=condition=Ready workloaddeployment/mock-sites -n mock-sites -
   echo "# Two instructions: the model follows both, and doesn't retry an error"
   ask agent.localhost 'fetch http://api.mock-sites.svc/data. Then sqlite .tables'
   echo "# What the agent harness imports: the model, the agent SDK's tools, and GitHub sign-in"
-  echo "\$ wasm-tools component wit artifacts/agent.wasm | grep -E 'import (model:|cosmonic:agent/tools|workshop:toolbox/github-auth)'"
-  wasm-tools component wit artifacts/agent.wasm | grep -E 'import (model:|cosmonic:agent/tools|workshop:toolbox/github-auth)'
+  echo "\$ wasm-tools component wit artifacts/agent.wasm | grep -e 'import model:' -e 'cosmonic:agent/tools' -e 'toolbox/github-auth'"
+  wasm-tools component wit artifacts/agent.wasm | grep -e 'import model:' -e 'cosmonic:agent/tools' -e 'toolbox/github-auth'
   echo "# The harness imports no HTTP client, no filesystem and no sockets, so this prints nothing:"
   echo "\$ wasm-tools component wit artifacts/agent.wasm | grep -E 'wasi:(http/client|filesystem|sockets)'"
   wasm-tools component wit artifacts/agent.wasm | grep -E 'wasi:(http/client|filesystem|sockets)' || true

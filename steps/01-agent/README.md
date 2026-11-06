@@ -139,7 +139,8 @@ from the host and what it exports. The harness imports the model, the agent
 SDK's `tools` and GitHub sign-in (`github-auth`, which step 4 uses):
 
 ```sh
-wasm-tools component wit artifacts/agent.wasm | grep -E 'import (model:|cosmonic:agent/tools|workshop:toolbox/github-auth)'
+wasm-tools component wit artifacts/agent.wasm \
+  | grep -e 'import model:' -e 'cosmonic:agent/tools' -e 'toolbox/github-auth'
 ```
 
 And no network or files of its own, so this prints nothing:

@@ -23,7 +23,7 @@ $ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'fetch http://ap
 [model] Done. Here is what each step returned: curl: ERROR: {"not-found":"no tool named curl in this workload"} | sqlite: ERROR: {"not-found":"no tool named sqlite in this workload"}
 
 # What the agent harness imports: the model, the agent SDK's tools, and GitHub sign-in
-$ wasm-tools component wit artifacts/agent.wasm | grep -E 'import (model:|cosmonic:agent/tools|workshop:toolbox/github-auth)'
+$ wasm-tools component wit artifacts/agent.wasm | grep -e 'import model:' -e 'cosmonic:agent/tools' -e 'toolbox/github-auth'
   import model: workshop:toolbox/model@0.4.0;
   import cosmonic:agent/tools@0.4.1;
   import workshop:toolbox/github-auth@0.4.0;
