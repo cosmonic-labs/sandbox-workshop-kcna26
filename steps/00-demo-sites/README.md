@@ -7,9 +7,11 @@ one component, inside the cluster:
   granted in the steps. `/redirect` returns a 302 to the attacker's server, a
   host `curl` is not granted, so step 2 can show the host checks each hop of a
   redirect.
-* `attacker.demo-sites.svc/collect`: a stand-in for an attacker's server. It
-  is on the network and answers whatever reaches it, so when the host refuses
-  a request to it, the grant is the only thing in the way.
+* `attacker.demo-sites.svc/collect`: the server of someone who has hijacked
+  the agent. A prompt injection (an instruction planted in a web page, a
+  database row or an issue comment) tells the agent to send what it read
+  here. It is on the network and answers whatever reaches it, so when the
+  host refuses a request to it, the grant is the only thing in the way.
 
 Each name is an ordinary Kubernetes Service (`k8s/sites.yaml`, namespace
 `demo-sites`) that selects the pods of the `demo-sites` host group, and the

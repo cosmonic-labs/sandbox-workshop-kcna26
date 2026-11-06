@@ -164,8 +164,13 @@ registry.
   only what its entry in the manifest grants.
 
 The demo websites (`steps/00-demo-sites`) are fake websites inside the
-cluster: an ordinary API, and a stand-in for an attacker's server. Steps 1 to
-3 need no internet.
+cluster, so steps 1 to 3 need no internet. One is an ordinary API, the host
+`curl` is allowed to reach. The other, `attacker.demo-sites.svc`, plays the
+server of someone who has hijacked your agent: the place an instruction
+planted in a web page or a database would tell the agent to send what it can
+read. It is a real server on the cluster network and it answers anything sent
+to it, so when a request to it is refused, the agent's grants are the only
+thing that stopped the leak.
 
 ## Known limits (wasmCloud v2.12.0)
 
