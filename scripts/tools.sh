@@ -5,7 +5,6 @@
 #
 #   wash         v2.12.0   wasmCloud CLI; pushes the components (digests from the release's
 #                          sigstore attestation, wash.sigstore.json)
-#   nats         v0.5.0    NATS command line client (creates the keyvalue buckets)
 #   wasm-tools   v1.258.3  inspects component imports (step 1, make prove)
 #   kind         v0.33.0   a Kubernetes cluster in Docker (needs Docker)
 #   kubectl      v1.37.1   the Kubernetes CLI
@@ -19,7 +18,6 @@ DL="$TOOLS/dl"
 FORCE=0; [ "${1:-}" = "--force" ] && FORCE=1
 
 WASH_VERSION=2.12.0
-NATS_CLI_VERSION=0.5.0
 WASM_TOOLS_VERSION=1.258.3
 KIND_VERSION=0.33.0
 KUBECTL_VERSION=1.37.1
@@ -41,7 +39,6 @@ case "$PLAT" in
   darwin-arm64)
     WASH_ASSET=wash-aarch64-apple-darwin
     WASH_SHA=1bb197e7e4b97eef6dff792946e07f8f5a680055ecc1839887e249c2eeb0a8c5
-    NATS_CLI_SHA=37a6f924bc42c72a38856d9c6125c38885732b2a13387b8bc15d1ff80987520b
     WT_ASSET=aarch64-macos
     WT_SHA=dacd5e6a79c0ad513c369373eb0e595dafadae01fddbb47cda8dee543a31495d
     KIND_SHA=0c8c7dbe5e23594a198b786c4bc13dacc101fa6196b0cb0b23a1ca44e61f4b4f
@@ -50,7 +47,6 @@ case "$PLAT" in
   darwin-amd64)
     WASH_ASSET=wash-x86_64-apple-darwin
     WASH_SHA=b573319de90b0f7cf50bb839f3e92ca75fa6930cc4d2c7579b03967b98cbc306
-    NATS_CLI_SHA=9fcf6dbe6462c78a1564d03c8970158f50f50c31ebda5350d2da4a597de796e7
     WT_ASSET=x86_64-macos
     WT_SHA=c0d8452e2e564d414cc1c7273c0cc5c8013d3de1ccc7650deea87eeda1ad3f26
     KIND_SHA=5a99f26f57246dc9319dd294803313197a0f34d33c525b3ea8b655db5916ece0
@@ -59,7 +55,6 @@ case "$PLAT" in
   linux-amd64)
     WASH_ASSET=wash-x86_64-unknown-linux-musl
     WASH_SHA=558e05829d7922044cfe1779a5c3680cc3b46513bd4576a73cc4d1613c9ce8b8
-    NATS_CLI_SHA=d9fc93e9e9ab0310deff7e719a8a0da6f9d66f26d473f039aaee70155507aecc
     WT_ASSET=x86_64-linux
     WT_SHA=99b486a9ddc19af0260cd5f98f3b709a60817a3acd20efc9c582d719caebbf6d
     KIND_SHA=aee6151561422756b764a4ae28e7f44cda5af5a9eead3cc9985112b1de8d8e0d
@@ -68,7 +63,6 @@ case "$PLAT" in
   linux-arm64)
     WASH_ASSET=wash-aarch64-unknown-linux-musl
     WASH_SHA=464ac1a7915452844fd91a839ef984e4dc1c96ac85f2562813a6361c3772c060
-    NATS_CLI_SHA=39496b0e332ba8d1b7dcbac2019c7d1e7a7f0d0ccefef9da547e9d6eeed408c8
     WT_ASSET=aarch64-linux
     WT_SHA=4b9d10d460343bf7e13dcfa8ddc1e06661ff1894d4e3caf3920780c5b21dc1dd
     KIND_SHA=20022bee6cfcd5086cb7234d218e3454e6090022f2a8f55d1fa7fcf42c3867a2
@@ -99,11 +93,6 @@ fetch() {
   mv "$out.part" "$out"
 }
 
-unzip_to() { # zip, destination dir
-  if command -v unzip >/dev/null 2>&1; then unzip -qo "$1" -d "$2"
-  else python3 -m zipfile -e "$1" "$2"; fi
-}
-
 have() { # tool name, version string the tool prints
   [ "$FORCE" = 0 ] && [ -x "$TOOLS/$1" ] && "$TOOLS/$1" --version 2>/dev/null | grep -qF "$2"
 }
@@ -116,15 +105,6 @@ if have wash "wash $WASH_VERSION"; then echo "ok  wash $WASH_VERSION (already th
     "$WASH_ASSET-$WASH_VERSION" "$WASH_SHA"
   install -m 0755 "$DL/$WASH_ASSET-$WASH_VERSION" "$TOOLS/wash"
   echo "ok  wash $WASH_VERSION"
-fi
-
-if have nats "$NATS_CLI_VERSION"; then echo "ok  nats $NATS_CLI_VERSION (already there)"; else
-  f="nats-$NATS_CLI_VERSION-$PLAT"
-  fetch "https://github.com/nats-io/natscli/releases/download/v$NATS_CLI_VERSION/$f.zip" \
-    "$f.zip" "$NATS_CLI_SHA"
-  unzip_to "$DL/$f.zip" "$DL"
-  install -m 0755 "$DL/$f/nats" "$TOOLS/nats"
-  echo "ok  nats $NATS_CLI_VERSION"
 fi
 
 if have wasm-tools "$WASM_TOOLS_VERSION"; then echo "ok  wasm-tools $WASM_TOOLS_VERSION (already there)"; else
@@ -164,5 +144,5 @@ else
 fi
 
 echo
-echo "Done. The scripts find these tools on their own. To use nats or wash by hand in"
+echo "Done. The scripts find these tools on their own. To use wash or kubectl by hand in"
 echo "this terminal, run:  export PATH=\"$TOOLS:\$PATH\""

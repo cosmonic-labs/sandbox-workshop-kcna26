@@ -3,12 +3,11 @@
 #   kind              a one-node Kubernetes cluster in Docker (context kind-workshop-toolbox)
 #   registry:2        an OCI registry container on the kind network
 #   runtime-operator  the upstream wasmCloud chart, v2.12.0: operator, NATS and
-#                     two host groups (default for the agents, fixtures for the
-#                     toy sites), one host pod each
-#   data-nats         the data service behind keyvalue (k8s/data-nats.yaml)
-#   workshop-sites    the toy sites' namespace and Services (k8s/sites.yaml)
+#                     two host groups (default for the agents, mock-sites for the
+#                     mock sites and the guide), one host pod each
+#   mock-sites        the mock sites' namespace and Services (k8s/sites.yaml)
 #   agent Service     the way in to the agent (k8s/agent-service.yaml)
-#   guide             the steps as web pages (k8s/guide.yaml), on the fixtures group
+#   guide             the steps as web pages (k8s/guide.yaml), on the mock-sites group
 # then push the prebuilt components (or SRC=<dir>). 127.0.0.1:18180 reaches the
 # host pods through a small ingress (k8s/ingress.yaml) that kind maps to your
 # laptop and that picks the host group by Host header, so every step's curl
@@ -27,7 +26,7 @@ K() { kubectl --context "$CTX" "$@"; }
 # private-data folder is on the host pod too, but no workload is granted it
 # (step 3). Put the files in place before the cluster, because kind mounts
 # these node paths at creation time.
-"$ROOT/scripts/fixtures.sh"
+"$ROOT/scripts/stage-data.sh"
 if ! kind get clusters 2>/dev/null | grep -qx "$CLUSTER"; then
   cat >"$RUN_DIR/kind-config.yaml" <<YAML
 kind: Cluster
@@ -38,9 +37,6 @@ nodes:
       - containerPort: 30180
         hostPort: ${HOST_HTTP##*:}
         listenAddress: "${HOST_HTTP%:*}"
-      - containerPort: 30422
-        hostPort: ${DATA_NATS_URL##*:}
-        listenAddress: "127.0.0.1"
     extraMounts:
       - hostPath: $RUN_DIR/sqlite-data
         containerPath: /workshop/sqlite-data
@@ -79,13 +75,12 @@ fi
 docker network connect kind "$REGISTRY_CONTAINER" 2>/dev/null || true
 REGISTRY="localhost:$KIND_REGISTRY_PORT" "$ROOT/scripts/push.sh" "${SRC:-$ROOT/artifacts}"
 
-K apply -f "$ROOT/k8s/data-nats.yaml" >/dev/null
-# The fixtures host group runs in workshop-sites, which must exist first.
+# The mock-sites host group runs in mock-sites, which must exist first.
 K apply -f "$ROOT/k8s/sites.yaml" >/dev/null
 helm --kube-context "$CTX" upgrade --install wasmcloud "$ROOT/.upstream/charts/runtime-operator" \
   --namespace wasmcloud --create-namespace -f "$ROOT/k8s/values.yaml" --wait --timeout 10m
 K -n wasmcloud rollout status deploy/hostgroup-default --timeout 5m >/dev/null
-K -n workshop-sites rollout status deploy/hostgroup-fixtures --timeout 5m >/dev/null
+K -n mock-sites rollout status deploy/hostgroup-mock-sites --timeout 5m >/dev/null
 
 # The ingress image is loaded into the node so nothing pulls it at the
 # workshop. It is pulled by its pinned digest (scripts/env.sh), which Docker
@@ -101,29 +96,24 @@ K apply -f "$ROOT/k8s/agent-service.yaml" >/dev/null
 K apply -f "$ROOT/k8s/ingress.yaml" >/dev/null
 K -n wasmcloud rollout status deploy/workshop-ingress --timeout 3m >/dev/null
 
-# The platform provisions the stores; a workload can open a store but not
-# create one. scripts/stores.sh lists them.
-K -n workshop-data rollout status deploy/data-nats --timeout 3m >/dev/null
-"$ROOT/scripts/stores.sh" create
-
-# The toy sites (api page, collector, fake model) run from the start, on
-# the fixtures host group. A host pulls an image when a workload starts, and
-# the tag above is the same on every run, so recreate the toy sites to pick up
-# what was just pushed. The collector's count lives in its bucket and stays.
-K -n workshop-sites delete workloaddeployment toy-sites --ignore-not-found --wait=true >/dev/null
-K apply -f "$ROOT/steps/00-fixtures/toy-sites.yaml" >/dev/null
-K -n workshop-sites wait --for=condition=Ready workloaddeployment/toy-sites --timeout=180s >/dev/null || true
+# The mock sites (the api page and the attacker's server) run from the
+# start, on the mock-sites host group. A host pulls an image when a workload
+# starts, and the tag above is the same on every run, so recreate them to pick
+# up what was just pushed.
+K -n mock-sites delete workloaddeployment mock-sites --ignore-not-found --wait=true >/dev/null
+K apply -f "$ROOT/mock-sites/workloaddeployment.yaml" >/dev/null
+K -n mock-sites wait --for=condition=Ready workloaddeployment/mock-sites --timeout=180s >/dev/null || true
 # The workshop guide (k8s/guide.yaml), on the same host group, recreated
 # for the same reason.
-K -n workshop-sites delete workloaddeployment guide --ignore-not-found --wait=true >/dev/null
+K -n mock-sites delete workloaddeployment guide --ignore-not-found --wait=true >/dev/null
 K apply -f "$ROOT/k8s/guide.yaml" >/dev/null
-K -n workshop-sites wait --for=condition=Ready workloaddeployment/guide --timeout=180s >/dev/null || true
+K -n mock-sites wait --for=condition=Ready workloaddeployment/guide --timeout=180s >/dev/null || true
 for _ in $(seq 1 30); do
   curl -s -o /dev/null -m 2 "http://$HOST_HTTP/" && break; sleep 1
 done
 
 K get pods -n wasmcloud
-K get pods -n workshop-sites
+K get pods -n mock-sites
 echo
 echo "cluster   kubectl context $CTX"
 echo "registry  $REGISTRY_CONTAINER:5000 inside the cluster (127.0.0.1:$KIND_REGISTRY_PORT from here)"

@@ -1,8 +1,6 @@
-# Step 2, your build: the same agent as workload.yaml, with the curl you built
-# and pushed (make build && make push-build) as tool-curl:mine. Only the
-# curl entry differs. imagePullPolicy: Always makes the host fetch the tag
-# again whenever the workload starts, so a new push is picked up after you
-# delete and apply this workload.
+# Step 3: give the agent sqlite. The same agent as step 2, with the real
+# sqlite tool in its slot. The sqlite folder holds two databases, main.db
+# (the talks) and rooms.db.
 #
 # The agent harness (the component that runs the loop: ask the model, call a
 # tool, repeat) imports a model and three labelled tool slots: curl, sqlite
@@ -12,9 +10,10 @@
 # the tool isn't installed.
 #
 # Each tool reaches only what this manifest grants it:
-#   curl    the hosts in its allowedHosts (api.workshop-sites.svc), and the
+#   curl    the hosts in its allowedHosts (api.mock-sites.svc), and the
 #           folder mounted at /data for -o
-#   sqlite, gh   placeholders, no grants
+#   sqlite  the databases (talks, rooms) mounted read only at /data
+#   gh      placeholder, no grants
 # The harness and the model get nothing: no allowedHosts, no volumes.
 
 apiVersion: runtime.wasmcloud.dev/v1alpha1
@@ -31,7 +30,7 @@ spec:
       name: toolbox-agent
   template:
     spec:
-      # The default host group; the toy sites have one of their own.
+      # The default host group; the mock sites have one of their own.
       hostSelector:
         hostgroup: default
       hostInterfaces:
@@ -45,19 +44,23 @@ spec:
           image: workshop-toolbox-registry:5000/workshop/agent:0.4.0
         - name: model
           image: workshop-toolbox-registry:5000/workshop/model-scripted:0.4.0
-        # Your curl build. It may reach only api.workshop-sites.svc, and writes with -o only into /data.
+        # curl may reach only api.mock-sites.svc, and writes with -o only into /data.
         - name: curl
-          image: workshop-toolbox-registry:5000/workshop/tool-curl:mine
-          imagePullPolicy: Always
+          image: workshop-toolbox-registry:5000/workshop/tool-curl:0.4.0
           localResources:
             allowedHosts:
-              - api.workshop-sites.svc
+              - api.mock-sites.svc
             volumeMounts:
               - name: curl-data
                 mountPath: /data
-        # sqlite arrives in step 3.
+        # sqlite reads the databases in /data (talks, rooms), mounted read only.
         - name: sqlite
-          image: workshop-toolbox-registry:5000/workshop/not-installed:0.4.0
+          image: workshop-toolbox-registry:5000/workshop/tool-sqlite:0.4.0
+          localResources:
+            volumeMounts:
+              - name: sqlite-data
+                mountPath: /data
+                readOnly: true
         # gh arrives in step 4. Its placeholder also answers GitHub sign-in,
         # which the harness imports, until step 4 declares the plugin.
         - name: gh
@@ -66,3 +69,6 @@ spec:
         - name: curl-data
           hostPath:
             path: /workshop/curl-data
+        - name: sqlite-data
+          hostPath:
+            path: /workshop/sqlite-data

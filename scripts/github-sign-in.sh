@@ -31,7 +31,7 @@ if [ "${1:-}" = "--out" ]; then
 fi
 
 reply=$(call POST /github/sign-in) || {
-  echo "Can't reach the agent at $URL. Is step 4 applied? (kubectl apply -f steps/04-github/workload.yaml)" >&2
+  echo "Can't reach the agent at $URL. Is step 4 applied? (kubectl apply -f steps/04-github/workloaddeployment.yaml)" >&2
   exit 1
 }
 case "$(field state "$reply")" in

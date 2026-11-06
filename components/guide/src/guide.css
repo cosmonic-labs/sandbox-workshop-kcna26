@@ -60,7 +60,9 @@
   .toc a[aria-current="page"] { background: var(--sunken); color: var(--strong); font-weight: 600; }
   .toc a[aria-current="page"] .num { background: var(--brand); border-color: var(--brand); color: var(--on-brand); }
   .toc .also { list-style: none; margin: 1.2rem 0 0; padding: 1rem 0 0 0.6rem; border-top: 1px solid var(--rule); display: grid; gap: 0.4rem; font-size: 0.8rem; }
-  .toc .also a { color: var(--muted); }
+  .toc .also a { color: var(--muted); text-decoration: none; display: flex; align-items: center; gap: 0.5rem; }
+  .toc .also .ic { width: 1rem; height: 1rem; flex: none; }
+  .toc .also code { font-size: 0.78rem; background: none; padding: 0; color: inherit; }
   .toc .also a:hover { color: var(--brand-ink); }
   .toc .also a[aria-current="page"] { background: none; color: var(--strong); }
 

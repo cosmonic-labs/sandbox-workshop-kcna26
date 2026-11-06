@@ -1,9 +1,9 @@
 -- The database the sqlite tool reads in step 3.
 --
 -- A small, invented conference schedule, so a query reads well on a slide and
--- no real person's data is involved. This is the source of fixtures/talks.db,
+-- no real person's data is involved. This is the source of databases/talks.db,
 -- which is committed prebuilt so attendees need no sqlite3. After a change
--- here, run `make fixtures-db` and commit the .db and fixtures/SHA256SUMS.
+-- here, run `make databases` and commit the .db and databases/SHA256SUMS.
 
 create table talks (
   id       integer primary key,

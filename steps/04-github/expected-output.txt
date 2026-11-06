@@ -1,5 +1,5 @@
 # Step 4: gh reads GitHub through the github-api capability; the plugin decides what is sent
-$ kubectl apply -f steps/04-github/workload.yaml && sleep 2 && kubectl wait --for=condition=Ready workloaddeployment/toolbox-agent
+$ kubectl apply -f steps/04-github/workloaddeployment.yaml && sleep 2 && kubectl wait --for=condition=Ready workloaddeployment/toolbox-agent
 
 # Sign-in, as the chat page asks for it: a new workload is signed out
 $ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/github/status

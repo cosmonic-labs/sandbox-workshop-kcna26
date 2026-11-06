@@ -1,7 +1,7 @@
 # The workshop guide: README.md and each steps/*/README.md as web pages, at
 # http://guide.localhost:18180 (components/guide).
 #
-# It runs beside the toy sites, on the fixtures host group, so it stays up
+# It runs beside the mock sites, on the mock-sites host group, so it stays up
 # whichever step's manifest is applied. The ingress sends guide.localhost to
 # that host group, and the host sends the request on by its Host header.
 #
@@ -12,13 +12,13 @@ apiVersion: runtime.wasmcloud.dev/v1alpha1
 kind: WorkloadDeployment
 metadata:
   name: guide
-  namespace: workshop-sites
+  namespace: mock-sites
 spec:
   replicas: 1
   template:
     spec:
       hostSelector:
-        hostgroup: fixtures
+        hostgroup: mock-sites
       hostInterfaces:
         - namespace: wasi
           package: http

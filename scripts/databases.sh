@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # For maintainers. The SQLite databases the workshop mounts are committed as
-# small prebuilt files, fixtures/<name>.db, so attendees need no sqlite3. Each
-# one is built from its source, fixtures/<name>.sql, and fixtures/SHA256SUMS
+# small prebuilt files, databases/<name>.db, so attendees need no sqlite3. Each
+# one is built from its source, databases/<name>.sql, and databases/SHA256SUMS
 # records the committed files.
 #
-#   scripts/fixtures-db.sh build   rebuild every .db from its .sql, rewrite SHA256SUMS
-#   scripts/fixtures-db.sh check   the .db files match SHA256SUMS, and each one
+#   scripts/databases.sh build   rebuild every .db from its .sql, rewrite SHA256SUMS
+#   scripts/databases.sh check   the .db files match SHA256SUMS, and each one
 #                                  holds exactly what its .sql builds
 #
 # Needs sqlite3. The check compares content (sqlite3 .dump), not bytes, because
@@ -20,28 +20,28 @@ command -v sqlite3 >/dev/null 2>&1 || { echo "sqlite3 is needed for this maintai
 
 build_one() { # name, output file
   rm -f "$2"
-  sqlite3 "$2" < "fixtures/$1.sql"
+  sqlite3 "$2" < "databases/$1.sql"
   sqlite3 "$2" 'vacuum'
 }
 
 case "${1:-check}" in
   build)
-    for db in $DBS; do build_one "$db" "fixtures/$db.db"; done
-    (for db in $DBS; do $SUM "fixtures/$db.db"; done) > fixtures/SHA256SUMS
-    echo "rebuilt: $(for db in $DBS; do printf 'fixtures/%s.db ' "$db"; done)"
-    echo "updated fixtures/SHA256SUMS; commit the .db files with it"
+    for db in $DBS; do build_one "$db" "databases/$db.db"; done
+    (for db in $DBS; do $SUM "databases/$db.db"; done) > databases/SHA256SUMS
+    echo "rebuilt: $(for db in $DBS; do printf 'databases/%s.db ' "$db"; done)"
+    echo "updated databases/SHA256SUMS; commit the .db files with it"
     ;;
   check)
-    $SUM -c fixtures/SHA256SUMS
+    $SUM -c databases/SHA256SUMS
     tmp=$(mktemp -d)
     trap 'rm -rf "$tmp"' EXIT
     for db in $DBS; do
       build_one "$db" "$tmp/$db.db"
-      if ! diff <(sqlite3 "fixtures/$db.db" .dump) <(sqlite3 "$tmp/$db.db" .dump) >/dev/null; then
-        echo "fixtures/$db.db does not hold what fixtures/$db.sql builds: run make fixtures-db" >&2
+      if ! diff <(sqlite3 "databases/$db.db" .dump) <(sqlite3 "$tmp/$db.db" .dump) >/dev/null; then
+        echo "databases/$db.db does not hold what databases/$db.sql builds: run make databases" >&2
         exit 1
       fi
-      echo "fixtures/$db.db: matches fixtures/$db.sql"
+      echo "databases/$db.db: matches databases/$db.sql"
     done
     ;;
   *)

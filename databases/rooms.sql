@@ -1,7 +1,7 @@
 -- A second database inside the sqlite tool's folder: the conference rooms.
 -- Step 3 attaches it to show ATTACH works for a file the grant covers.
--- Invented data. Source of fixtures/rooms.db; after a change here, run
--- `make fixtures-db` and commit the .db and fixtures/SHA256SUMS.
+-- Invented data. Source of databases/rooms.db; after a change here, run
+-- `make databases` and commit the .db and databases/SHA256SUMS.
 
 create table rooms (
   name   text primary key,

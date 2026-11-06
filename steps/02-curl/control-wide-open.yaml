@@ -8,7 +8,7 @@
 # placeholder (not-installed, or gh-not-installed for gh), which answers that
 # the tool isn't installed.
 #
-# This control differs from steps/02-curl/workload.yaml in one line, curl's
+# This control differs from steps/02-curl/workloaddeployment.yaml in one line, curl's
 # allowedHosts:
 #   curl    ANY host ("*"), and the folder mounted at /data for -o
 #   sqlite, gh   placeholders, no grants
@@ -28,7 +28,7 @@ spec:
       name: toolbox-agent
   template:
     spec:
-      # The default host group; the toy sites have one of their own.
+      # The default host group; the mock sites have one of their own.
       hostSelector:
         hostgroup: default
       hostInterfaces:

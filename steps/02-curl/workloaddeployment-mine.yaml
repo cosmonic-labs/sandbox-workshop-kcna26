@@ -1,6 +1,8 @@
-# Step 2: give the agent curl, granted one host. The prebuilt curl: its reach
-# is the allowedHosts line below. Built your own curl? Use workload-mine.yaml
-# in this folder instead.
+# Step 2, your build: the same agent as workloaddeployment.yaml, with the curl you built
+# and pushed (make build && make push-build) as tool-curl:mine. Only the
+# curl entry differs. imagePullPolicy: Always makes the host fetch the tag
+# again whenever the workload starts, so a new push is picked up after you
+# delete and apply this workload.
 #
 # The agent harness (the component that runs the loop: ask the model, call a
 # tool, repeat) imports a model and three labelled tool slots: curl, sqlite
@@ -10,7 +12,7 @@
 # the tool isn't installed.
 #
 # Each tool reaches only what this manifest grants it:
-#   curl    the hosts in its allowedHosts (api.workshop-sites.svc), and the
+#   curl    the hosts in its allowedHosts (api.mock-sites.svc), and the
 #           folder mounted at /data for -o
 #   sqlite, gh   placeholders, no grants
 # The harness and the model get nothing: no allowedHosts, no volumes.
@@ -29,7 +31,7 @@ spec:
       name: toolbox-agent
   template:
     spec:
-      # The default host group; the toy sites have one of their own.
+      # The default host group; the mock sites have one of their own.
       hostSelector:
         hostgroup: default
       hostInterfaces:
@@ -43,12 +45,13 @@ spec:
           image: workshop-toolbox-registry:5000/workshop/agent:0.4.0
         - name: model
           image: workshop-toolbox-registry:5000/workshop/model-scripted:0.4.0
-        # curl may reach only api.workshop-sites.svc, and writes with -o only into /data.
+        # Your curl build. It may reach only api.mock-sites.svc, and writes with -o only into /data.
         - name: curl
-          image: workshop-toolbox-registry:5000/workshop/tool-curl:0.4.0
+          image: workshop-toolbox-registry:5000/workshop/tool-curl:mine
+          imagePullPolicy: Always
           localResources:
             allowedHosts:
-              - api.workshop-sites.svc
+              - api.mock-sites.svc
             volumeMounts:
               - name: curl-data
                 mountPath: /data
