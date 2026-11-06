@@ -129,9 +129,10 @@ registry.
     workload toolbox-agent                          mock sites: api, attacker; the guide
       harness ──▶ model
         ├──▶ sign-in  github-api plugin ──▶ github.com (OAuth, no scopes)
-        ├──▶ curl     allowedHosts only ──▶ api.mock-sites.svc, /data for -o
-        ├──▶ sqlite   /data, read only
-        └──▶ gh       github-api plugin ──▶ api.github.com (GET, allowlisted paths)
+        └──▶ tools    toolbox plugin, which calls the tools in this workload:
+               ├──▶ curl     allowedHosts only ──▶ api.mock-sites.svc, /data for -o
+               ├──▶ sqlite   /data, read only
+               └──▶ gh       github-api plugin ──▶ api.github.com (GET, allowlisted paths)
 ```
 
 * A **component** is a WebAssembly program that starts with no access to
@@ -144,7 +145,10 @@ registry.
   workloads on host pods, like a Deployment controller.
 * The **agent harness** runs the loop: ask the model, call the tool it picks,
   send back the result. It has no network or files of its own; each tool gets
-  only what its entry in the manifest grants.
+  only what its entry in the manifest grants. It finds its tools through
+  `tools`, an interface from Cosmonic's agent SDK (`cosmonic:agent`), which
+  the platform's toolbox plugin serves by listing and calling the tool
+  components in the agent's own workload.
 
 The mock sites (`mock-sites`) are fake websites inside the
 cluster, so steps 1 to 3 need no internet. One is an ordinary API, the host

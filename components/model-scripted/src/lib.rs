@@ -43,7 +43,10 @@ struct Scripted;
 
 impl Guest for Scripted {
     async fn complete(messages: Vec<Message>, tools: Vec<ToolDef>) -> Result<Completion, String> {
-        let available: Vec<&str> = tools.iter().map(|t| t.name.as_str()).collect();
+        // The offered tools don't limit it: it is the worst case, and asks
+        // for whatever it reads, offered or not. Whether a tool exists is
+        // for the platform to say.
+        let _ = &tools;
 
         // Calls already issued, in canonical JSON, so each instruction runs once.
         let issued: Vec<Value> = messages
@@ -52,7 +55,6 @@ impl Guest for Scripted {
             .filter_map(|m| serde_json::from_str::<Value>(&m.content).ok())
             .collect();
 
-        let mut skipped = Vec::new();
         // Tool errors are not read as instructions: an error that echoes a
         // command would otherwise be "obeyed" again.
         let readable = messages.iter().filter(|m| {
@@ -67,12 +69,6 @@ impl Guest for Scripted {
                 if issued.contains(&call) {
                     continue;
                 }
-                if !available.contains(&name.as_str()) {
-                    if !skipped.contains(&name) {
-                        skipped.push(name);
-                    }
-                    continue;
-                }
                 return Ok(Completion::Call(ToolCall {
                     name,
                     arguments: args.to_string(),
@@ -80,7 +76,7 @@ impl Guest for Scripted {
             }
         }
 
-        Ok(Completion::Text(answer(&messages, &skipped)))
+        Ok(Completion::Text(answer(&messages)))
     }
 }
 
@@ -135,7 +131,7 @@ fn instructions(text: &str) -> Vec<(String, Value)> {
 }
 
 /// The text answer once every instruction has run.
-fn answer(messages: &[Message], skipped: &[String]) -> String {
+fn answer(messages: &[Message]) -> String {
     let results: Vec<String> = messages
         .iter()
         .filter(|m| m.role == "tool")
@@ -146,18 +142,14 @@ fn answer(messages: &[Message], skipped: &[String]) -> String {
             format!("{name}: {short}")
         })
         .collect();
-    let mut text = if results.is_empty() {
+    if results.is_empty() {
         "Hello! I am the workshop agent running a scripted model. Ask me to run curl, \
          sqlite or gh, for example \"list the talks in sqlite\" or \
          \"curl -s http://api.mock-sites.svc/data\"."
             .to_string()
     } else {
         format!("Done. Here is what each step returned: {}", results.join(" | "))
-    };
-    if !skipped.is_empty() {
-        text.push_str(&format!(" (I wanted to use {} but it is not installed.)", skipped.join(", ")));
     }
-    text
 }
 
 /// Lines, and sentences within a line (". ", "; ", "? " and "! " split them).

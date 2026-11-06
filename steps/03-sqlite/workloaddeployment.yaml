@@ -3,17 +3,18 @@
 # (the talks) and rooms.db.
 #
 # The agent harness (the component that runs the loop: ask the model, call a
-# tool, repeat) imports a model and three labelled tool slots: curl, sqlite
-# and gh. The host links each label to the workload component of the same
-# name, so every slot must be filled. A slot with no real tool yet holds a
-# placeholder (not-installed, or gh-not-installed for gh), which answers that
-# the tool isn't installed.
+# tool, repeat) imports a model and the agent SDK's `tools` interface
+# (cosmonic:agent). The toolbox plugin, which the platform installed on the
+# default host group (k8s/values.yaml), serves `tools`: it lists the tool
+# components in this workload and calls the one the model asks for. A tool
+# is in the agent's toolbox when its interface is listed under
+# hostInterfaces below and a component here exports it.
 #
 # Each tool reaches only what this manifest grants it:
 #   curl    the hosts in its allowedHosts (api.mock-sites.svc), and the
 #           folder mounted at /data for -o
 #   sqlite  the databases (talks, rooms) mounted read only at /data
-#   gh      placeholder, no grants
+#   gh      not in this workload yet
 # The harness and the model get nothing: no allowedHosts, no volumes.
 
 apiVersion: runtime.wasmcloud.dev/v1alpha1
@@ -39,6 +40,16 @@ spec:
           interfaces: [handler]
           config:
             host: agent.localhost
+        # The agent's toolbox, served by the toolbox plugin.
+        - namespace: cosmonic
+          package: agent
+          interfaces: [tools]
+        # The tools in it. Each component below that exports one of these
+        # offers it to the toolbox plugin.
+        - namespace: workshop
+          package: toolbox
+          name: tools
+          interfaces: [curl, sqlite]
       components:
         - name: agent
           image: workshop-toolbox-registry:5000/workshop/agent:0.4.0
@@ -61,10 +72,10 @@ spec:
               - name: sqlite-data
                 mountPath: /data
                 readOnly: true
-        # gh arrives in step 4. Its placeholder also answers GitHub sign-in,
-        # which the harness imports, until step 4 declares the plugin.
-        - name: gh
-          image: workshop-toolbox-registry:5000/workshop/gh-not-installed:0.4.0
+        # GitHub sign-in, which the harness imports, answers "not in this
+        # step" until step 4 declares the plugin that provides it.
+        - name: sign-in
+          image: workshop-toolbox-registry:5000/workshop/sign-in-placeholder:0.4.0
       volumes:
         - name: curl-data
           hostPath:

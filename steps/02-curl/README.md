@@ -10,7 +10,7 @@ manifest, which this step sets to one host.
 `curl` is also on [GTFOBins](https://gtfobins.github.io/), the catalogue of
 everyday programs that break out of restricted shells, because it reaches
 places you did not mean it to: the cloud metadata service, other hosts, and
-anywhere on disk with `-o`. Once it is in the agent's curl slot, you'll try
+anywhere on disk with `-o`. Once it is in the agent's workload, you'll try
 each of those.
 
 Everyone can use the **prebuilt** curl in `artifacts/`, and every command
@@ -100,10 +100,17 @@ kubectl apply -f steps/02-curl/workloaddeployment-mine.yaml \
 `kubectl delete workloaddeployment toolbox-agent` and apply again, so the host
 fetches the new push.
 
-The same agent as step 1, with the real curl in its slot. The grant, the same
-in both manifests: one host, one folder.
+The same agent as step 1, with curl added: one component, and its interface
+listed under `hostInterfaces` so the toolbox plugin offers it to the agent.
+The grant, the same in both manifests: one host, one folder.
 
 ```yaml
+# under hostInterfaces
+- namespace: workshop
+  package: toolbox
+  name: tools
+  interfaces: [curl]
+# under components
 - name: curl
   localResources:
     allowedHosts: [api.mock-sites.svc]
@@ -146,7 +153,7 @@ curl -s -H 'Host: agent.localhost' \
   -d 'fetch http://api.mock-sites.svc/data'
 ```
 
-The prompt that got "isn't installed yet" in step 1. The host is in curl's
+The prompt that got "no tool named curl" in step 1. The host is in curl's
 `allowedHosts`, so the mock API answers.
 
 **2. Save a page into the tool's folder** 

@@ -5,12 +5,12 @@ members = [
   "components/github-api",
   "components/guide",
   "components/model-scripted",
-  "components/not-installed",
-  "components/gh-not-installed",
+  "components/sign-in-placeholder",
   "components/tool-curl",
   "components/tool-gh",
   "components/tool-sqlite",
   "components/mock-sites",
+  "components/toolbox-plugin",
 ]
 
 [workspace.package]

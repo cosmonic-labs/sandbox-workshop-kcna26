@@ -37,10 +37,14 @@ kubectl apply -f steps/04-github/workloaddeployment.yaml \
   workloaddeployment/toolbox-agent
 ```
 
-The same agent as step 3, with the real tool in its gh slot and one new
-entry under `hostInterfaces`:
+The same agent as step 3, with gh added to the agent's tools, and the GitHub
+capabilities declared under `hostInterfaces`:
 
 ```yaml
+- namespace: workshop
+  package: toolbox
+  name: tools
+  interfaces: [curl, sqlite, gh]
 - namespace: workshop
   package: toolbox
   interfaces: [github-api, github-auth]
@@ -282,7 +286,7 @@ Whatever the model asks `gh` to do, the only door out is the plugin.
 | Piece | Holds | Can reach |
 | --- | --- | --- |
 | `gh` tool | nothing | the github-api capability, nothing else |
-| agent harness | nothing | github-auth (sign-in), the model and the tool slots |
+| agent harness | nothing | github-auth (sign-in), the model and its tools |
 | github-api plugin (platform) | each workload's token, in memory | `github.com` and `api.github.com` only (`allowedHosts`), `GET` only, the allowlisted paths only |
 
 The platform side is in `k8s/values.yaml`: the plugin, its `allowedHosts`,

@@ -141,17 +141,17 @@ kubectl apply -f mock-sites/workloaddeployment.yaml >/dev/null
 kubectl wait --for=condition=Ready workloaddeployment/mock-sites -n mock-sites --timeout=120s >/dev/null
 
 {
-  echo "# Step 1: the agent with no tools; every tool slot holds the placeholder"
+  echo "# Step 1: the agent with no tools; its manifest lists none"
   apply steps/01-agent/workloaddeployment.yaml
   echo "# No instruction in the prompt: the model answers in text"
   ask agent.localhost 'hello'
-  echo "# The model asks for curl; the slot holds the placeholder, which says so"
+  echo "# The model asks for curl; the workload has none, so the toolbox plugin says so"
   ask agent.localhost 'fetch http://api.mock-sites.svc/data'
   echo "# Two instructions: the model follows both, and doesn't retry an error"
   ask agent.localhost 'fetch http://api.mock-sites.svc/data. Then sqlite .tables'
-  echo "# The agent harness's imports from this workshop: the model, three typed, labelled tool slots and GitHub sign-in"
-  echo "\$ wasm-tools component wit artifacts/agent.wasm | grep 'import .*workshop:toolbox'"
-  wasm-tools component wit artifacts/agent.wasm | grep 'import .*workshop:toolbox'
+  echo "# What the agent harness imports: the model, the agent SDK's tools, and GitHub sign-in"
+  echo "\$ wasm-tools component wit artifacts/agent.wasm | grep -E 'import (model:|cosmonic:agent/tools|workshop:toolbox/github-auth)'"
+  wasm-tools component wit artifacts/agent.wasm | grep -E 'import (model:|cosmonic:agent/tools|workshop:toolbox/github-auth)'
   echo "# The harness imports no HTTP client, no filesystem and no sockets, so this prints nothing:"
   echo "\$ wasm-tools component wit artifacts/agent.wasm | grep -E 'wasi:(http/client|filesystem|sockets)'"
   wasm-tools component wit artifacts/agent.wasm | grep -E 'wasi:(http/client|filesystem|sockets)' || true
@@ -326,16 +326,18 @@ NO_FILE='No such file or directory'
 
 f=$(OUT steps/01-agent)
 calls "$f" 'hello' 0
-expect "$f" 'fetch http://api.mock-sites.svc/data' other "the curl tool isn't installed yet"
+expect "$f" 'fetch http://api.mock-sites.svc/data' not-found "no tool named curl in this workload"
 calls "$f" 'fetch http://api.mock-sites.svc/data' 1
-expect "$f" 'fetch http://api.mock-sites.svc/data. Then sqlite .tables' other "the curl tool isn't installed yet"
+expect "$f" 'fetch http://api.mock-sites.svc/data. Then sqlite .tables' not-found "no tool named curl in this workload"
 calls "$f" 'fetch http://api.mock-sites.svc/data. Then sqlite .tables' 2
-present "$f" "[tool sqlite] error: {\"other\":\"the sqlite tool isn't installed yet\"}" 'the second instruction reaches the sqlite placeholder'
+present "$f" "[tool sqlite] error: {\"not-found\":\"no tool named sqlite in this workload\"}" 'the second instruction is refused too'
 absent "$f" '[agent] stopped after' 'the model never loops'
-present "$f" 'import sqlite: workshop:toolbox/sqlite@0.4.0' 'the harness imports the sqlite slot'
+present "$f" 'import cosmonic:agent/tools@0.4.1' 'the harness imports the agent SDK tools interface'
+absent "$f" 'import sqlite:' 'the harness has no sqlite slot'
+absent "$f" 'import curl:' 'the harness has no curl slot'
 absent "$f" 'import kubectl:' 'the harness has no kubectl slot'
 absent "$f" 'import git:' 'the harness has no git slot'
-present "$f" 'import gh: workshop:toolbox/gh@0.4.0' 'the harness imports the gh slot'
+absent "$f" 'import gh:' 'the harness has no gh slot'
 present "$f" 'import workshop:toolbox/github-auth@0.4.0' 'the harness imports GitHub sign-in'
 absent "$f" 'github-api' 'the harness never imports the GitHub API itself'
 absent "$f" 'import wasi:http/client' 'the harness imports no HTTP client'

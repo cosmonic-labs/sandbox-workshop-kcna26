@@ -1,5 +1,5 @@
 [package]
-name = "not-installed"
+name = "sign-in-placeholder"
 edition.workspace = true
 version.workspace = true
 publish.workspace = true

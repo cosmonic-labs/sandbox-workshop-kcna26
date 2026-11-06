@@ -350,14 +350,15 @@
   };
 
   // Returns [verdict, message, refused?]. Refusals come from the host's policy;
-  // an empty slot or a network failure is shown as a warning instead.
+  // a tool the workload doesn't have, or a network failure, is shown as a
+  // warning instead.
   function errorVerdict(rest) {
     try {
       const v = JSON.parse(rest);
       if (v && typeof v === 'object') {
         const [k, payload] = Object.entries(v)[0] || [];
         const msg = typeof payload === 'string' ? payload : '';
-        if (k === 'other' && /isn't installed/.test(msg)) return ['Not installed', msg, false];
+        if (k === 'not-found' && /^no tool named /.test(msg)) return ['Not in this workload', msg, false];
         if (k === 'network' || k === 'unavailable') return [CASES[k], msg || k, false];
         return [CASES[k] || 'Error: ' + k, msg || k, true];
       }
