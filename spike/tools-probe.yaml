@@ -1,0 +1,47 @@
+# Spike: the probe and the two real tools in one workload. The probe imports
+# `tools` from the toolbox plugin; curl and sqlite export their interfaces to
+# the plugin. Each tool keeps its own grant.
+apiVersion: runtime.wasmcloud.dev/v1alpha1
+kind: WorkloadDeployment
+metadata:
+  name: tools-probe
+spec:
+  replicas: 1
+  template:
+    spec:
+      hostSelector:
+        hostgroup: default
+      hostInterfaces:
+        - namespace: wasi
+          package: http
+          interfaces: [handler]
+          config:
+            host: probe.localhost
+        - namespace: workshop
+          package: toolbox
+          interfaces: [tools, curl, sqlite]
+      components:
+        - name: probe
+          image: workshop-toolbox-registry:5000/workshop/tools-probe:0.4.0
+        - name: curl
+          image: workshop-toolbox-registry:5000/workshop/tool-curl:0.4.0
+          localResources:
+            allowedHosts:
+              - api.mock-sites.svc
+            volumeMounts:
+              - name: curl-data
+                mountPath: /data
+        - name: sqlite
+          image: workshop-toolbox-registry:5000/workshop/tool-sqlite:0.4.0
+          localResources:
+            volumeMounts:
+              - name: sqlite-data
+                mountPath: /data
+                readOnly: true
+      volumes:
+        - name: curl-data
+          hostPath:
+            path: /workshop/curl-data
+        - name: sqlite-data
+          hostPath:
+            path: /workshop/sqlite-data

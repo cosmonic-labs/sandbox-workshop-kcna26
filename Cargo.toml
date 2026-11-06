@@ -11,6 +11,8 @@ members = [
   "components/tool-gh",
   "components/tool-sqlite",
   "components/mock-sites",
+  "components/toolbox-plugin",
+  "components/tools-probe",
 ]
 
 [workspace.package]
