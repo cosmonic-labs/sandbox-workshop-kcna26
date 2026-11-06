@@ -44,14 +44,21 @@ spec:
         - namespace: cosmonic
           package: agent
           interfaces: [tools]
-        # The tools in it (curl, sqlite, gh), and GitHub as two capabilities
-        # the host links to the github-api plugin: github-api, which the gh
-        # tool imports, and github-auth (sign-in), which the harness imports.
-        # Both plugins are installed on the default host group
-        # (k8s/values.yaml).
+        # The tools in it. Each component below that exports one of these
+        # offers it to the toolbox plugin. Named, because GitHub below is the
+        # same package served by another plugin: the unnamed entry is the
+        # default route for plain imports, and the tools aren't imported.
         - namespace: workshop
           package: toolbox
-          interfaces: [curl, sqlite, gh, github-api, github-auth]
+          name: tools
+          interfaces: [curl, sqlite, gh]
+        # GitHub, as two capabilities the host links to the github-api plugin:
+        # github-api, which the gh tool imports, and github-auth (sign-in),
+        # which the harness imports. Both plugins are installed on the default
+        # host group (k8s/values.yaml).
+        - namespace: workshop
+          package: toolbox
+          interfaces: [github-api, github-auth]
       components:
         - name: agent
           image: workshop-toolbox-registry:5000/workshop/agent:0.4.0

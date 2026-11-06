@@ -18,7 +18,8 @@ kubectl apply -f steps/03-sqlite/workloaddeployment.yaml \
   workloaddeployment/toolbox-agent
 ```
 
-The same agent as step 2, with the real sqlite tool in its slot. Its grant:
+The same agent as step 2, with sqlite added (and listed with curl under
+`hostInterfaces`). Its grant:
 one folder, read only, holding two databases (`main.db`, the talks, and
 `rooms.db`).
 

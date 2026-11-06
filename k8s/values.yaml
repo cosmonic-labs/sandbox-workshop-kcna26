@@ -120,11 +120,14 @@ runtime:
           config:
             client-id: Ov23liN4pgXbvHJYd83G
             client-secret: 9728ab4cc69121ce7e38da40d446e402e94d83ce
-        # Spike: the toolbox plugin serves `tools` (list and call) to a
-        # workload by calling the tool components in that same workload.
+        # The toolbox plugin: serves the agent SDK's tools interface
+        # (cosmonic:agent/tools) to a workload by listing and calling the
+        # tool components in that same workload, so each tool keeps its own
+        # grant. It has no allowedHosts and no config: it reaches nothing of
+        # its own. Pinned by digest, like github-api above.
         - id: toolbox
           image: workshop-toolbox-registry:5000/workshop/toolbox-plugin:0.4.0
-          digest: sha256:1850819e07ffca711527fabdc85b67f55999c6c62174f97bc6c34c439e7eb797
+          digest: sha256:f786084bd622d079953779c48fe43d5963a89edbb46fb1fce8b746cbf036f2c4
           pullPolicy: ifNotPresent
     # The mock sites (mock-sites) get a host group of their own, in
     # their own namespace, so the Services in k8s/sites.yaml can select its

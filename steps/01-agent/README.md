@@ -21,6 +21,11 @@ kubectl apply -f steps/01-agent/workloaddeployment.yaml \
 * The **model** decides what to do next. Here it is a scripted stand-in, not
   a real language model, so every run gives the same answer. It can be swapped
   in for a real model.
+* The **tools** are components in the same workload, each with its own
+  grant. The harness finds them through `tools`, an interface from Cosmonic's
+  agent SDK that the platform's toolbox plugin serves: it lists the tools this
+  workload's manifest gives the agent, and calls the one the model asks for.
+  In this step the manifest gives none.
   
 The scripted model is **deliberately gullible**. It reads your prompt and
 every tool result, and it does whatever they say. It knows two kinds of
@@ -85,10 +90,11 @@ curl -s -H 'Host: agent.localhost' \
 
 ```
 [model] call curl({"arguments":"-s http://api.mock-sites.svc/data"})
-[tool curl] error: {"other":"the curl tool isn't installed yet"}
+[tool curl] error: {"not-found":"no tool named curl in this workload"}
 ```
 
-The agent can only use what its manifest gives it: the harness itself imports no HTTP
+The model asked for curl anyway, and the toolbox plugin refused: this
+workload has no curl. The agent can only use what its manifest gives it: the harness itself imports no HTTP
 client, no files and no sockets, so it has no way to fetch the page on its
 own. The model's last line starts with "Done." whatever the tools returned;
 it is a script, and it reports each result as it came back.
@@ -110,16 +116,15 @@ curl -s -H 'Host: agent.localhost' \
 ```
 
 The model follows both, one after the other, and would follow an instruction
-hidden in a web page the same way. Both slots answer that their tool isn't
-installed. 
+hidden in a web page the same way. Both calls are refused: the workload has
+neither tool.
 
 ## What you ran
 
 | Component | Can reach |
 | --- | --- |
-| harness | the model, the three tool slots and GitHub sign-in, nothing else |
+| harness | the model, its tools (none yet) and GitHub sign-in, nothing else |
 | model | nothing |
-| each tool slot (placeholder) | nothing; it answers "not installed yet" |
 
 None of them has `localResources`, the part of a manifest entry that grants
 hosts and folders. 
@@ -130,11 +135,11 @@ their own grants.
 ## Look inside (optional)
 
 `wasm-tools component wit` prints a component's interface: what it imports
-from the host and what it exports. The harness imports the model, the three
-tool slots and GitHub sign-in (`github-auth`, which step 4 uses):
+from the host and what it exports. The harness imports the model, the agent
+SDK's `tools` and GitHub sign-in (`github-auth`, which step 4 uses):
 
 ```sh
-wasm-tools component wit artifacts/agent.wasm | grep 'import .*workshop:toolbox'
+wasm-tools component wit artifacts/agent.wasm | grep -E 'import (model:|cosmonic:agent/tools|workshop:toolbox/github-auth)'
 ```
 
 And no network or files of its own, so this prints nothing:

@@ -16,13 +16,13 @@
 //! no reach of its own, and a workload can never call another workload's
 //! tools through it.
 //!
-//! It is also the translation table: what a host does for a model, written
-//! out by hand. A model only understands JSON. It is shown a list of tools,
-//! each with a name, a description and a JSON Schema for its arguments, and
-//! it answers with a name and a JSON object. The tools only understand typed functions such as
-//! `curl::run(RunArgs { arguments })`. Upstream wasmCloud doesn't translate
-//! between the two yet, so this plugin does, one row per function, written to
-//! match `wit/toolbox.wit`:
+//! It is also the translation table. A model only understands JSON. It is
+//! shown a list of tools, each with a name, a description and a JSON Schema
+//! for its arguments, and it answers with a name and a JSON object. The tools
+//! only understand typed functions such as `curl::run(RunArgs { arguments })`.
+//! Cosmonic Desktop and Control translate between the two for any typed tool,
+//! reading the tool's WIT. This plugin knows three tools, so it is written out
+//! by hand, one row per function, to match `wit/toolbox.wit`:
 //!
 //! - Each function takes one `<name>-args` record with one field, the tool's
 //!   argument. The field's doc comment is what the model is told to put there.

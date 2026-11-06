@@ -36,6 +36,8 @@ spec:
           interfaces: [handler]
           config:
             host: agent.localhost
+        # The agent's toolbox, served by the toolbox plugin. Nothing here
+        # offers it a tool, so it is empty.
         - namespace: cosmonic
           package: agent
           interfaces: [tools]

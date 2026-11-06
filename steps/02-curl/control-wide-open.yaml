@@ -38,11 +38,15 @@ spec:
           interfaces: [handler]
           config:
             host: agent.localhost
+        # The agent's toolbox, served by the toolbox plugin.
         - namespace: cosmonic
           package: agent
           interfaces: [tools]
+        # The tools in it. Each component below that exports one of these
+        # offers it to the toolbox plugin.
         - namespace: workshop
           package: toolbox
+          name: tools
           interfaces: [curl]
       components:
         - name: agent
