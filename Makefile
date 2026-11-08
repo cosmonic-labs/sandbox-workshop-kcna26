@@ -19,6 +19,11 @@
 #   make record      re-record docs/walkthrough.cast from the READMEs (needs asciinema)
 #   make down        changes nothing; make clean deletes the cluster and the registry
 #
+#   make desktop-up     run the workshop on a development Cosmonic Desktop daemon (DESKTOP.md)
+#   make desktop-step STEP=2  switch Desktop to step 1, 2, 3, or 4
+#   make desktop-verify  replay and check the Desktop demo; LIVE=1 includes a GitHub read
+#   make desktop-down   stop only the workshop Desktop daemon
+#
 #   No Docker? Open the repo in GitHub Codespaces (see README.md).
 
 SHELL := /bin/bash
@@ -93,3 +98,24 @@ down:
 
 clean:
 	@./scripts/down.sh --all
+
+# Desktop uses the committed components with a local development daemon.
+# See DESKTOP.md. up runs in the foreground; use another terminal for the steps.
+.PHONY: desktop-up desktop-step desktop-verify desktop-down
+
+node_modules/yaml/package.json: package.json package-lock.json
+	@npm ci --ignore-scripts --no-audit --no-fund
+
+desktop-up desktop-step desktop-verify desktop-down: node_modules/yaml/package.json
+
+desktop-up:
+	@node scripts/desktop.mjs up
+
+desktop-step:
+	@node scripts/desktop.mjs step $(STEP)
+
+desktop-verify:
+	@node scripts/desktop.mjs verify $(if $(LIVE),--live)
+
+desktop-down:
+	@node scripts/desktop.mjs down
