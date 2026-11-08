@@ -10,6 +10,9 @@ members = [
   "components/tool-sqlite",
   "components/mock-sites",
   "components/toolbox-plugin",
+  "components/talks-api",
+  "components/talks-mcp",
+  "components/tool-mcp",
 ]
 
 [workspace.package]

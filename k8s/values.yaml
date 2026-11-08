@@ -131,7 +131,7 @@ runtime:
         # its own. Pinned by digest, like github-api above.
         - id: toolbox
           image: workshop-toolbox-registry:5000/workshop/toolbox-plugin:0.4.0
-          digest: sha256:d3b6fb1fd7b4554364f195dd0a0e416192d90dfc78294ce9a60e404f5d169387
+          digest: sha256:753724b56d8e8d97d8b4928820f4b0d6a808f37a444cda485cf20d48bae100d7
           pullPolicy: ifNotPresent
     # The mock sites (mock-sites) get a host group of their own, in
     # their own namespace, so the Services in k8s/sites.yaml can select its

@@ -17,7 +17,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-COMPONENTS="agent github_api guide mock_sites model_scripted tool_curl tool_gh tool_sqlite toolbox_plugin"
+COMPONENTS="agent github_api guide mock_sites model_scripted talks_api talks_mcp tool_curl tool_gh tool_mcp tool_sqlite toolbox_plugin"
 # The build's own target and cargo home, apart from any local build's.
 BUILD_DIR=target/linux-arm64
 OUT=$BUILD_DIR/wasm32-wasip2/release

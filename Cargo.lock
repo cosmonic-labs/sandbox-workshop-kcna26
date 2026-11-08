@@ -494,6 +494,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "talks-api"
+version = "0.1.0"
+dependencies = [
+ "serde_json",
+ "wit-bindgen",
+]
+
+[[package]]
+name = "talks-mcp"
+version = "0.1.0"
+dependencies = [
+ "serde_json",
+ "wit-bindgen",
+]
+
+[[package]]
 name = "tool-common"
 version = "0.1.0"
 dependencies = [
@@ -514,6 +530,14 @@ dependencies = [
  "github-core",
  "serde_json",
  "tool-common",
+ "wit-bindgen",
+]
+
+[[package]]
+name = "tool-mcp"
+version = "0.1.0"
+dependencies = [
+ "serde_json",
  "wit-bindgen",
 ]
 

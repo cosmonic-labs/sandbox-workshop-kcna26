@@ -1,4 +1,4 @@
-/// The workshop's own interfaces: three tools, the GitHub capabilities behind
+/// The workshop's own interfaces: four tools, the GitHub capabilities behind
 /// gh and sign-in, the model, and the worlds that say what each component may
 /// touch.
 ///
@@ -124,6 +124,46 @@ interface gh {
   }
 
   /// Run gh with these arguments and return what it prints.
+  run: async func(args: run-args) -> result<string, error>;
+}
+
+/// mcp: call the tools of an MCP server over HTTP, from a command line. This
+/// tool is an MCP client and nothing else: it reaches only the MCP servers in
+/// this component's allowedHosts, and what the server's tools can do is the
+/// server's own grant, not this tool's.
+@since(version = 0.4.0)
+interface mcp {
+  /// Why an mcp call failed.
+  ///
+  /// Payload strings are diagnostic. Their wording is not stable, and
+  /// programs should not parse them.
+  variant error {
+    /// The arguments are malformed, such as an unknown command or JSON
+    /// arguments that don't parse. The payload says which and why.
+    invalid-argument(string),
+    /// This tool may not do this: the server is not in its allowedHosts.
+    /// The payload names what was refused.
+    access-denied(string),
+    /// The server ran the tool and the tool failed. The payload is the
+    /// server's own message, such as a request its grant refused.
+    tool-failed(string),
+    /// The request was allowed but did not complete, or the server's answer
+    /// was not MCP. The payload says what happened.
+    network(string),
+    /// Any other failure. Treat it as a generic failure.
+    other(option<string>),
+  }
+
+  /// Arguments for `run`.
+  record run-args {
+    /// What you would type after `mcp`: `tools` to list the server's tools,
+    /// or `call <tool> <json>`, such as `call list_talks {"track":"Security"}`.
+    /// `--server <url>` picks a server other than the talks MCP server.
+    arguments: string,
+  }
+
+  /// Run the command against the MCP server and return what it answered:
+  /// the tool list, or the tool's text result.
   run: async func(args: run-args) -> result<string, error>;
 }
 
@@ -338,6 +378,14 @@ world sqlite-tool {
   export sqlite;
 }
 
+/// The mcp tool: outgoing HTTP, only to the MCP servers in this component's
+/// allowedHosts. No files.
+@since(version = 0.4.0)
+world mcp-tool {
+  import wasi:http/client@0.3.0;
+  export mcp;
+}
+
 /// The gh tool: no outgoing HTTP, no sockets, no files, no token. Its only
 /// way to GitHub is the github-api capability.
 @since(version = 0.4.0)
@@ -370,6 +418,23 @@ world mock-sites {
   export wasi:http/handler@0.3.0;
 }
 
+/// Not part of the toolbox: the talks service, an ordinary REST API over the
+/// conference talks, standing in for a service a team already runs. It
+/// keeps its data in the folder its manifest mounts.
+@since(version = 0.4.0)
+world talks-api {
+  export wasi:http/handler@0.3.0;
+}
+
+/// Not part of the toolbox: an MCP server for the talks service. It answers
+/// MCP over HTTP and turns each tool call into a request to the talks
+/// service, the one host in its allowedHosts. No files.
+@since(version = 0.4.0)
+world talks-mcp {
+  import wasi:http/client@0.3.0;
+  export wasi:http/handler@0.3.0;
+}
+
 /// Not part of the toolbox: the workshop guide, the step READMEs as web
 /// pages (components/guide). It serves HTTP and imports no files and no
 /// network.
@@ -385,6 +450,7 @@ world toolbox-plugin {
   import curl;
   import sqlite;
   import gh;
+  import mcp;
   import wasmcloud:host/identity@0.1.6;
   import wasmcloud:host/workload-call@0.1.6;
   export cosmonic:agent/tools@0.4.1;
