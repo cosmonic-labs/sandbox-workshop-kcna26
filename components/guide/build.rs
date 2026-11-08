@@ -291,10 +291,8 @@ fn pager(pages: &[Page], cur: usize) -> String {
     let order: Vec<usize> =
         (0..pages.len()).filter(|&i| pages[i].route == "/" || pages[i].step.is_some()).collect();
     let Some(pos) = order.iter().position(|&i| i == cur) else {
-        return format!(
-            "<nav class=\"pager\" aria-label=\"Previous and next\"><a class=\"prev\" href=\"/\" rel=\"prev\">\
-             <span class=\"kicker\">Back to</span><span class=\"t\">Overview</span></a></nav>"
-        );
+        return "<nav class=\"pager\" aria-label=\"Previous and next\"><a class=\"prev\" href=\"/\" rel=\"prev\">\
+             <span class=\"kicker\">Back to</span><span class=\"t\">Overview</span></a></nav>".to_string();
     };
     let link = |i: usize, rel: &str, kicker: &str| {
         let p = &pages[i];
@@ -361,11 +359,10 @@ fn join(base: &str, rel: &str) -> String {
 fn repo_target(root: &Path, pages: &[Page], path: &str, cur: &str) -> Option<String> {
     let p = path.trim_end_matches('/');
     let p = p.strip_suffix("README.md").map(|d| d.trim_end_matches('/')).unwrap_or(p);
-    if p != cur {
-        if let Some(page) = pages.iter().find(|pg| pg.dir == p) {
+    if p != cur
+        && let Some(page) = pages.iter().find(|pg| pg.dir == p) {
             return Some(page.route.clone());
         }
-    }
     let full = root.join(path);
     if full.is_dir() {
         Some(format!("{REPO}/tree/main/{}", path.trim_end_matches('/')))
