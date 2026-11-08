@@ -19,13 +19,19 @@ gateway:
 networkPolicy:
   enabled: false
 runtime:
-  # The all-features host image is wash built with the host-component-plugins
-  # feature, which step 4's github-api plugin needs. The default release image
-  # (2.12.0) exits at startup when given a plugin image ("require a wash build
-  # with the `host-component-plugins` feature"). Pinned by digest: the
-  # multi-platform index of ghcr.io/wasmcloud/wash:2.12.0-all-features.
+  # The workshop's host: wash v2.12.0 built with the host-component-plugins
+  # feature, like upstream's all-features image (step 4's github-api plugin
+  # needs it), and with the toolbox host plugin compiled in. The toolbox
+  # serves the agent SDK's tools interface (cosmonic:agent/tools) by calling
+  # the tool components in the agent's own workload, the way Cosmonic
+  # Desktop's dispatcher does. host/README.md says how it is built
+  # (scripts/build-host.sh). Every host has it; a workload uses it only by
+  # declaring cosmonic:agent/tools under hostInterfaces.
   image:
-    tag: 2.12.0-all-features@sha256:b899dfa82e191ac31521d1985e6af25f200932025ab2760c9910a39c70dfdd4a
+    registry: ghcr.io
+    repository: cosmonic-labs/workshop-host
+    tag: 2.12.0-toolbox.1
+    pull_policy: IfNotPresent
   # The workshop registry is plain HTTP on the kind network. The chart's
   # ociCaPaths is the safer choice for a real registry: this flag turns off
   # TLS for every registry the host pulls from.
@@ -124,15 +130,6 @@ runtime:
             client-id: Ov23lidRctAIgaYTTfVV
             client-secret: 710f18e496eed20dbf0cef47ff985e38d09d1257
             redirect-uri: http://agent.localhost:28180/github/callback
-        # The toolbox plugin: serves the agent SDK's tools interface
-        # (cosmonic:agent/tools) to a workload by listing and calling the
-        # tool components in that same workload, so each tool keeps its own
-        # grant. It has no allowedHosts and no config: it reaches nothing of
-        # its own. Pinned by digest, like github-api above.
-        - id: toolbox
-          image: workshop-toolbox-registry:5000/workshop/toolbox-plugin:0.4.0
-          digest: sha256:d3b6fb1fd7b4554364f195dd0a0e416192d90dfc78294ce9a60e404f5d169387
-          pullPolicy: ifNotPresent
     # The mock sites (mock-sites) get a host group of their own, in
     # their own namespace, so the Services in k8s/sites.yaml can select its
     # pods. Workloads land here only by asking: hostSelector hostgroup: mock-sites.

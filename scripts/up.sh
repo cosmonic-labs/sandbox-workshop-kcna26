@@ -4,7 +4,8 @@
 #   registry:2        an OCI registry container on the kind network
 #   runtime-operator  the upstream wasmCloud chart, v2.12.0: operator, NATS and
 #                     two host groups (default for the agents, mock-sites for the
-#                     mock sites and the guide), one host pod each
+#                     mock sites and the guide), one host pod each, on the
+#                     workshop's host image (host/README.md)
 #   mock-sites        the mock sites' namespace and Services (k8s/sites.yaml)
 #   agent Service     the way in to the agent (k8s/agent-service.yaml)
 #   guide             the steps as web pages (k8s/guide.yaml), on the mock-sites group
@@ -82,6 +83,31 @@ fi
 docker network connect kind "$REGISTRY_CONTAINER" 2>/dev/null || true
 REGISTRY="localhost:$KIND_REGISTRY_PORT" "$ROOT/scripts/push.sh" "${SRC:-$ROOT/artifacts}"
 
+# Load an image from Docker into the kind node, so the node never pulls it.
+# Docker's containerd image store keeps only this machine's platform of a
+# multi-platform image, which `kind load docker-image` (--all-platforms)
+# rejects; save just that platform instead.
+load_node_image() { # name
+  if ! kind load docker-image "$1" --name "$CLUSTER" >/dev/null 2>&1; then
+    archive="$RUN_DIR/node-image.tar"
+    docker save --platform "$(docker version -f '{{.Server.Os}}/{{.Server.Arch}}')" -o "$archive" "$1"
+    kind load image-archive "$archive" --name "$CLUSTER" >/dev/null
+    rm -f "$archive"
+  fi
+}
+
+# The workshop's host image (wash with the toolbox plugin compiled in,
+# host/README.md) is loaded into the node, so the host pods start from it
+# without pulling (k8s/values.yaml: pull_policy IfNotPresent). It is pulled
+# by its pinned digest (scripts/env.sh), which Docker checks, and tagged with
+# the name k8s/values.yaml uses.
+if [ -n "$HOST_IMAGE_DIGEST" ]; then
+  ref="${HOST_IMAGE%:*}@$HOST_IMAGE_DIGEST"
+  docker image inspect "$ref" >/dev/null 2>&1 || docker pull -q "$ref" >/dev/null
+  docker tag "$ref" "$HOST_IMAGE"
+fi
+load_node_image "$HOST_IMAGE"
+
 # The mock-sites host group runs in mock-sites, which must exist first.
 K apply -f "$ROOT/k8s/sites.yaml" >/dev/null
 helm --kube-context "$CTX" upgrade --install wasmcloud "$ROOT/.upstream/charts/runtime-operator" \
@@ -97,15 +123,7 @@ for ref in $NODE_IMAGES; do
   name="${ref%@*}"
   docker image inspect "$ref" >/dev/null 2>&1 || docker pull -q "$ref" >/dev/null
   docker tag "$ref" "$name"
-  # Docker's containerd image store keeps only this machine's platform of a
-  # multi-platform image, which `kind load docker-image` (--all-platforms)
-  # rejects; save just that platform instead.
-  if ! kind load docker-image "$name" --name "$CLUSTER" >/dev/null 2>&1; then
-    archive="$RUN_DIR/node-image.tar"
-    docker save --platform "$(docker version -f '{{.Server.Os}}/{{.Server.Arch}}')" -o "$archive" "$name"
-    kind load image-archive "$archive" --name "$CLUSTER" >/dev/null
-    rm -f "$archive"
-  fi
+  load_node_image "$name"
 done
 K apply -f "$ROOT/k8s/agent-service.yaml" >/dev/null
 K apply -f "$ROOT/k8s/ingress.yaml" >/dev/null

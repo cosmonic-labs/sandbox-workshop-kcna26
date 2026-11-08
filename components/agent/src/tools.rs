@@ -6,7 +6,7 @@
 //! calls the tool component in this same workload for each call the model
 //! makes. The plugin also does the translating a host could do from the WIT
 //! (typed calls in, typed errors out as `{"case": "payload"}`); see
-//! components/toolbox-plugin.
+//! host/toolbox.
 
 use crate::cosmonic::agent::inference_types::{ToolArguments, ToolCall, ToolInput, ToolOutput};
 use crate::cosmonic::agent::tool_types::{CallError, DispatchError, OutcomeError, ToolDef};

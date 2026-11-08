@@ -378,14 +378,3 @@ world guide {
   export wasi:http/handler@0.3.0;
 }
 
-/// The toolbox host plugin: serves the agent SDK's `tools` interface to a
-/// workload by calling the typed tool components in that same workload.
-@since(version = 0.4.0)
-world toolbox-plugin {
-  import curl;
-  import sqlite;
-  import gh;
-  import wasmcloud:host/identity@0.1.6;
-  import wasmcloud:host/workload-call@0.1.6;
-  export cosmonic:agent/tools@0.4.1;
-}

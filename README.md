@@ -159,7 +159,8 @@ registry, and switches kubectl back to the context you had before `make up`.
   only what its entry in the manifest grants. It finds its tools through
   `tools`, an interface from Cosmonic's agent SDK (`cosmonic:agent`), which
   the platform's toolbox plugin serves by listing and calling the tool
-  components in the agent's own workload.
+  components in the agent's own workload. The toolbox plugin is built into
+  the workshop's host image (`host/`).
 
 The mock sites (`mock-sites`) are fake websites inside the
 cluster, so steps 1 to 3 need no internet. One is an ordinary API, the host
@@ -194,11 +195,16 @@ thing that stopped the leak.
   workshop needs no Rust. They are built from this source in a pinned
   linux/arm64 build image (`build.Dockerfile`), which makes them
   reproducible: `make check-artifacts` rebuilds them and fails if a file, or
-  a plugin digest pinned in `k8s/values.yaml`, differs. CI runs it on every
-  push and pull request, and publishes each build from `main` to
-  `ghcr.io/cosmonic-labs/sandbox-workshop-kcna26/<name>`, with the same
-  digests `k8s/values.yaml` pins. After changing a component, run
+  the github-api plugin's digest pinned in `k8s/values.yaml`, differs. CI
+  runs it on every push and pull request, and publishes each build from
+  `main` to `ghcr.io/cosmonic-labs/sandbox-workshop-kcna26/<name>`, with the
+  same digests `k8s/values.yaml` pins. After changing a component, run
   `make artifacts` (needs Docker) and commit the result.
+* The host image (wash with the toolbox plugin compiled in) is built by CI
+  too, and published to `ghcr.io/cosmonic-labs/sandbox-workshop-kcna26/workshop-host`
+  when a `workshop-host-<tag>` tag is pushed (`.github/workflows/host.yml`).
+  `scripts/env.sh` and `k8s/values.yaml` pin the digest it published; see
+  `host/README.md`.
 * CI (`.github/workflows/ci.yml`) also runs the components' unit tests and
   clippy, and runs the workshop itself on every push and pull request:
   `make up` on a fresh kind cluster, then `make verify`.

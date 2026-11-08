@@ -1,0 +1,45 @@
+diff --git a/Cargo.toml b/Cargo.toml
+index b1440fe9f..e12e287d5 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -6,6 +6,8 @@ members = [
+     "crates/bench-tools",
+     "crates/wash-runtime",
+     "crates/wash",
++    # The KubeCon workshop's toolbox host plugin.
++    "crates/workshop-toolbox",
+     # Repo task runner (`cargo xtask`). Deliberately excluded from
+     # default-members so normal builds/tests don't pull it in.
+     "xtask",
+@@ -145,6 +147,7 @@ wasmparser = { version = "0.254.2", default-features = false }
+ windows-sys = { version = "0.61", default-features = false }
+ wit-component = { version = "0.259.0", default-features = false }
+ wash-runtime = { path = "crates/wash-runtime", default-features = false }
++workshop-toolbox = { path = "crates/workshop-toolbox" }
+ wat = { version = "1.259.0", default-features = false }
+ zeroize = { version = "1.8", default-features = false, features = ["alloc"] }
+ 
+diff --git a/crates/wash/Cargo.toml b/crates/wash/Cargo.toml
+index 28b3a3eef..9a92a338a 100644
+--- a/crates/wash/Cargo.toml
++++ b/crates/wash/Cargo.toml
+@@ -43,6 +43,7 @@ maintenance = { status = "actively-developed" }
+ 
+ [dependencies]
+ anyhow = { workspace = true }
++workshop-toolbox = { workspace = true }
+ async-nats = { workspace = true }
+ bon = { workspace = true }
+ bytes = { workspace = true }
+diff --git a/crates/wash/src/cli/host.rs b/crates/wash/src/cli/host.rs
+index a1be353f5..560c15737 100644
+--- a/crates/wash/src/cli/host.rs
++++ b/crates/wash/src/cli/host.rs
+@@ -1592,6 +1592,7 @@ impl CliCommand for HostCommand {
+             ))?
+             .with_plugin(Arc::new(plugin::wasmcloud_secrets::WasmcloudSecrets::new()))?
+             .with_plugin(Arc::new(plugin::wasi_logging::TracingLogger::default()))?
++            .with_plugin(Arc::new(workshop_toolbox::Toolbox::default()))?
+             .with_plugin(Arc::new(plugin::wasi_blobstore::NatsBlobstore::new(
+                 &data_nats_client,
+             )))?

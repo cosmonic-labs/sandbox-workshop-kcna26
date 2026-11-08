@@ -1,0 +1,7 @@
+// What the toolbox host plugin serves: the agent SDK's tools interface.
+// scripts/build-host.sh copies wit/deps in beside it.
+package workshop:toolbox-host;
+
+world toolbox-host {
+  import cosmonic:agent/tools@0.4.1;
+}

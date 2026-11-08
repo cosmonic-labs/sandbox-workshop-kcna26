@@ -1,0 +1,18 @@
+[package]
+name = "workshop-toolbox"
+version = "0.4.0"
+edition = "2024"
+publish = false
+description = "The workshop's toolbox: a native wasmCloud host plugin serving cosmonic:agent/tools"
+
+# Built inside a wasmCloud v2.12.0 checkout (scripts/build-host.sh), so these
+# resolve to that workspace's own versions.
+[dependencies]
+anyhow = { workspace = true, features = ["std"] }
+async-trait = { workspace = true }
+serde_json = { workspace = true, features = ["std"] }
+tokio = { workspace = true }
+tracing = { workspace = true }
+wash-runtime = { workspace = true }
+# The same wasmtime as wash-runtime: generated bindings name it directly.
+wasmtime = { workspace = true, features = ["component-model", "component-model-async"] }

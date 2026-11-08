@@ -17,7 +17,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-COMPONENTS="agent github_api guide mock_sites model_scripted tool_curl tool_gh tool_sqlite toolbox_plugin"
+COMPONENTS="agent github_api guide mock_sites model_scripted tool_curl tool_gh tool_sqlite"
 # The build's own target and cargo home, apart from any local build's.
 BUILD_DIR=target/linux-arm64
 OUT=$BUILD_DIR/wasm32-wasip2/release
@@ -50,7 +50,7 @@ check_plugin_pins() {
   for _ in $(seq 1 40); do curl -fs "http://localhost:$port/v2/" >/dev/null && break; sleep 0.5; done
   out=$(REGISTRY="localhost:$port" scripts/push.sh "$OUT") || { docker rm -f "$registry" >/dev/null; return 1; }
   docker rm -f "$registry" >/dev/null
-  for id in github-api:github-api toolbox:toolbox-plugin; do
+  for id in github-api:github-api; do
     repo=${id#*:}
     want=$(awk -v id="${id%%:*}" '$0 ~ "- id: "id"$" { on = 1 } on && /digest:/ { print $2; exit }' k8s/values.yaml)
     got=$(echo "$out" | sed -n "s#.*/$repo:.* (\(sha256:[0-9a-f]*\))#\1#p")

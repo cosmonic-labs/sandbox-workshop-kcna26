@@ -4,8 +4,8 @@
 #
 # The agent harness (the component that runs the loop: ask the model, call a
 # tool, repeat) imports a model and the agent SDK's `tools` interface
-# (cosmonic:agent). The toolbox plugin, which the platform installed on the
-# default host group (k8s/values.yaml), serves `tools`: it lists the tool
+# (cosmonic:agent). The toolbox plugin, built into the workshop's host
+# (host/), serves `tools`: it lists the tool
 # components in this workload and calls the one the model asks for. A tool
 # is in the agent's toolbox when its interface is listed under
 # hostInterfaces below and a component here exports it.
