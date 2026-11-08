@@ -25,12 +25,13 @@ runtime:
   # serves the agent SDK's tools interface (cosmonic:agent/tools) by calling
   # the tool components in the agent's own workload, the way Cosmonic
   # Desktop's dispatcher does. host/README.md says how it is built
-  # (scripts/build-host.sh). Every host has it; a workload uses it only by
+  # (scripts/build-host.sh) and published (the host workflow, pinned by
+  # digest in scripts/env.sh). Every host has it; a workload uses it only by
   # declaring cosmonic:agent/tools under hostInterfaces.
   image:
     registry: ghcr.io
-    repository: cosmonic-labs/workshop-host
-    tag: 2.12.0-toolbox.1
+    repository: cosmonic-labs/sandbox-workshop-kcna26/workshop-host
+    tag: 2.12.0-toolbox.2
     pull_policy: IfNotPresent
   # The workshop registry is plain HTTP on the kind network. The chart's
   # ociCaPaths is the safer choice for a real registry: this flag turns off

@@ -19,8 +19,8 @@ export TAG="${TAG:-0.4.0}"
 # up.sh pulls the published image by this digest (the multi-platform index),
 # which Docker checks, and loads it into the node under HOST_IMAGE. Set
 # HOST_IMAGE_DIGEST= (empty) to load your own build of HOST_IMAGE instead.
-export HOST_IMAGE="${HOST_IMAGE:-ghcr.io/cosmonic-labs/workshop-host:2.12.0-toolbox.1}"
-export HOST_IMAGE_DIGEST="${HOST_IMAGE_DIGEST-sha256:e9a4bc5de4acadb73b2e626848a0bd1ca4d12105357677e7d8d13b25548a6463}"
+export HOST_IMAGE="${HOST_IMAGE:-ghcr.io/cosmonic-labs/sandbox-workshop-kcna26/workshop-host:2.12.0-toolbox.2}"
+export HOST_IMAGE_DIGEST="${HOST_IMAGE_DIGEST-sha256:4b68d7afb14009d3d028193c1a2ad200bfd146eca194b1ada11e52a792e6c2f2}"
 # Container images, pinned by digest (the multi-platform index digest).
 export REGISTRY_IMAGE="docker.io/library/registry:2@sha256:a3d8aaa63ed8681a604f1dea0aa03f100d5895b6a58ace528858a7b332415373"
 # up.sh pulls this by digest, tags it, and loads it into the kind node, so
