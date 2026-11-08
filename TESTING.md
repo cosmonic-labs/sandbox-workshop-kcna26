@@ -15,8 +15,9 @@ cd sandbox-workshop-kcna26
 make doctor
 ```
 
-- [ ] `make doctor` before `make tools`: red `FAIL` on wash, kind, kubectl
-      and helm, each with `fix: make tools`. Exit is nonzero.
+- [ ] `make doctor` before `make tools`: red `FAIL` on wash with
+      `fix: make tools`, and on each of kind, kubectl and helm that isn't
+      already on your PATH. Exit is nonzero.
 - [ ] `make tools`: five `ok` lines (wash, wasm-tools, kind, kubectl,
       helm), under a minute on good Wi-Fi.
 - [ ] `make doctor`: every Required line green, ending in `Ready.`
@@ -24,7 +25,7 @@ make doctor
       registry and ingress lines, in about 2 minutes the
       first time.
       `kubectl config current-context` says `kind-workshop-toolbox`.
-- [ ] http://guide.localhost:18180 in Chrome or Firefox: the overview and
+- [ ] http://guide.localhost:28180 in Chrome or Firefox: the overview and
       the four steps, each step marked in the side list, Previous and Next at
       the bottom. A code block's **Copy** button says `Copied`, and what it
       copied pastes into a shell as written.
@@ -47,8 +48,9 @@ make doctor
       came back, and exits nonzero.
 - [ ] Every `$ curl ...` line in `steps/*/expected-output.txt` pastes into a
       shell and runs as written.
-- [ ] `make clean`: the cluster and the registry container are gone; your
-      previous kubectl context still exists (`kubectl config get-contexts`).
+- [ ] `make clean`: the cluster and the registry container are gone, and
+      `kubectl config current-context` is the context you had before
+      `make up` (or unset, if you had none).
 
 ## 2. GitHub Codespaces, the no-Docker path
 
@@ -93,9 +95,9 @@ make doctor
       address shows "That sign-in expired or was already used": a code
       works once.
 - [ ] `curl -s -o /dev/null -w '%{redirect_url}\n' -H 'Host: agent.localhost'
-      http://127.0.0.1:18180/github/login` prints a
+      http://127.0.0.1:28180/github/login` prints a
       `https://github.com/login/oauth/authorize?...` address with
-      `redirect_uri=http%3A%2F%2Fagent.localhost%3A18180%2Fgithub%2Fcallback`,
+      `redirect_uri=http%3A%2F%2Fagent.localhost%3A28180%2Fgithub%2Fcallback`,
       a `state`, `code_challenge_method=S256` and no `scope`.
 - [ ] `gh api -X POST /repos/wasmCloud/wasmCloud/issues/5885/comments`,
       signed in: still `github-api plugin: only GET requests are allowed`.

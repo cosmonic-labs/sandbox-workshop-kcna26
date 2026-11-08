@@ -3,7 +3,7 @@
 #
 #   make tools       download the pinned tools into .tools/ (checksums verified)
 #   make doctor      check this machine; changes nothing
-#   make up          kind cluster + the wasmCloud chart; pushes artifacts/; maps :18180 to the ingress NodePort
+#   make up          kind cluster + the wasmCloud chart; pushes artifacts/; maps :28180 to the ingress NodePort
 #   make push-build  push your curl build to the cluster's registry as tool-curl:mine (step 2)
 #   make build       build the curl tool (needs Rust 1.98.1 + wasm32-wasip2)
 #   make build-all   build every component, including sqlite (needs wasi-sdk)
@@ -49,7 +49,7 @@ build:
 build-all:
 	CARGO_BUILD_JOBS=$${CARGO_BUILD_JOBS:-4} cargo build --release --target wasm32-wasip2
 
-# The guide (http://guide.localhost:18180) is the READMEs rendered at build
+# The guide (http://guide.localhost:28180) is the READMEs rendered at build
 # time, so it is rebuilt whenever one changes; make verify says when it is
 # stale. Pure Rust, like curl. make up deploys the new build.
 guide:

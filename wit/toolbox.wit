@@ -196,46 +196,45 @@ interface github-auth {
     signed-in(string),
   }
 
-  /// Start signing in: ask GitHub for a code, with no scopes. The error says
-  /// why it could not start, such as no OAuth app configured.
-  start: async func() -> result<device-prompt, string>;
-
-  /// Whether this workload is signed in, checking with GitHub when a code is
-  /// waiting. The error says why sign-in ended, such as an expired code.
-  status: async func() -> result<sign-in-status, string>;
-
-  /// Forget this workload's token.
-  sign-out: async func() -> result<_, string>;
-
-  /// Why the browser flow could not begin or complete.
+  /// Why sign-in could not start, continue or complete.
   ///
   /// Payload strings are diagnostic. Their wording is not stable, and
   /// programs should not parse them.
-  variant web-error {
-    /// Sign-in is not set up on this platform: the OAuth app's client id or
-    /// client secret is not configured. The payload says which.
+  variant auth-error {
+    /// Sign-in is not set up on this platform: the OAuth app's client id,
+    /// client secret or redirect address is not configured. The payload
+    /// says which.
     not-set-up(string),
-    /// The state matches no sign-in this workload began, or that sign-in
-    /// expired or was already completed. Begin again.
+    /// The browser flow's state matches no sign-in this workload began, or
+    /// that sign-in expired or was already completed. Begin again.
     unknown-state(string),
-    /// Any other failure: an unusable redirect address, GitHub refusing the
-    /// code, or GitHub not answering. The payload says what happened.
+    /// Any other failure: GitHub refusing or expiring a code, or GitHub not
+    /// answering. The payload says what happened.
     failed(string),
   }
+
+  /// Start the code flow: ask GitHub for a code, with no scopes.
+  start: async func() -> result<device-prompt, auth-error>;
+
+  /// Whether this workload is signed in, checking with GitHub when a code is
+  /// waiting. The error says why sign-in ended, such as an expired code.
+  status: async func() -> result<sign-in-status, auth-error>;
+
+  /// Forget this workload's token.
+  sign-out: async func() -> result<_, auth-error>;
 
   /// Begin the browser flow. The plugin makes a fresh state and PKCE
   /// verifier, keeps them for this workload for ten minutes, and returns the
   /// github.com address to send the person's browser to. It asks for no
-  /// scopes. `redirect-uri` is where GitHub sends the browser back, such as
-  /// http://agent.localhost:18180/github/callback; GitHub accepts it only if
-  /// it matches the OAuth app's callback URL.
-  begin-web: async func(redirect-uri: string) -> result<string, web-error>;
+  /// scopes. GitHub sends the browser back to the redirect address in the
+  /// plugin's own config, never one a caller picks.
+  begin-web: async func() -> result<string, auth-error>;
 
   /// Complete the browser flow with the `code` and `state` GitHub sent the
   /// browser back with. The plugin checks the state, trades the code for a
   /// token (with its verifier and the app's client secret), keeps the token
   /// and returns the signed-in login. A state works once.
-  complete-web: async func(code: string, state: string) -> result<string, web-error>;
+  complete-web: async func(code: string, state: string) -> result<string, auth-error>;
 }
 
 // ---------------------------------------------------------------------------
@@ -308,9 +307,8 @@ interface model {
 /// lists and calls the tool
 /// components the workload's manifest gives it, so the manifest, not the
 /// harness code, decides which tools (and which capabilities) the agent has.
-/// The github-api plugin serves sign-in in a workload that declares it
-/// (step 4), and sign-in-placeholder answers it before that. The harness
-/// never imports github-api, so it can't read GitHub itself.
+/// The github-api plugin serves sign-in; every step's manifest declares it.
+/// The harness never imports github-api, so it can't read GitHub itself.
 @since(version = 0.4.0)
 world agent {
   import model: model;
@@ -350,8 +348,8 @@ world gh-tool {
 
 /// The github-api host component plugin, installed on the host group by the
 /// platform: outgoing HTTP, which its own allowedHosts limit to github.com
-/// (sign-in) and api.github.com, its config (the OAuth app's client id and
-/// client secret), random bytes for each browser sign-in's state and PKCE
+/// (sign-in) and api.github.com, its config (the OAuth app's client id,
+/// client secret and redirect address), random bytes for each browser sign-in's state and PKCE
 /// verifier, and the host's answer to "which workload is calling", which
 /// keys each token to one workload.
 @since(version = 0.4.0)
@@ -361,14 +359,6 @@ world github-api-plugin {
   import wasi:random/random@0.3.0;
   import wasmcloud:host/identity@0.1.6;
   export github-api;
-  export github-auth;
-}
-
-/// The placeholder for GitHub sign-in until step 4. The harness imports
-/// sign-in, so until a workload declares the github-api plugin something in
-/// the workload has to export it; this answers "not in this step".
-@since(version = 0.4.0)
-world sign-in-placeholder {
   export github-auth;
 }
 

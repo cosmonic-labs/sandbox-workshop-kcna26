@@ -1,4 +1,4 @@
-# One way in from your laptop. kind maps node port 30180 to 127.0.0.1:18180
+# One way in from your laptop. kind maps node port 30180 to 127.0.0.1:28180
 # (scripts/up.sh), so the steps' curl commands work with no port-forward to
 # keep alive.
 #

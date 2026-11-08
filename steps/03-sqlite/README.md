@@ -33,16 +33,16 @@ granted that folder, and the host's `hostPaths` list doesn't allow it, so no
 workload may even ask for it. See it on the host pod:
 
 ```sh
-kubectl -n wasmcloud exec deploy/hostgroup-default -- ls -l /workshop/private-data
+kubectl -n wasmcloud exec deploy/hostgroup-default -- ls /workshop/private-data
 ```
 
 ```
--rw-r--r--    1 nonroot  nonroot      12288 Nov  5 01:13 payroll.db
+payroll.db
 ```
 
 ## Try each command
 
-Type each prompt into the chat at http://agent.localhost:18180, or run the
+Type each prompt into the chat at http://agent.localhost:28180, or run the
 curl command under it.
 
 **1. Ordinary SQL works** 
@@ -57,7 +57,7 @@ In your terminal or Codespaces:
 
 ```sh
 curl -s -H 'Host: agent.localhost' \
-  http://127.0.0.1:18180/ \
+  http://127.0.0.1:28180/ \
   -d "sqlite select title, speaker from talks where track = 'Security' order by title"
 ```
 
@@ -75,7 +75,7 @@ In your terminal or Codespaces:
 
 ```sh
 curl -s -H 'Host: agent.localhost' \
-  http://127.0.0.1:18180/ \
+  http://127.0.0.1:28180/ \
   -d 'sqlite .tables'
 ```
 
@@ -93,7 +93,7 @@ In your terminal or Codespaces:
 
 ```sh
 curl -s -H 'Host: agent.localhost' \
-  http://127.0.0.1:18180/ \
+  http://127.0.0.1:28180/ \
   -d "sqlite attach 'file:/data/rooms.db?immutable=1' as r; select name, seats from r.rooms"
 ```
 
@@ -112,7 +112,7 @@ In your terminal or Codespaces:
 
 ```sh
 curl -s -H 'Host: agent.localhost' \
-  http://127.0.0.1:18180/ \
+  http://127.0.0.1:28180/ \
   -d "sqlite attach 'file:/workshop/private-data/payroll.db?immutable=1' as p; select name, salary from p.salaries"
 ```
 
@@ -141,7 +141,7 @@ In your terminal or Codespaces:
 
 ```sh
 curl -s -H 'Host: agent.localhost' \
-  http://127.0.0.1:18180/ \
+  http://127.0.0.1:28180/ \
   -d 'sqlite .shell id'
 ```
 
@@ -160,7 +160,7 @@ In your terminal or Codespaces:
 
 ```sh
 curl -s -H 'Host: agent.localhost' \
-  http://127.0.0.1:18180/ \
+  http://127.0.0.1:28180/ \
   -d "sqlite select load_extension('/tmp/evil')"
 ```
 

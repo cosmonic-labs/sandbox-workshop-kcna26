@@ -424,7 +424,7 @@ CHECKED=$((CHECKED + 1))
 got=$(sed -n 's/^weblogin=//p' "$FACTS")
 case "$got" in
   *scope*) fail facts 'the browser sign-in asks GitHub for no scopes' 'no scope parameter' "$got" ;;
-  '302 https://github.com/login/oauth/authorize?client_id='*'&redirect_uri=http%3A%2F%2Fagent.localhost%3A18180%2Fgithub%2Fcallback&state='*'&code_challenge='*'&code_challenge_method=S256') ;;
+  '302 https://github.com/login/oauth/authorize?client_id='*'&redirect_uri=http%3A%2F%2Fagent.localhost%3A28180%2Fgithub%2Fcallback&state='*'&code_challenge='*'&code_challenge_method=S256') ;;
   '302 '*'/?github=not-set-up') ;;
   *) fail facts '/github/login redirects to GitHub (PKCE S256, the fixed callback), or back saying sign-in is not set up' \
     '302 https://github.com/login/oauth/authorize?...' "$got" ;;

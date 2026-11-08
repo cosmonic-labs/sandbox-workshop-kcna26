@@ -30,6 +30,10 @@
 //!   workload's token added when it has one. Everything else is refused, and
 //!   the refusal names this plugin.
 //!
+//! The browser flow sends GitHub back to the redirect address in this
+//! plugin's config (`redirect-uri`), which must match the OAuth app's
+//! callback URL; no caller picks it.
+//!
 //! Deny by default: a workload the host can't name gets nothing, a method
 //! other than GET is refused, a path outside the allowlist is refused, and the
 //! plugin builds every URL itself, so a caller supplies only a path. The
@@ -45,9 +49,11 @@ use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
 use bindings::exports::workshop::toolbox::github_api::{self, Response, SendError};
-use bindings::exports::workshop::toolbox::github_auth::{self, DevicePrompt, SignInStatus, WebError};
+use bindings::exports::workshop::toolbox::github_auth::{self, AuthError, DevicePrompt, SignInStatus};
 use bindings::wasi::http::types::{Fields, Method, Request, Response as HttpResponse, Scheme};
 use bindings::wasmcloud::host::identity;
+use base64::Engine as _;
+use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 
@@ -56,23 +62,24 @@ const API_HOST: &str = "api.github.com";
 /// Sign-in's endpoints (authorize, device code, access token) live here.
 /// allowedHosts names it.
 const LOGIN_HOST: &str = "github.com";
-const USER_AGENT: &str = "agent-tools-workshop-github-plugin (+https://github.com/cosmonic-labs/agent-tools-workshop)";
-/// The config key for the OAuth app's client id, and the placeholder it holds
-/// until the app exists. A client id is public; it is not a secret.
+const USER_AGENT: &str =
+    "sandbox-workshop-github-plugin (+https://github.com/cosmonic-labs/sandbox-workshop-kcna26)";
+/// The config key for the OAuth app's client id. A client id is public; it
+/// is not a secret.
 const CLIENT_ID_KEY: &str = "client-id";
-const CLIENT_ID_PLACEHOLDER: &str = "REPLACE-WITH-GITHUB-OAUTH-APP-CLIENT-ID";
 /// The config key for the OAuth app's client secret, which the browser flow
-/// needs to trade a code for a token, and the placeholder it holds until the
-/// app's owner supplies it. It identifies the app; on its own it gets no
-/// token (k8s/values.yaml says why it may sit in the repo).
+/// needs to trade a code for a token. It identifies the app; on its own it
+/// gets no token (k8s/values.yaml says why it may sit in the repo).
 const CLIENT_SECRET_KEY: &str = "client-secret";
-const CLIENT_SECRET_PLACEHOLDER: &str = "REPLACE-WITH-GITHUB-OAUTH-APP-CLIENT-SECRET";
+/// The config key for where GitHub sends the browser back after the person
+/// approves. It must match the OAuth app's callback URL.
+const REDIRECT_URI_KEY: &str = "redirect-uri";
 /// How long a browser sign-in may take, from begin-web to complete-web.
 const WEB_TTL: Duration = Duration::from_secs(600);
 /// The most browser sign-ins one workload may have waiting at once (one per
 /// open tab, say). Beginning another drops the oldest.
 const WEB_MAX_PENDING: usize = 5;
-/// The most of one GitHub answer handed back; the gh tool asks for far less.
+/// The most of one GitHub answer read; the gh tool asks for far less.
 const MAX_BODY: usize = 4 * 1024 * 1024;
 
 /// One workload's sign-in.
@@ -94,7 +101,6 @@ enum Session {
 struct WebPending {
     state: String,
     verifier: String,
-    redirect_uri: String,
     expires_at: Instant,
 }
 
@@ -135,10 +141,6 @@ fn token_for(workload: &str) -> Option<String> {
 
 struct Component;
 
-// ---------------------------------------------------------------------------
-// github-api: reads, for the gh tool.
-// ---------------------------------------------------------------------------
-
 impl github_api::Guest for Component {
     async fn send(method: String, path_and_query: String) -> Result<Response, SendError> {
         let workload = caller("github-api").map_err(SendError::Refused)?;
@@ -162,11 +164,6 @@ impl github_api::Guest for Component {
         let (status, all, body) = http(Method::Get, API_HOST, &path_and_query, &headers, Vec::new())
             .await
             .map_err(SendError::Failed)?;
-        if body.len() > MAX_BODY {
-            return Err(SendError::Failed(format!(
-                "GitHub's answer was larger than {MAX_BODY} bytes; ask for fewer items"
-            )));
-        }
         // Only what a caller needs to pace itself.
         let headers = all
             .into_iter()
@@ -197,14 +194,8 @@ fn allowed(path_and_query: &str) -> Result<(), String> {
             && s.bytes().all(|b| b.is_ascii_alphanumeric() || matches!(b, b'-' | b'_' | b'.'))
     };
     let number = |s: &str| !s.is_empty() && s.len() <= 10 && s.bytes().all(|b| b.is_ascii_digit());
-    // A commit sha or a percent-encoded branch name.
-    let git_ref = |s: &str| {
-        !s.is_empty()
-            && s.len() <= 250
-            && s != "."
-            && s != ".."
-            && s.bytes().all(|b| b.is_ascii_alphanumeric() || matches!(b, b'-' | b'_' | b'.' | b'%'))
-    };
+    // A commit sha, which is all gh asks checks for.
+    let sha = |s: &str| (7..=40).contains(&s.len()) && s.bytes().all(|b| b.is_ascii_hexdigit());
     let segments: Vec<&str> = path[1..].split('/').collect();
     let ok = match segments.as_slice() {
         ["rate_limit"] | ["search", "issues"] => true,
@@ -214,7 +205,7 @@ fn allowed(path_and_query: &str) -> Result<(), String> {
             owner(o) && repo(r) && number(n)
         }
         ["repos", o, r, "issues", n, "comments"] => owner(o) && repo(r) && number(n),
-        ["repos", o, r, "commits", g, "check-runs" | "status"] => owner(o) && repo(r) && git_ref(g),
+        ["repos", o, r, "commits", g, "check-runs" | "status"] => owner(o) && repo(r) && sha(g),
         _ => false,
     };
     if ok {
@@ -227,29 +218,23 @@ fn allowed(path_and_query: &str) -> Result<(), String> {
     }
 }
 
-// ---------------------------------------------------------------------------
-// github-auth: the device flow, for the agent harness.
-// ---------------------------------------------------------------------------
-
 impl github_auth::Guest for Component {
-    async fn start() -> Result<DevicePrompt, String> {
-        let workload = caller("github-auth")?;
-        if let Some(login) = signed_in_as(&workload) {
-            return Err(format!("github-auth plugin: already signed in as {login}; sign out first"));
-        }
-        let client_id = client_id()?;
+    async fn start() -> Result<DevicePrompt, AuthError> {
+        let workload = auth_caller()?;
+        refuse_if_signed_in(&workload)?;
+        let client_id = config(CLIENT_ID_KEY)?;
         // No scope: the token reads public data, as an unauthenticated
         // request does, with a signed-in user's higher rate limit.
         let v = form(LOGIN_HOST, "/login/device/code", &[("client_id", &client_id)]).await?;
         if let Some(e) = v.get("error").and_then(Value::as_str) {
-            return Err(format!("github-auth plugin: GitHub refused to start sign-in: {}", describe(&v, e)));
+            return Err(failed(format!("GitHub refused to start sign-in: {}", describe(&v, e))));
         }
         let text = |k: &str| v.get(k).and_then(Value::as_str).map(str::to_string);
         let num = |k: &str, d: u64| v.get(k).and_then(Value::as_u64).unwrap_or(d);
         let (Some(device_code), Some(user_code), Some(verification_uri)) =
             (text("device_code"), text("user_code"), text("verification_uri"))
         else {
-            return Err("github-auth plugin: GitHub's answer to the sign-in request was incomplete".into());
+            return Err(failed("GitHub's answer to the sign-in request was incomplete"));
         };
         let expires_in = num("expires_in", 900);
         let interval = Duration::from_secs(num("interval", 5));
@@ -275,8 +260,8 @@ impl github_auth::Guest for Component {
         Ok(prompt)
     }
 
-    async fn status() -> Result<SignInStatus, String> {
-        let workload = caller("github-auth")?;
+    async fn status() -> Result<SignInStatus, AuthError> {
+        let workload = auth_caller()?;
         let now = Instant::now();
         // Read what is needed, then let go of the map before any await.
         let pending = SESSIONS.with(|s| {
@@ -300,13 +285,13 @@ impl github_auth::Guest for Component {
         };
         if now >= expires_at {
             forget(&workload);
-            return Err("github-auth plugin: the code expired before it was entered; start again".into());
+            return Err(failed("the code expired before it was entered; start again"));
         }
         // GitHub asks to be polled no faster than its interval.
         if now < next_poll {
             return Ok(SignInStatus::Pending(prompt));
         }
-        let client_id = client_id()?;
+        let client_id = config(CLIENT_ID_KEY)?;
         let v = form(
             LOGIN_HOST,
             "/login/oauth/access_token",
@@ -342,29 +327,25 @@ impl github_auth::Guest for Component {
             }
             e => {
                 forget(&workload);
-                Err(format!("github-auth plugin: sign-in ended: {}", describe(&v, e)))
+                Err(failed(format!("sign-in ended: {}", describe(&v, e))))
             }
         }
     }
 
-    async fn sign_out() -> Result<(), String> {
-        let workload = caller("github-auth")?;
+    async fn sign_out() -> Result<(), AuthError> {
+        let workload = auth_caller()?;
         forget(&workload);
         Ok(())
     }
 
-    async fn begin_web(redirect_uri: String) -> Result<String, WebError> {
-        let workload = caller("github-auth").map_err(WebError::Failed)?;
-        if let Some(login) = signed_in_as(&workload) {
-            return Err(WebError::Failed(format!(
-                "github-auth plugin: already signed in as {login}; sign out first"
-            )));
-        }
-        check_redirect_uri(&redirect_uri).map_err(WebError::Failed)?;
-        let client_id = client_id().map_err(WebError::NotSetUp)?;
+    async fn begin_web() -> Result<String, AuthError> {
+        let workload = auth_caller()?;
+        refuse_if_signed_in(&workload)?;
+        let client_id = config(CLIENT_ID_KEY)?;
+        let redirect_uri = config(REDIRECT_URI_KEY)?;
         // Without the secret the code could never be traded, so say so now,
         // before sending the person to GitHub for nothing.
-        client_secret().map_err(WebError::NotSetUp)?;
+        config(CLIENT_SECRET_KEY)?;
         let state = random_token(32);
         let verifier = random_token(32);
         let url = authorize_url(&client_id, &redirect_uri, &state, &pkce_challenge(&verifier));
@@ -372,38 +353,38 @@ impl github_auth::Guest for Component {
         WEB.with(|w| {
             let mut map = w.borrow_mut();
             let list = map.entry(workload).or_default();
-            remember(list, WebPending { state, verifier, redirect_uri, expires_at: now + WEB_TTL }, now);
+            remember(list, WebPending { state, verifier, expires_at: now + WEB_TTL }, now);
         });
         Ok(url)
     }
 
-    async fn complete_web(code: String, state: String) -> Result<String, WebError> {
-        let workload = caller("github-auth").map_err(WebError::Failed)?;
+    async fn complete_web(code: String, state: String) -> Result<String, AuthError> {
+        let workload = auth_caller()?;
         let now = Instant::now();
         // A state works once: take it out before anything else happens.
         let pending = WEB
             .with(|w| w.borrow_mut().get_mut(&workload).and_then(|list| take(list, &state, now)))
             .ok_or_else(|| {
-                WebError::UnknownState(
+                AuthError::UnknownState(
                     "github-auth plugin: this sign-in link matches no sign-in this workload began, \
                      or it expired or was already used; sign in again"
                         .into(),
                 )
             })?;
         if code.is_empty() || code.len() > 256 || !code.bytes().all(|b| b.is_ascii_graphic()) {
-            return Err(WebError::Failed("github-auth plugin: GitHub sent back no usable code".into()));
+            return Err(failed("GitHub sent back no usable code"));
         }
-        let client_id = client_id().map_err(WebError::NotSetUp)?;
-        let client_secret = client_secret().map_err(WebError::NotSetUp)?;
+        let client_id = config(CLIENT_ID_KEY)?;
+        let client_secret = config(CLIENT_SECRET_KEY)?;
+        let redirect_uri = config(REDIRECT_URI_KEY)?;
         let v = form(
             LOGIN_HOST,
             "/login/oauth/access_token",
-            &token_request(&client_id, &client_secret, &code, &pending.redirect_uri, &pending.verifier),
+            &token_request(&client_id, &client_secret, &code, &redirect_uri, &pending.verifier),
         )
-        .await
-        .map_err(WebError::Failed)?;
-        let token = token_of(&v).map_err(WebError::Failed)?;
-        let login = login_of(&token).await.map_err(WebError::Failed)?;
+        .await?;
+        let token = token_of(&v)?;
+        let login = login_of(&token).await?;
         SESSIONS.with(|s| {
             s.borrow_mut().insert(workload.clone(), Session::SignedIn { token, login: login.clone() })
         });
@@ -417,30 +398,21 @@ fn forget(workload: &str) {
     WEB.with(|w| w.borrow_mut().remove(workload));
 }
 
-// ---------------------------------------------------------------------------
-// The browser flow's pieces, kept free of host calls so they test natively.
-// ---------------------------------------------------------------------------
+/// The calling workload's id, for github-auth.
+fn auth_caller() -> Result<String, AuthError> {
+    caller("github-auth").map_err(AuthError::Failed)
+}
 
-/// A redirect address the plugin will hand GitHub: an absolute http or https
-/// URL with a host, printable, no fragment, not too long. GitHub checks it
-/// against the OAuth app's callback URL too.
-fn check_redirect_uri(uri: &str) -> Result<(), String> {
-    let rest = uri.strip_prefix("http://").or_else(|| uri.strip_prefix("https://"));
-    let ok = match rest {
-        Some(rest) => {
-            let host = rest.split('/').next().unwrap_or("");
-            !host.is_empty()
-                && !host.contains('@')
-                && uri.len() <= 512
-                && uri.bytes().all(|b| b.is_ascii_graphic() && b != b'#')
-        }
-        None => false,
-    };
-    if ok {
-        Ok(())
-    } else {
-        Err(format!("github-auth plugin: {uri:?} is not a usable redirect address (an http or https URL)"))
+fn refuse_if_signed_in(workload: &str) -> Result<(), AuthError> {
+    match signed_in_as(workload) {
+        Some(login) => Err(failed(format!("already signed in as {login}; sign out first"))),
+        None => Ok(()),
     }
+}
+
+/// A failure, in the plugin's own name.
+fn failed(why: impl std::fmt::Display) -> AuthError {
+    AuthError::Failed(format!("github-auth plugin: {why}"))
 }
 
 /// GitHub's authorize address for one browser sign-in. No scope parameter:
@@ -459,25 +431,13 @@ fn authorize_url(client_id: &str, redirect_uri: &str, state: &str, challenge: &s
 /// The PKCE S256 challenge for a verifier (RFC 7636): base64url, no padding,
 /// of the verifier's SHA-256.
 fn pkce_challenge(verifier: &str) -> String {
-    b64url(&Sha256::digest(verifier.as_bytes()))
+    URL_SAFE_NO_PAD.encode(Sha256::digest(verifier.as_bytes()))
 }
 
 /// `n` random bytes from the host, base64url encoded: 32 bytes make the 43
 /// characters RFC 7636 asks of a verifier at the least.
 fn random_token(n: u64) -> String {
-    b64url(&bindings::wasi::random::random::get_random_bytes(n))
-}
-
-fn b64url(bytes: &[u8]) -> String {
-    const ABC: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
-    let mut out = String::with_capacity(bytes.len().div_ceil(3) * 4);
-    for chunk in bytes.chunks(3) {
-        let n = chunk.iter().enumerate().fold(0u32, |n, (i, b)| n | (u32::from(*b) << (16 - 8 * i)));
-        for i in 0..=chunk.len() {
-            out.push(ABC[(n >> (18 - 6 * i) & 63) as usize] as char);
-        }
-    }
-    out
+    URL_SAFE_NO_PAD.encode(bindings::wasi::random::random::get_random_bytes(n))
 }
 
 /// Keep one more waiting sign-in: drop the expired ones, and the oldest when
@@ -516,34 +476,25 @@ fn token_request<'a>(
 
 /// The token in GitHub's answer to the trade, or why there is none. GitHub
 /// answers 200 with an `error` field when it refuses.
-fn token_of(v: &Value) -> Result<String, String> {
+fn token_of(v: &Value) -> Result<String, AuthError> {
     match v.get("access_token").and_then(Value::as_str) {
         Some(t) if !t.is_empty() => Ok(t.to_string()),
         _ => {
             let e = v.get("error").and_then(Value::as_str).unwrap_or("");
-            Err(format!("github-auth plugin: GitHub would not trade the code for a token: {}", describe(v, e)))
+            Err(failed(format!("GitHub would not trade the code for a token: {}", describe(v, e))))
         }
     }
 }
 
-/// The OAuth app's client id, from this plugin's config.
-fn client_id() -> Result<String, String> {
-    config(CLIENT_ID_KEY, CLIENT_ID_PLACEHOLDER)
-}
-
-/// The OAuth app's client secret, from this plugin's config. Only the
-/// browser flow needs it.
-fn client_secret() -> Result<String, String> {
-    config(CLIENT_SECRET_KEY, CLIENT_SECRET_PLACEHOLDER)
-}
-
-fn config(key: &str, placeholder: &str) -> Result<String, String> {
+/// One of the OAuth app's settings from this plugin's config. Empty, or
+/// still a `REPLACE-WITH-...` placeholder, means sign-in isn't set up.
+fn config(key: &str) -> Result<String, AuthError> {
     let value = bindings::wasi::config::store::get(key)
-        .map_err(|e| format!("github-auth plugin: could not read its config: {e:?}"))?
+        .map_err(|e| failed(format!("could not read its config: {e:?}")))?
         .unwrap_or_default();
     let value = value.trim();
-    if value.is_empty() || value == placeholder {
-        return Err(not_set_up(key));
+    if value.is_empty() || value.starts_with("REPLACE-WITH-") {
+        return Err(AuthError::NotSetUp(not_set_up(key)));
     }
     Ok(value.to_string())
 }
@@ -566,16 +517,16 @@ fn describe(v: &Value, error: &str) -> String {
 }
 
 /// The login a token belongs to, so the page can say who is signed in.
-async fn login_of(token: &str) -> Result<String, String> {
+async fn login_of(token: &str) -> Result<String, AuthError> {
     let headers = [
         ("accept", "application/vnd.github+json".to_string()),
         ("authorization", format!("Bearer {token}")),
     ];
-    let (status, _, body) = http(Method::Get, API_HOST, "/user", &headers, Vec::new()).await?;
+    let (status, _, body) = http(Method::Get, API_HOST, "/user", &headers, Vec::new()).await.map_err(failed)?;
     let v: Value = serde_json::from_slice(&body).unwrap_or_default();
     match (status, v.get("login").and_then(Value::as_str)) {
         (200, Some(login)) => Ok(login.to_string()),
-        _ => Err(format!("github-auth plugin: GitHub gave a token but would not say whose ({status})")),
+        _ => Err(failed(format!("GitHub gave a token but would not say whose ({status})"))),
     }
 }
 
@@ -584,14 +535,15 @@ fn form_body(fields: &[(&str, &str)]) -> String {
 }
 
 /// POST a form to a GitHub host and read its JSON answer.
-async fn form(host: &str, path: &str, fields: &[(&str, &str)]) -> Result<Value, String> {
+async fn form(host: &str, path: &str, fields: &[(&str, &str)]) -> Result<Value, AuthError> {
     let headers = [
         ("accept", "application/json".to_string()),
         ("content-type", "application/x-www-form-urlencoded".to_string()),
     ];
-    let (status, _, body) = http(Method::Post, host, path, &headers, form_body(fields).into_bytes()).await?;
+    let (status, _, body) =
+        http(Method::Post, host, path, &headers, form_body(fields).into_bytes()).await.map_err(failed)?;
     serde_json::from_slice(&body)
-        .map_err(|_| format!("github-auth plugin: {host}{path} answered {status} with something that is not JSON"))
+        .map_err(|_| failed(format!("{host}{path} answered {status} with something that is not JSON")))
 }
 
 fn enc(s: &str) -> String {
@@ -604,7 +556,8 @@ fn enc(s: &str) -> String {
 }
 
 /// One HTTPS request through wasi:http, which the plugin's allowedHosts limit.
-/// Returns the status, the headers (lower case) and the body.
+/// Returns the status, the headers (lower case) and the body, which it stops
+/// reading past `MAX_BODY` bytes.
 async fn http(
     method: Method,
     host: &str,
@@ -640,8 +593,22 @@ async fn http(
         .map(|(k, v)| (k.to_ascii_lowercase(), String::from_utf8_lossy(&v).into_owned()))
         .collect();
     let (_done_tx, done_rx) = bindings::wit_future::new(|| Ok(()));
-    let (body, _trailers) = HttpResponse::consume_body(response, done_rx);
-    Ok((status, headers, body.collect().await))
+    let (mut stream, _trailers) = HttpResponse::consume_body(response, done_rx);
+    let mut body = Vec::with_capacity(64 * 1024);
+    loop {
+        if body.len() > MAX_BODY {
+            return Err(format!("{host}'s answer was larger than {MAX_BODY} bytes; ask for fewer items"));
+        }
+        if body.len() == body.capacity() {
+            body.reserve(64 * 1024);
+        }
+        let (result, buf) = stream.read(body).await;
+        body = buf;
+        if !matches!(result, wit_bindgen::StreamResult::Complete(_)) {
+            break;
+        }
+    }
+    Ok((status, headers, body))
 }
 
 mod export {
@@ -655,17 +622,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn b64url_matches_rfc_4648_without_padding() {
-        assert_eq!(b64url(b""), "");
-        assert_eq!(b64url(b"f"), "Zg");
-        assert_eq!(b64url(b"fo"), "Zm8");
-        assert_eq!(b64url(b"foo"), "Zm9v");
-        assert_eq!(b64url(b"foob"), "Zm9vYg");
-        assert_eq!(b64url(&[0xfb, 0xff, 0xbf]), "-_-_");
-        assert_eq!(b64url(&[0u8; 32]).len(), 43);
-    }
-
-    #[test]
     fn pkce_challenge_is_rfc_7636_s256() {
         // RFC 7636, appendix B.
         assert_eq!(
@@ -676,40 +632,32 @@ mod tests {
 
     #[test]
     fn authorize_url_has_everything_but_a_scope() {
-        let url = authorize_url("Ov23abc", "http://agent.localhost:18180/github/callback", "st-1", "ch_2");
+        let url = authorize_url("Ov23abc", "http://agent.localhost:28180/github/callback", "st-1", "ch_2");
         assert_eq!(
             url,
             "https://github.com/login/oauth/authorize?client_id=Ov23abc\
-             &redirect_uri=http%3A%2F%2Fagent.localhost%3A18180%2Fgithub%2Fcallback&state=st-1\
+             &redirect_uri=http%3A%2F%2Fagent.localhost%3A28180%2Fgithub%2Fcallback&state=st-1\
              &code_challenge=ch_2&code_challenge_method=S256"
         );
         assert!(!url.contains("scope"));
     }
 
     #[test]
-    fn redirect_uri_must_be_a_plain_http_url() {
-        assert!(check_redirect_uri("http://agent.localhost:18180/github/callback").is_ok());
-        assert!(check_redirect_uri("https://example.com/cb").is_ok());
+    fn commit_checks_take_a_sha_and_nothing_else() {
+        assert!(allowed("/repos/wasmCloud/wasmCloud/commits/b156b0be/check-runs?per_page=100").is_ok());
+        let full = "/repos/o/r/commits/b156b0be0123456789abcdef0123456789abcdef/status";
+        assert!(allowed(full).is_ok());
         for bad in [
-            "",
-            "agent.localhost/github/callback",
-            "javascript:alert(1)",
-            "http:///nohost",
-            "http://user@evil.example/cb",
-            "http://agent.localhost/cb#frag",
-            "http://agent.localhost/a b",
+            "/repos/o/r/commits/main/status",
+            "/repos/o/r/commits/..%2F..%2Fuser/status",
+            "/repos/o/r/commits/abc/status",
         ] {
-            assert!(check_redirect_uri(bad).is_err(), "{bad} should be refused");
+            assert!(allowed(bad).is_err(), "{bad} should be refused");
         }
     }
 
     fn pending(state: &str, expires_at: Instant) -> WebPending {
-        WebPending {
-            state: state.into(),
-            verifier: format!("v-{state}"),
-            redirect_uri: "http://agent.localhost:18180/github/callback".into(),
-            expires_at,
-        }
+        WebPending { state: state.into(), verifier: format!("v-{state}"), expires_at }
     }
 
     #[test]
@@ -765,10 +713,11 @@ mod tests {
             r#"{"error":"bad_verification_code","error_description":"The code passed is incorrect or expired."}"#,
         )
         .unwrap();
-        let e = token_of(&refused).unwrap_err();
+        let AuthError::Failed(e) = token_of(&refused).unwrap_err() else { panic!("not a failure") };
         assert!(e.contains("bad_verification_code (The code passed is incorrect or expired.)"), "{e}");
         let empty: Value = serde_json::from_str(r#"{"access_token":""}"#).unwrap();
-        assert!(token_of(&empty).unwrap_err().contains("no token and no error"));
+        let AuthError::Failed(e) = token_of(&empty).unwrap_err() else { panic!("not a failure") };
+        assert!(e.contains("no token and no error"), "{e}");
     }
 
     #[test]

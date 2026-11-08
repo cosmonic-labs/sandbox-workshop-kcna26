@@ -1,5 +1,5 @@
 # The workshop guide: README.md and each steps/*/README.md as web pages, at
-# http://guide.localhost:18180 (components/guide).
+# http://guide.localhost:28180 (components/guide).
 #
 # It runs beside the mock sites, on the mock-sites host group, so it stays up
 # whichever step's manifest is applied. The ingress sends guide.localhost to
