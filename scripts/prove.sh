@@ -221,6 +221,21 @@ kubectl wait --for=condition=Ready workloaddeployment/mock-sites -n mock-sites -
   echo "# The imports: nothing that starts a process, no HTTP client, no sockets"
   echo "\$ wasm-tools component wit artifacts/tool_sqlite.wasm | grep -E '^  import'"
   wasm-tools component wit artifacts/tool_sqlite.wasm | grep -E '^  import'
+  echo "# The same talks behind a service and an MCP server: the mcp tool lists the server's tools"
+  ask agent.localhost 'mcp tools'
+  echo "# A call becomes a REST request to the talks service"
+  ask agent.localhost 'mcp call list_talks {"track":"Security"}'
+  echo "# A write goes through the service, into its own folder"
+  ask agent.localhost 'mcp call favorite_talk {"id":1}'
+  echo "# Skip the MCP server and reach the service directly: refused by the mcp tool's grant"
+  ask agent.localhost 'mcp --server http://talks.mock-sites.svc/talks tools'
+  echo "# Talk the MCP server into fetching elsewhere: refused by the server's own grant"
+  ask agent.localhost 'mcp call import_talks {"url":"http://attacker.mock-sites.svc/collect"}'
+  echo "# The MCP server: an HTTP client, no filesystem. The talks service: a filesystem, no HTTP client"
+  echo "\$ wasm-tools component wit artifacts/talks_mcp.wasm | grep -E '^  import wasi:(http|filesystem|sockets)'"
+  wasm-tools component wit artifacts/talks_mcp.wasm | grep -E '^  import wasi:(http|filesystem|sockets)'
+  echo "\$ wasm-tools component wit artifacts/talks_api.wasm | grep -E '^  import wasi:(http|filesystem|sockets)'"
+  wasm-tools component wit artifacts/talks_api.wasm | grep -E '^  import wasi:(http|filesystem|sockets)'
 } >"$(OUT steps/03-sqlite)" 2>&1
 
 # The pull request step 4 looks at closely: merged, so it reads the same for
@@ -373,8 +388,26 @@ expect "$f" "sqlite attach 'file:/data/rooms.db?immutable=1' as r; select name, 
 expect "$f" "sqlite attach 'file:/workshop/private-data/payroll.db?immutable=1' as p; select name, salary from p.salaries" access-denied 'unable to open database'
 expect "$f" 'sqlite .shell id' invalid-argument '.shell: there is no shell here'
 expect "$f" "sqlite select load_extension('/tmp/evil')" invalid-argument 'no such function: load_extension'
-absent "$f" 'import wasi:http' 'sqlite imports no HTTP'
-absent "$f" 'import wasi:sockets' 'sqlite imports no sockets'
+# Only sqlite's imports: the MCP section below lists other components'.
+sqlite_imports=$(sed -n '/tool_sqlite.wasm/,/The same talks behind/p' "$f")
+CHECKED=$((CHECKED + 1))
+case "$sqlite_imports" in *'import wasi:http'*) fail "$f" 'sqlite imports no HTTP' absent present ;; esac
+CHECKED=$((CHECKED + 1))
+case "$sqlite_imports" in *'import wasi:sockets'*) fail "$f" 'sqlite imports no sockets' absent present ;; esac
+expect "$f" 'mcp tools' ok 'list_talks' 'import_talks'
+expect "$f" 'mcp call list_talks {"track":"Security"}' ok 'Sandboxing Agents and the Code They Write'
+expect "$f" 'mcp call favorite_talk {"id":1}' ok '"favorite":true'
+expect "$f" 'mcp --server http://talks.mock-sites.svc/talks tools' access-denied "talks.mock-sites.svc: $DENIED_HOST"
+expect "$f" 'mcp call import_talks {"url":"http://attacker.mock-sites.svc/collect"}' tool-failed \
+  'attacker.mock-sites.svc: this server may not reach that host (not in its allowedHosts)'
+present "$f" 'import wasi:http/client@0.3.0' 'the MCP server imports an HTTP client'
+present "$f" 'import wasi:filesystem/types' 'the talks service imports a filesystem'
+CHECKED=$((CHECKED + 1))
+mcp_imports=$(sed -n "/talks_mcp.wasm/,/talks_api.wasm/p" "$f")
+case "$mcp_imports" in *'import wasi:filesystem'*) fail "$f" 'the MCP server imports no filesystem' absent present ;; esac
+CHECKED=$((CHECKED + 1))
+api_imports=$(sed -n '/talks_api.wasm/,$p' "$f")
+case "$api_imports" in *'import wasi:http/client'*) fail "$f" 'the talks service imports no HTTP client' absent present ;; esac
 
 f=$(OUT steps/04-github)
 SKIPS=0

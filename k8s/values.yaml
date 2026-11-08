@@ -145,3 +145,15 @@ runtime:
         localBypassRouting: false
       service:
         type: ClusterIP
+      # The talks service's own folder (mock-sites/talks-api.yaml): a fresh,
+      # writable directory for the host pod's lifetime. It is the only
+      # hostPath a workload on this group may mount.
+      hostPaths:
+        allowed:
+          - /workshop/talks-data
+      volumes:
+        - name: talks-data
+          emptyDir: {}
+      volumeMounts:
+        - name: talks-data
+          mountPath: /workshop/talks-data

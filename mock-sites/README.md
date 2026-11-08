@@ -14,6 +14,14 @@ one component, inside the cluster:
   answers whatever reaches it, so when the host refuses a request to it, the
   agent's grant is the only thing in the way.
 
+It also starts two more workloads on the same host group for step 3, each
+from its own manifest in this folder:
+
+* `talks.mock-sites.svc` (`talks-api.yaml`): an ordinary REST service over
+  the conference talks, with its own folder for its data and no hosts.
+* `mcp.mock-sites.svc/mcp` (`talks-mcp.yaml`): an MCP server for the talks
+  service, as an ordinary HTTP component. Its one grant is the talks service.
+
 Each name is an ordinary Kubernetes Service (`k8s/sites.yaml`, namespace
 `mock-sites`) that selects the pods of the `mock-sites` host group, and the
 workload asks for that host group with `hostSelector`. The host sends each

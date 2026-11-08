@@ -1,0 +1,30 @@
+# The talks MCP server (components/talks-mcp): MCP over HTTP at
+# http://mcp.mock-sites.svc/mcp, an ordinary HTTP component like the service
+# behind it. Each tool call becomes a REST request to the talks service.
+#
+# Its grant is one host, the talks service. It has no folders, so it never
+# touches the service's data, and the host refuses any request it makes to
+# another host, whatever a tool call asks of it.
+apiVersion: runtime.wasmcloud.dev/v1alpha1
+kind: WorkloadDeployment
+metadata:
+  name: talks-mcp
+  namespace: mock-sites
+spec:
+  replicas: 1
+  template:
+    spec:
+      hostSelector:
+        hostgroup: mock-sites
+      hostInterfaces:
+        - namespace: wasi
+          package: http
+          interfaces: [handler]
+          config:
+            host: mcp.mock-sites.svc
+      components:
+        - name: talks-mcp
+          image: workshop-toolbox-registry:5000/workshop/talks-mcp:0.4.0
+          localResources:
+            allowedHosts:
+              - talks.mock-sites.svc
