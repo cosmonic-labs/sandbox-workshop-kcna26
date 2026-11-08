@@ -1,0 +1,27 @@
+// The talks MCP toolset: the talks MCP server, run behind Cosmonic's MCP
+// bridge, composed into one component the way Cosmonic Desktop composes an
+// MCP server. scripts/compose-mcp.sh composes artifacts/mcp_talks_toolset.wasm
+// from it, in the build image (scripts/artifacts.sh).
+//
+// The bridge reaches the server in memory, through the server's own
+// wasi:http handler, so the toolset imports no HTTP client. The server's only
+// reach is its own sqlite tool, and the sqlite tool's only reach is the folder
+// the manifest mounts for it.
+//
+// The bridge's tools are exported under the plain name cosmonic-toolset, as
+// on Desktop. Nothing imports that name, so the host links nothing to it: the
+// toolbox host plugin calls it, and the agent's own tools import can only
+// reach the plugin.
+package workshop:mcp-talks-toolset;
+
+let sqlite = new workshop:tool-sqlite { ... };
+let server = new workshop:talks-mcp {
+  "workshop:toolbox/sqlite@0.4.0": sqlite["workshop:toolbox/sqlite@0.4.0"],
+  ...
+};
+let bridge = new cosmonic:mcp-bridge {
+  "wasi:http/handler@0.3.0": server["wasi:http/handler@0.3.0"],
+  ...
+};
+
+export bridge["cosmonic:agent/tools@0.4.1"] as cosmonic-toolset;

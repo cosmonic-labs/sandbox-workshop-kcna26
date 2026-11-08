@@ -88,7 +88,7 @@ cluster named `workshop-toolbox` and switches your kubectl context to it.
 | --- | --- | --- |
 | 1 | `steps/01-agent` | The agent with no tools: how it and its gullible model work, and that it can use only what its manifest gives it |
 | 2 | `steps/02-curl` | `curl` (prebuilt, or build your own) gets one host; its escapes (metadata service, other hosts, redirects, files) are refused |
-| 3 | `steps/03-sqlite` | `sqlite3`'s escapes (`.shell`, `ATTACH`, extensions) go nowhere |
+| 3 | `steps/03-sqlite` | `sqlite3`'s escapes (`.shell`, `ATTACH`, extensions) go nowhere, and an MCP server is sandboxed the same way |
 | 4 | `steps/04-github` | A real job: triage wasmCloud's pull requests with `gh`, signed in or not; the GitHub capability refuses writes, and the token never leaves the platform |
 
 Each step includes the commands and the output to expect
@@ -143,6 +143,7 @@ registry, and switches kubectl back to the context you had before `make up`.
         └──▶ tools    toolbox plugin, which calls the tools in this workload:
                ├──▶ curl     allowedHosts only ──▶ api.mock-sites.svc, /data for -o
                ├──▶ sqlite   /data, read only
+               ├──▶ mcp      MCP bridge + talks MCP server + its own sqlite: /data, read only
                └──▶ gh       github-api plugin ──▶ api.github.com (GET, allowlisted paths)
 ```
 
@@ -161,6 +162,9 @@ registry, and switches kubectl back to the context you had before `make up`.
   the platform's toolbox plugin serves by listing and calling the tool
   components in the agent's own workload. The toolbox plugin is built into
   the workshop's host image (`host/`).
+* An **MCP server** offers tools over the Model Context Protocol. Step 3
+  runs one behind Cosmonic's MCP bridge, the same bridge Cosmonic Desktop
+  runs, as one more sandboxed component with its own grant.
 
 The mock sites (`mock-sites`) are fake websites inside the
 cluster, so steps 1 to 3 need no internet. One is an ordinary API, the host
@@ -198,7 +202,9 @@ thing that stopped the leak.
   the github-api plugin's digest pinned in `k8s/values.yaml`, differs. CI
   runs it on every push and pull request, and publishes each build from
   `main` to `ghcr.io/cosmonic-labs/sandbox-workshop-kcna26/<name>`, with the
-  same digests `k8s/values.yaml` pins. After changing a component, run
+  same digests `k8s/values.yaml` pins. The MCP toolset is composed in the
+  same image, from the build's sqlite and talks-mcp and Cosmonic's published
+  MCP bridge, fetched by digest. After changing a component, run
   `make artifacts` (needs Docker) and commit the result.
 * The host image (wash with the toolbox plugin compiled in) is built by CI
   too, and published to `ghcr.io/cosmonic-labs/sandbox-workshop-kcna26/workshop-host`

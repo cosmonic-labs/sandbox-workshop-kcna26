@@ -378,3 +378,12 @@ world guide {
   export wasi:http/handler@0.3.0;
 }
 
+/// talks-mcp: a small MCP server over the conference talks database. It
+/// answers MCP's Streamable HTTP transport and runs SQL through the sqlite
+/// tool component composed with it (or the one sibling in its workload that
+/// exports it), so it reaches only that component's folder.
+@since(version = 0.4.0)
+world talks-mcp {
+  import sqlite;
+  export wasi:http/handler@0.3.0;
+}

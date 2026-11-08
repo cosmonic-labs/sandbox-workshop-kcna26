@@ -65,3 +65,44 @@ $ wasm-tools component wit artifacts/tool_sqlite.wasm | grep -E '^  import'
   import wasi:cli/terminal-stderr@0.2.9;
   import wasi:filesystem/types@0.2.9;
   import wasi:filesystem/preopens@0.2.9;
+# The talks MCP server, through Cosmonic's MCP bridge: the same talks
+$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:28180/ -d "mcp select title, speaker from talks where track = 'Security' order by title"
+[user] mcp select title, speaker from talks where track = 'Security' order by title
+[model] call talks_sql({"sql":"select title, speaker from talks where track = 'Security' order by title"})
+[tool talks_sql] ok: Least Privilege for Multi-Tenant Clusters | C. Okafor Sandboxing Agents and the Code They Write | A. Rivera Secrets Without Tears | I. Costa Supply Chain Attacks in the Wild | F. Haddad
+[model] Done. Here is what each step returned: talks_sql: Least Privilege for Multi-Tenant Clusters | C. Okafor Sandboxing Agents and the Code They Write | A. Rivera Secrets With
+
+# ATTACH payroll through the MCP server: refused by its own grant
+$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:28180/ -d "mcp attach 'file:/workshop/private-data/payroll.db?immutable=1' as p; select name, salary from p.salaries"
+[user] mcp attach 'file:/workshop/private-data/payroll.db?immutable=1' as p; select name, salary from p.salaries
+[model] call talks_sql({"sql":"attach 'file:/workshop/private-data/payroll.db?immutable=1' as p; select name, salary from p.salaries"})
+[tool talks_sql] error: {"access-denied":"attach 'file:/workshop/private-data/payroll.db?immutable=1' as p; select name, salary from p.salaries: unable to open database: file:/workshop/private-data/payroll.db?immutable=1"}
+[model] Done. Here is what each step returned: talks_sql: ERROR: {"access-denied":"attach 'file:/workshop/private-data/payroll.db?immutable=1' as p; select name, salary from p.sa
+
+# The MCP toolset's imports and its one export: no HTTP client, no sockets
+$ wasm-tools component wit artifacts/mcp_talks_toolset.wasm | grep -E '^  (import|export)'
+  import wasi:io/poll@0.2.9;
+  import wasi:clocks/monotonic-clock@0.2.9;
+  import wasi:clocks/wall-clock@0.2.9;
+  import wasi:io/error@0.2.9;
+  import wasi:io/streams@0.2.9;
+  import wasi:cli/stdout@0.2.9;
+  import wasi:cli/stderr@0.2.9;
+  import wasi:cli/stdin@0.2.9;
+  import wasi:cli/environment@0.2.9;
+  import wasi:cli/exit@0.2.9;
+  import wasi:cli/terminal-input@0.2.9;
+  import wasi:cli/terminal-output@0.2.9;
+  import wasi:cli/terminal-stdin@0.2.9;
+  import wasi:cli/terminal-stdout@0.2.9;
+  import wasi:cli/terminal-stderr@0.2.9;
+  import wasi:filesystem/types@0.2.9;
+  import wasi:filesystem/preopens@0.2.9;
+  import wasi:clocks/types@0.3.0;
+  import wasi:http/types@0.3.0;
+  import wasi:config/store@0.2.0-rc.1;
+  import cosmonic:agent/inference-types@0.4.1;
+  import cosmonic:agent/tool-types@0.4.1;
+  import cosmonic:agent/inference-types@0.3.0;
+  import wasi:clocks/monotonic-clock@0.3.0;
+  export cosmonic-toolset: interface {

@@ -19,3 +19,11 @@ RUN curl -fsSL -o /tmp/wasi-sdk.tar.gz \
   && mv /opt/wasi-sdk-28.0-arm64-linux /opt/wasi-sdk \
   && rm /tmp/wasi-sdk.tar.gz
 ENV WASI_SDK_PATH=/opt/wasi-sdk
+
+# wac 0.12.0: composes the talks MCP server with Cosmonic's MCP bridge
+# (scripts/compose-mcp.sh).
+ARG WAC_SHA256=80fe01c4cbf1e59526069d46f51a8a396be6f8df09ecc060d949181a317c08f5
+RUN curl -fsSL -o /usr/local/bin/wac \
+      https://github.com/bytecodealliance/wac/releases/download/v0.12.0/wac-cli-aarch64-unknown-linux-musl \
+  && echo "$WAC_SHA256  /usr/local/bin/wac" | sha256sum -c - \
+  && chmod +x /usr/local/bin/wac

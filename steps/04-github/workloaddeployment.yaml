@@ -14,6 +14,7 @@
 #   curl    the hosts in its allowedHosts (api.mock-sites.svc), and the
 #           folder mounted at /data for -o
 #   sqlite  the databases (talks, rooms) mounted read only at /data
+#   mcp     the same databases, read only, through its own sqlite; no network
 #   gh      the github-api capability only
 # The harness gets github-auth; the model gets nothing.
 
@@ -40,6 +41,10 @@ spec:
           interfaces: [handler]
           config:
             host: agent.localhost
+        # The MCP bridge reads the server's address (mcp-url) from its config.
+        - namespace: wasi
+          package: config
+          interfaces: [store]
         # The agent's toolbox, served by the toolbox plugin.
         - namespace: cosmonic
           package: agent
@@ -54,8 +59,8 @@ spec:
           interfaces: [curl, sqlite, gh]
         # GitHub, as two capabilities the host links to the github-api plugin:
         # github-api, which the gh tool imports, and github-auth (sign-in),
-        # which the harness imports. Both plugins are installed on the default
-        # host group (k8s/values.yaml).
+        # which the harness imports. The platform installed the plugin on the
+        # default host group (k8s/values.yaml).
         - namespace: workshop
           package: toolbox
           interfaces: [github-api, github-auth]
@@ -77,6 +82,21 @@ spec:
         - name: sqlite
           image: workshop-toolbox-registry:5000/workshop/tool-sqlite:0.4.0
           localResources:
+            volumeMounts:
+              - name: sqlite-data
+                mountPath: /data
+                readOnly: true
+        # The talks MCP server, composed with Cosmonic's MCP bridge into one
+        # component that exports cosmonic-toolset
+        # (components/talks-mcp/toolset.wac). The bridge reaches the server in
+        # memory; the whole has no network of its own. The server's SQL goes
+        # through its own sqlite, composed in, which reads only the databases
+        # mounted here.
+        - name: mcp
+          image: workshop-toolbox-registry:5000/workshop/mcp-talks-toolset:0.4.0
+          localResources:
+            config:
+              mcp-url: http://localhost/mcp
             volumeMounts:
               - name: sqlite-data
                 mountPath: /data

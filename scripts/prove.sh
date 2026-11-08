@@ -217,6 +217,13 @@ kubectl wait --for=condition=Ready workloaddeployment/mock-sites -n mock-sites -
   echo "# The imports: nothing that starts a process, no HTTP client, no sockets"
   echo "\$ wasm-tools component wit artifacts/tool_sqlite.wasm | grep -E '^  import'"
   wasm-tools component wit artifacts/tool_sqlite.wasm | grep -E '^  import'
+  echo "# The talks MCP server, through Cosmonic's MCP bridge: the same talks"
+  ask agent.localhost "mcp select title, speaker from talks where track = 'Security' order by title"
+  echo "# ATTACH payroll through the MCP server: refused by its own grant"
+  ask agent.localhost "mcp attach 'file:/workshop/private-data/payroll.db?immutable=1' as p; select name, salary from p.salaries"
+  echo "# The MCP toolset's imports and its one export: no HTTP client, no sockets"
+  echo "\$ wasm-tools component wit artifacts/mcp_talks_toolset.wasm | grep -E '^  (import|export)'"
+  wasm-tools component wit artifacts/mcp_talks_toolset.wasm | grep -E '^  (import|export)'
 } >"$(OUT steps/03-sqlite)" 2>&1
 
 # The pull request step 4 looks at closely: merged, so it reads the same for
@@ -370,8 +377,12 @@ expect "$f" "sqlite attach 'file:/data/rooms.db?immutable=1' as r; select name, 
 expect "$f" "sqlite attach 'file:/workshop/private-data/payroll.db?immutable=1' as p; select name, salary from p.salaries" access-denied 'unable to open database'
 expect "$f" 'sqlite .shell id' invalid-argument '.shell: there is no shell here'
 expect "$f" "sqlite select load_extension('/tmp/evil')" invalid-argument 'no such function: load_extension'
-absent "$f" 'import wasi:http' 'sqlite imports no HTTP'
-absent "$f" 'import wasi:sockets' 'sqlite imports no sockets'
+absent "$f" 'import wasi:http/client' 'neither sqlite nor the MCP toolset imports an HTTP client'
+absent "$f" 'import wasi:sockets' 'neither sqlite nor the MCP toolset imports sockets'
+expect "$f" "mcp select title, speaker from talks where track = 'Security' order by title" ok 'Sandboxing Agents and the Code They Write'
+present "$f" '[model] call talks_sql(' 'the model calls the MCP server tool the toolbox listed'
+expect "$f" "mcp attach 'file:/workshop/private-data/payroll.db?immutable=1' as p; select name, salary from p.salaries" access-denied 'unable to open database'
+present "$f" 'export cosmonic-toolset' 'the MCP toolset exports cosmonic-toolset, as on Desktop'
 
 f=$(OUT steps/04-github)
 SKIPS=0

@@ -17,20 +17,47 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-COMPONENTS="agent github_api guide mock_sites model_scripted tool_curl tool_gh tool_sqlite"
+COMPONENTS="agent github_api guide mcp_talks_toolset mock_sites model_scripted tool_curl tool_gh tool_sqlite"
 # The build's own target and cargo home, apart from any local build's.
 BUILD_DIR=target/linux-arm64
 OUT=$BUILD_DIR/wasm32-wasip2/release
 IMAGE=sandbox-workshop-build:local
 if command -v sha256sum >/dev/null 2>&1; then SUM="sha256sum"; else SUM="shasum -a 256"; fi
 
+# Cosmonic's MCP bridge, the composed build Cosmonic Desktop runs, published
+# as a public image. The talks MCP toolset is composed with it
+# (scripts/compose-mcp.sh); it is fetched by the digest of its one layer, so
+# the toolset is always composed with the same bytes.
+BRIDGE_REPO=cosmonic/agent-tools/mcp-bridge-composed
+BRIDGE_LAYER=sha256:caa18c6db8618c4d82efce9f78db9e33e17e786abd243d811697eba251be659f
+BRIDGE=$BUILD_DIR/mcp_bridge_composed.wasm
+
+fetch_bridge() {
+  if [ -f "$BRIDGE" ] && [ "sha256:$($SUM "$BRIDGE" | cut -d' ' -f1)" = "$BRIDGE_LAYER" ]; then
+    return
+  fi
+  local token
+  token=$(curl -fsS "https://ghcr.io/token?scope=repository:$BRIDGE_REPO:pull" \
+    | sed -n 's/.*"token":"\([^"]*\)".*/\1/p')
+  curl -fsSL -H "Authorization: Bearer $token" -o "$BRIDGE.part" \
+    "https://ghcr.io/v2/$BRIDGE_REPO/blobs/$BRIDGE_LAYER"
+  if [ "sha256:$($SUM "$BRIDGE.part" | cut -d' ' -f1)" != "$BRIDGE_LAYER" ]; then
+    echo "ghcr.io/$BRIDGE_REPO: layer does not match $BRIDGE_LAYER" >&2
+    rm -f "$BRIDGE.part"
+    return 1
+  fi
+  mv "$BRIDGE.part" "$BRIDGE"
+}
+
 build() {
   docker build -q --platform linux/arm64 -t "$IMAGE" - <build.Dockerfile >/dev/null
   mkdir -p "$BUILD_DIR"
+  fetch_bridge
   docker run --rm --platform linux/arm64 --user "$(id -u):$(id -g)" \
     -e HOME=/tmp -e CARGO_HOME="/src/$BUILD_DIR/cargo" -e CARGO_TARGET_DIR="/src/$BUILD_DIR" \
     -e CARGO_BUILD_JOBS \
-    -v "$ROOT:/src" -w /src "$IMAGE" scripts/build.sh
+    -v "$ROOT:/src" -w /src "$IMAGE" \
+    sh -c "scripts/build.sh && scripts/compose-mcp.sh $OUT $BRIDGE"
 }
 
 sums() { # the SHA256SUMS lines for the build

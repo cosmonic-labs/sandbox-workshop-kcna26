@@ -23,6 +23,9 @@ The same agent as step 2, with sqlite added (and listed with curl under
 one folder, read only, holding two databases (`main.db`, the talks, and
 `rooms.db`).
 
+It also runs an MCP server over the same talks, which you'll try at the end
+of this step.
+
 ```yaml
 volumeMounts: [{ name: sqlite-data, mountPath: /data, readOnly: true }]
 ```
@@ -179,5 +182,71 @@ The list (17 lines) is clocks, streams, terminal, environment, exit and
 filesystem. WASI has no interface that starts a process, and there is no HTTP
 client or socket. Even a sqlite3 with a real `.shell` would have nothing to
 start, and the filesystem holds only `/data`.
+
+## The same talks through an MCP server
+
+MCP (the Model Context Protocol) is the common way to offer tools to an
+agent. This workload also runs a small MCP server over the talks database,
+in a component named `mcp`. It offers one tool, `talks_sql`, and the toolbox
+plugin lists it beside curl and sqlite. The model calls it like any other
+tool.
+
+The server runs behind Cosmonic's MCP bridge, the same bridge Cosmonic
+Desktop runs, composed into one component with the server and its own copy
+of the sqlite tool. Its grant is the same read-only folder as sqlite's:
+
+```yaml
+- name: mcp
+  localResources:
+    volumeMounts: [{ name: sqlite-data, mountPath: /data, readOnly: true }]
+```
+
+**7. Ask the MCP server**
+
+In the chat:
+
+```
+mcp select title, speaker from talks where track = 'Security' order by title
+```
+
+In your terminal or Codespaces:
+
+```sh
+curl -s -H 'Host: agent.localhost' \
+  http://127.0.0.1:28180/ \
+  -d "mcp select title, speaker from talks where track = 'Security' order by title"
+```
+
+The model calls `talks_sql`, and the same four talks come back.
+
+**8. ATTACH payroll through the MCP server: refused**
+
+In the chat:
+
+```
+mcp attach 'file:/workshop/private-data/payroll.db?immutable=1' as p; select name, salary from p.salaries
+```
+
+In your terminal or Codespaces:
+
+```sh
+curl -s -H 'Host: agent.localhost' \
+  http://127.0.0.1:28180/ \
+  -d "mcp attach 'file:/workshop/private-data/payroll.db?immutable=1' as p; select name, salary from p.salaries"
+```
+
+The same `access-denied` as step 4. The MCP server is sandboxed like every
+other tool here, so it can read only what its own grant mounts.
+
+Its imports say the same:
+
+```sh
+wasm-tools component wit artifacts/mcp_talks_toolset.wasm | grep -E '^  (import|export)'
+```
+
+There is no HTTP client and no socket: the bridge reaches the server in
+memory, inside the component. (`wasi:http/types` holds only the request and
+response types.) The one export, `cosmonic-toolset`, is the toolset the
+toolbox plugin calls.
 
 Full transcript: [`expected-output.txt`](expected-output.txt).
