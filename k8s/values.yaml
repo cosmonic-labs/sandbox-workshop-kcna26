@@ -87,7 +87,9 @@ runtime:
       # (the host's wasmcloud:host/identity), and is gone when the host
       # restarts.
       #
-      # client-id and client-secret name the GitHub OAuth app sign-in uses,
+      # client-id and client-secret name the GitHub OAuth app sign-in uses
+      # (KubeCon sandbox workshop, owned by cosmonic-labs; its tokens expire
+      # after 8 hours),
       # and redirect-uri is where GitHub sends the browser back: it must be
       # the app's callback URL, and Enable Device Flow must be ticked for
       # the code flow. Until all three are set, sign-in reports that it isn't
@@ -119,8 +121,8 @@ runtime:
             - github.com
             - api.github.com
           config:
-            client-id: Ov23liN4pgXbvHJYd83G
-            client-secret: 9728ab4cc69121ce7e38da40d446e402e94d83ce
+            client-id: Ov23lidRctAIgaYTTfVV
+            client-secret: 710f18e496eed20dbf0cef47ff985e38d09d1257
             redirect-uri: http://agent.localhost:28180/github/callback
         # The toolbox plugin: serves the agent SDK's tools interface
         # (cosmonic:agent/tools) to a workload by listing and calling the
