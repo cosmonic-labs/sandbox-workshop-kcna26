@@ -14,6 +14,16 @@ http://guide.localhost:28180, with a Copy button on every command.
 
 In Codespaces, follow the raw README files in each `/steps/` directory.
 
+## Watch it first
+
+[`docs/walkthrough.cast`](docs/walkthrough.cast) is a recording of the whole
+workshop, run from a fresh clone with exactly the commands in these READMEs
+(about 8 minutes, step 4 signed out). Play it in a terminal:
+
+```
+asciinema play docs/walkthrough.cast
+```
+
 ## Requirements
 
 * Docker (Docker Desktop, OrbStack, or Podman) with 4 GB or more of memory for
