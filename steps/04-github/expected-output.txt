@@ -2,58 +2,58 @@
 $ kubectl apply -f steps/04-github/workloaddeployment.yaml && sleep 2 && kubectl wait --for=condition=Ready workloaddeployment/toolbox-agent
 
 # Sign-in, as the chat page asks for it: a new workload is signed out
-$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/github/status
+$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:28180/github/status
 {"state":"signed-out"}
 
 # Allowed: the open pull requests (live, so masked here)
-$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'triage the open PRs in wasmCloud/wasmCloud'
+$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:28180/ -d 'triage the open PRs in wasmCloud/wasmCloud'
 [user] triage the open PRs in wasmCloud/wasmCloud
 [model] call gh({"arguments":"pr list -R wasmCloud/wasmCloud --limit 10"})
 [tool gh] ok: <live data from GitHub>
 [model] Done. Here is what each step returned: gh: <live data from GitHub>
 
 # Allowed: one pull request, its checks and its diff (live, so masked here)
-$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'gh pr view 5885'
+$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:28180/ -d 'gh pr view 5885'
 [user] gh pr view 5885
 [model] call gh({"arguments":"pr view 5885"})
 [tool gh] ok: <live data from GitHub>
 [model] Done. Here is what each step returned: gh: <live data from GitHub>
 
-$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'gh pr checks 5885'
+$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:28180/ -d 'gh pr checks 5885'
 [user] gh pr checks 5885
 [model] call gh({"arguments":"pr checks 5885"})
 [tool gh] ok: <live data from GitHub>
 [model] Done. Here is what each step returned: gh: <live data from GitHub>
 
-$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'gh pr diff 5885'
+$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:28180/ -d 'gh pr diff 5885'
 [user] gh pr diff 5885
 [model] call gh({"arguments":"pr diff 5885"})
 [tool gh] ok: <live data from GitHub>
 [model] Done. Here is what each step returned: gh: <live data from GitHub>
 
 # Refused by the grant: curl may not reach api.github.com
-$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'curl -s https://api.github.com/repos/wasmCloud/wasmCloud/pulls'
+$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:28180/ -d 'curl -s https://api.github.com/repos/wasmCloud/wasmCloud/pulls'
 [user] curl -s https://api.github.com/repos/wasmCloud/wasmCloud/pulls
 [model] call curl({"arguments":"-s https://api.github.com/repos/wasmCloud/wasmCloud/pulls"})
 [tool curl] error: {"access-denied":"api.github.com: this tool may not reach that host (not in its allowedHosts)"}
 [model] Done. Here is what each step returned: curl: ERROR: {"access-denied":"api.github.com: this tool may not reach that host (not in its allowedHosts)"}
 
 # Refused by the plugin: gh api sends a write through the capability as is
-$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'gh api -X POST /repos/wasmCloud/wasmCloud/issues/5885/comments'
+$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:28180/ -d 'gh api -X POST /repos/wasmCloud/wasmCloud/issues/5885/comments'
 [user] gh api -X POST /repos/wasmCloud/wasmCloud/issues/5885/comments
 [model] call gh({"arguments":"api -X POST /repos/wasmCloud/wasmCloud/issues/5885/comments"})
 [tool gh] error: {"access-denied":"github-api plugin: only GET requests are allowed; POST /repos/wasmCloud/wasmCloud/issues/5885/comments refused"}
 [model] Done. Here is what each step returned: gh: ERROR: {"access-denied":"github-api plugin: only GET requests are allowed; POST /repos/wasmCloud/wasmCloud/issues/5885/c
 
 # Refused by the plugin: a read outside its path allowlist
-$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'gh api /user'
+$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:28180/ -d 'gh api /user'
 [user] gh api /user
 [model] call gh({"arguments":"api /user"})
 [tool gh] error: {"access-denied":"github-api plugin: /user is not on this plugin's path allowlist (pull requests, their files, reviews, comments and checks, the issue search, and the rate limit); GET /user refused"}
 [model] Done. Here is what each step returned: gh: ERROR: {"access-denied":"github-api plugin: /user is not on this plugin's path allowlist (pull requests, their files, re
 
 # Refused by the tool's own code: gh offers no command that writes
-$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/ -d 'gh pr merge 5885'
+$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:28180/ -d 'gh pr merge 5885'
 [user] gh pr merge 5885
 [model] call gh({"arguments":"pr merge 5885"})
 [tool gh] error: {"access-denied":"'gh pr merge' changes GitHub; this gh only reads (this gh offers: pr list, pr view [--comments], pr checks, pr diff, search prs, and api (GET))"}

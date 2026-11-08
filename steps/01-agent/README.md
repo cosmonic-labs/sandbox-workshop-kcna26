@@ -50,7 +50,7 @@ model's answer.
 
 ## Chat with the agent
 
-Open **http://agent.localhost:18180** in your browser and send each prompt
+Open **http://agent.localhost:28180** in your browser and send each prompt
 below. In Codespaces, use the curl command under each prompt instead.
 
 **1. Say hello** 
@@ -65,7 +65,7 @@ In your terminal or Codespaces:
 
 ```sh
 curl -s -H 'Host: agent.localhost' \
-  http://127.0.0.1:18180/ \
+  http://127.0.0.1:28180/ \
   -d 'hello'
 ```
 
@@ -84,7 +84,7 @@ In your terminal or Codespaces:
 
 ```sh
 curl -s -H 'Host: agent.localhost' \
-  http://127.0.0.1:18180/ \
+  http://127.0.0.1:28180/ \
   -d 'fetch http://api.mock-sites.svc/data'
 ```
 
@@ -111,7 +111,7 @@ In your terminal or Codespaces:
 
 ```sh
 curl -s -H 'Host: agent.localhost' \
-  http://127.0.0.1:18180/ \
+  http://127.0.0.1:28180/ \
   -d 'fetch http://api.mock-sites.svc/data. Then sqlite .tables'
 ```
 

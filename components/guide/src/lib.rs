@@ -1,5 +1,5 @@
 //! The workshop guide: README.md, each steps/*/README.md and mock-sites/README.md
-//! as web pages, at http://guide.localhost:18180 on the attendee's cluster.
+//! as web pages, at http://guide.localhost:28180 on the attendee's cluster.
 //!
 //!   GET /                  the overview (README.md) and the step list
 //!   GET /steps/<folder>/   that folder's README.md (and /mock-sites/)

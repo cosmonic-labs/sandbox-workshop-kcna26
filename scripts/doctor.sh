@@ -106,7 +106,7 @@ for t in curl nc; do
 done
 
 # The ingress port. The workshop's own kind cluster holding it counts as fine.
-port="${HOST_HTTP:-127.0.0.1:18180}"; port="${port##*:}"
+port="${HOST_HTTP:-127.0.0.1:28180}"; port="${port##*:}"
 if ! (command -v nc >/dev/null 2>&1 && nc -z 127.0.0.1 "$port" 2>/dev/null); then
   ok "port $port is free"
 elif command -v docker >/dev/null 2>&1 &&
@@ -121,7 +121,7 @@ elif command -v docker >/dev/null 2>&1 &&
 else
   fail "port $port is taken by another program" \
     "see which one: lsof -nP -iTCP:$port -sTCP:LISTEN" \
-    "fix: stop that program, or pick another port: HOST_HTTP=127.0.0.1:18190 make up"
+    "fix: stop that program, or pick another port: HOST_HTTP=127.0.0.1:28190 make up"
 fi
 
 if command -v sha256sum >/dev/null 2>&1; then sumcmd="sha256sum -c"; else sumcmd="shasum -a 256 -c"; fi

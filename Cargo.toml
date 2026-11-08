@@ -5,7 +5,6 @@ members = [
   "components/github-api",
   "components/guide",
   "components/model-scripted",
-  "components/sign-in-placeholder",
   "components/tool-curl",
   "components/tool-gh",
   "components/tool-sqlite",

@@ -48,6 +48,12 @@ spec:
           package: toolbox
           name: tools
           interfaces: [curl]
+        # GitHub sign-in, which the harness imports, linked to the github-api
+        # plugin the platform installed (k8s/values.yaml). Step 4 adds
+        # github-api itself, for the gh tool.
+        - namespace: workshop
+          package: toolbox
+          interfaces: [github-auth]
       components:
         - name: agent
           image: workshop-toolbox-registry:5000/workshop/agent:0.4.0
@@ -62,10 +68,6 @@ spec:
             volumeMounts:
               - name: curl-data
                 mountPath: /data
-        # GitHub sign-in, which the harness imports, answers "not in this
-        # step" until step 4 declares the plugin that provides it.
-        - name: sign-in
-          image: workshop-toolbox-registry:5000/workshop/sign-in-placeholder:0.4.0
       volumes:
         - name: curl-data
           hostPath:

@@ -8,13 +8,13 @@
 #   mock-sites        the mock sites' namespace and Services (k8s/sites.yaml)
 #   agent Service     the way in to the agent (k8s/agent-service.yaml)
 #   guide             the steps as web pages (k8s/guide.yaml), on the mock-sites group
-# then push the prebuilt components (or SRC=<dir>). 127.0.0.1:18180 reaches the
+# then push the prebuilt components (or SRC=<dir>). 127.0.0.1:28180 reaches the
 # host pods through a small ingress (k8s/ingress.yaml) that kind maps to your
 # laptop and that picks the host group by Host header, so every step's curl
 # command works unchanged.
 #
 # kind adds the context to your kubeconfig and switches to it, as it always
-# does. `kubectl config use-context <yours>` switches back.
+# does. make clean switches back to the context you had before.
 set -euo pipefail
 source "$(dirname "$0")/env.sh"
 CTX="kind-$CLUSTER"
@@ -28,6 +28,13 @@ K() { kubectl --context "$CTX" "$@"; }
 # these node paths at creation time.
 "$ROOT/scripts/stage-data.sh"
 if ! kind get clusters 2>/dev/null | grep -qx "$CLUSTER"; then
+  # kind switches kubectl to the new cluster; make clean switches back.
+  prev=$(kubectl config current-context 2>/dev/null || true)
+  if [ -n "$prev" ] && [ "$prev" != "$CTX" ]; then
+    echo "$prev" >"$RUN_DIR/previous-context"
+  else
+    rm -f "$RUN_DIR/previous-context"
+  fi
   cat >"$RUN_DIR/kind-config.yaml" <<YAML
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
@@ -90,7 +97,15 @@ for ref in $NODE_IMAGES; do
   name="${ref%@*}"
   docker image inspect "$ref" >/dev/null 2>&1 || docker pull -q "$ref" >/dev/null
   docker tag "$ref" "$name"
-  kind load docker-image "$name" --name "$CLUSTER" >/dev/null
+  # Docker's containerd image store keeps only this machine's platform of a
+  # multi-platform image, which `kind load docker-image` (--all-platforms)
+  # rejects; save just that platform instead.
+  if ! kind load docker-image "$name" --name "$CLUSTER" >/dev/null 2>&1; then
+    archive="$RUN_DIR/node-image.tar"
+    docker save --platform "$(docker version -f '{{.Server.Os}}/{{.Server.Arch}}')" -o "$archive" "$name"
+    kind load image-archive "$archive" --name "$CLUSTER" >/dev/null
+    rm -f "$archive"
+  fi
 done
 K apply -f "$ROOT/k8s/agent-service.yaml" >/dev/null
 K apply -f "$ROOT/k8s/ingress.yaml" >/dev/null

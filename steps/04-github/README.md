@@ -37,8 +37,9 @@ kubectl apply -f steps/04-github/workloaddeployment.yaml \
   workloaddeployment/toolbox-agent
 ```
 
-The same agent as step 3, with gh added to the agent's tools, and the GitHub
-capabilities declared under `hostInterfaces`:
+The same agent as step 3, with gh added to the agent's tools, and
+`github-api` added next to `github-auth` (sign-in, which every step
+declares) under `hostInterfaces`:
 
 ```yaml
 - namespace: workshop
@@ -54,10 +55,11 @@ capabilities declared under `hostInterfaces`:
 
 This step needs the internet: the answers come live from GitHub, so yours
 will differ from the samples here. Type each prompt into the chat at
-http://agent.localhost:18180, or run the curl command under it.
+http://agent.localhost:28180, or run the curl command under it.
 
 **1. Sign in (optional):** click **Sign in with GitHub** at the top of the
-chat page.
+chat page. The button is there in every step, but each step's manifest makes
+a new workload, which starts signed out, so sign in here.
 
 Your browser goes to github.com, which asks you to approve the "KubeCon
 sandbox workshop" app (sign in to GitHub first if you aren't). Approve, and
@@ -75,7 +77,7 @@ samples here; the refusals in prompts 6 to 8 send nothing to GitHub.
 How it works. This is GitHub's OAuth web application flow, with PKCE. The
 plugin makes a random `state` and a secret verifier, and sends your browser
 to GitHub with the state and a hash of the verifier. GitHub sends your
-browser back to `http://agent.localhost:18180/github/callback` with the same
+browser back to `http://agent.localhost:28180/github/callback` with the same
 state and a code. The harness passes both to the plugin, which checks the
 state and trades the code for a token, proving it holds the verifier and
 the OAuth app's client secret. So the agent does see one thing: that code.
@@ -103,19 +105,19 @@ Open the link in any browser, on any device, enter the code and approve.
 The same with curl. Start sign-in, which prints the code and the link:
 
 ```sh
-curl -s -X POST -H 'Host: agent.localhost' http://127.0.0.1:18180/github/sign-in
+curl -s -X POST -H 'Host: agent.localhost' http://127.0.0.1:28180/github/sign-in
 ```
 
 Enter the code, then check; this prints `{"login":"<you>","state":"signed-in"}`:
 
 ```sh
-curl -s -H 'Host: agent.localhost' http://127.0.0.1:18180/github/status
+curl -s -H 'Host: agent.localhost' http://127.0.0.1:28180/github/status
 ```
 
 Sign out:
 
 ```sh
-curl -s -X POST -H 'Host: agent.localhost' http://127.0.0.1:18180/github/sign-out
+curl -s -X POST -H 'Host: agent.localhost' http://127.0.0.1:28180/github/sign-out
 ```
 
 Use the browser when you can. GitHub lets one OAuth app start only 50 device
@@ -134,7 +136,7 @@ In your terminal or Codespaces:
 
 ```sh
 curl -s -H 'Host: agent.localhost' \
-  http://127.0.0.1:18180/ \
+  http://127.0.0.1:28180/ \
   -d 'triage the open PRs in wasmCloud/wasmCloud'
 ```
 
@@ -162,7 +164,7 @@ In your terminal or Codespaces:
 
 ```sh
 curl -s -H 'Host: agent.localhost' \
-  http://127.0.0.1:18180/ \
+  http://127.0.0.1:28180/ \
   -d 'gh pr view 5885'
 ```
 
@@ -186,7 +188,7 @@ In your terminal or Codespaces:
 
 ```sh
 curl -s -H 'Host: agent.localhost' \
-  http://127.0.0.1:18180/ \
+  http://127.0.0.1:28180/ \
   -d 'gh pr checks 5885'
 ```
 
@@ -208,7 +210,7 @@ In your terminal or Codespaces:
 
 ```sh
 curl -s -H 'Host: agent.localhost' \
-  http://127.0.0.1:18180/ \
+  http://127.0.0.1:28180/ \
   -d 'gh pr diff 5885'
 ```
 
@@ -233,7 +235,7 @@ In your terminal or Codespaces:
 
 ```sh
 curl -s -H 'Host: agent.localhost' \
-  http://127.0.0.1:18180/ \
+  http://127.0.0.1:28180/ \
   -d 'curl -s https://api.github.com/repos/wasmCloud/wasmCloud/pulls'
 ```
 
@@ -254,7 +256,7 @@ In your terminal or Codespaces:
 
 ```sh
 curl -s -H 'Host: agent.localhost' \
-  http://127.0.0.1:18180/ \
+  http://127.0.0.1:28180/ \
   -d 'gh api -X POST /repos/wasmCloud/wasmCloud/issues/5885/comments'
 ```
 
@@ -314,11 +316,9 @@ and the GitHub OAuth app sign-in uses (`client-id` and `client-secret`).
 * **The scripted model reads `gh`'s results as data.** Real pull request
   titles say things like "get rid of", which it would otherwise obey. Every
   other tool's output still counts as instructions.
-* **One call at a time.** The harness awaits each tool call before the next,
-  which keeps clear of wasmCloud#5756 (see the main README's known limits).
 * **Sign-in needs an OAuth app.** Until the platform sets the plugin's
-  `client-id` and `client-secret`, Sign in with GitHub says sign-in isn't set
-  up, and everything else works signed out.
+  `client-id`, `client-secret` and `redirect-uri`, Sign in with GitHub says
+  sign-in isn't set up, and everything else works signed out.
 
 Full transcript: [`expected-output.txt`](expected-output.txt). GitHub's
 answers are live, so the transcript writes each one as

@@ -37,6 +37,9 @@ upload_blob() { # repository, file
 # timestamps. wash records the push time in both, so each push would
 # otherwise get a new digest. Prints the final digest.
 push_reproducible() { # file, repository, tag
+  # Runs inside $(...), which doesn't inherit set -e: stop at the first
+  # failure rather than print a digest for a push that didn't happen.
+  set -e
   local file=$1 repo=$2 tag=$3 tmp cfg
   "$WASH" oci push --insecure "$REGISTRY/$repo:$tag" "$file" >/dev/null
   tmp=$(mktemp -d)
@@ -75,6 +78,14 @@ if [ "$(cd "$SRC" && pwd)" = "$ROOT/artifacts" ]; then
 fi
 for f in "$SRC"/*.wasm; do
   name=$(basename "$f" .wasm | tr _ -)
+  # Not `digest=$(...) || ...`: bash would then ignore set -e inside it too.
+  set +e
   digest=$(push_reproducible "$f" "workshop/$name" "$TAG")
+  status=$?
+  set -e
+  if [ "$status" != 0 ]; then
+    echo "pushing $f to $REGISTRY failed; nothing after it was pushed" >&2
+    exit 1
+  fi
   echo "pushed $REGISTRY/workshop/$name:$TAG ($digest)"
 done

@@ -44,21 +44,14 @@ mod tools;
 
 use exports::wasi::http::handler::Guest;
 use wasi::http::types::{ErrorCode, Method, Request, Response};
-use workshop::toolbox::github_auth::{self, SignInStatus};
+use workshop::toolbox::github_auth::{self, AuthError, SignInStatus};
 use workshop::toolbox::types::{Completion, Message, ToolDef};
 
 /// Hard stop so a hijacked model cannot loop forever.
 const MAX_STEPS: usize = 8;
 
-/// The transcript page, for a browser at http://agent.localhost:18180/.
+/// The transcript page, for a browser at http://agent.localhost:28180/.
 const PAGE: &str = include_str!("transcript.html");
-
-/// Where GitHub sends the browser back after the person approves. It must
-/// match the OAuth app's callback URL exactly. A request that names a port
-/// in its Host header (as a browser does) gets that host and port instead,
-/// so a cluster made with another HOST_HTTP port still sends a matching
-/// address; the OAuth app's callback URL must then name that port too.
-const DEFAULT_REDIRECT_URI: &str = "http://agent.localhost:18180/github/callback";
 
 struct Agent;
 
@@ -94,7 +87,7 @@ impl Guest for Agent {
             .unwrap_or_default();
         if matches!(req.get_method(), Method::Get) {
             match path.as_str() {
-                "/github/login" => return github_login(&redirect_uri(&req)).await,
+                "/github/login" => return github_login().await,
                 "/github/callback" => return github_callback(&query).await,
                 _ => {}
             }
@@ -133,8 +126,8 @@ export!(Agent);
 /// GitHub. On failure, back to the page with a short reason it explains.
 /// A plain navigation: it runs no tool, and the state the plugin makes is
 /// what ties the callback to it.
-async fn github_login(redirect_uri: &str) -> Result<Response, ErrorCode> {
-    match github_auth::begin_web(redirect_uri.to_string()).await {
+async fn github_login() -> Result<Response, ErrorCode> {
+    match github_auth::begin_web().await {
         Ok(url) => http::redirect_response(302, &url),
         Err(e) => back_to_page(&e),
     }
@@ -165,33 +158,19 @@ async fn github_callback(query: &str) -> Result<Response, ErrorCode> {
 /// turns into its own words. The page never shows text from the address, so
 /// a crafted link can't put words on it. The body has the plugin's message,
 /// for curl.
-fn back_to_page(e: &github_auth::WebError) -> Result<Response, ErrorCode> {
-    use github_auth::WebError;
-    let (reason, message) = match e {
-        WebError::NotSetUp(m) => ("not-set-up", m),
-        WebError::UnknownState(m) => ("expired", m),
-        WebError::Failed(m) => ("failed", m),
+fn back_to_page(e: &AuthError) -> Result<Response, ErrorCode> {
+    let reason = match e {
+        AuthError::NotSetUp(_) => "not-set-up",
+        AuthError::UnknownState(_) => "expired",
+        AuthError::Failed(_) => "failed",
     };
-    http::redirect_text(302, &format!("/?github={reason}"), format!("{message}\n"))
+    http::redirect_text(302, &format!("/?github={reason}"), format!("{}\n", message(e)))
 }
 
-/// The browser flow's redirect address: the request's own host and port
-/// when its Host header names a port, else the default.
-fn redirect_uri(req: &Request) -> String {
-    let host = req
-        .get_headers()
-        .get("host")
-        .first()
-        .map(|v| String::from_utf8_lossy(v).trim().to_ascii_lowercase())
-        .unwrap_or_default();
-    let plain = host.bytes().all(|b| b.is_ascii_alphanumeric() || matches!(b, b'.' | b'-' | b':'));
-    match host.split_once(':') {
-        Some((name, port))
-            if plain && !name.is_empty() && !port.is_empty() && port.bytes().all(|b| b.is_ascii_digit()) =>
-        {
-            format!("http://{host}/github/callback")
-        }
-        _ => DEFAULT_REDIRECT_URI.to_string(),
+/// What the plugin said, whichever way sign-in went wrong.
+fn message(e: &AuthError) -> &str {
+    match e {
+        AuthError::NotSetUp(m) | AuthError::UnknownState(m) | AuthError::Failed(m) => m,
     }
 }
 
@@ -218,7 +197,7 @@ async fn github(path: &str, method: &Method) -> Option<String> {
             "expires_in": p.expires_in,
         }),
         Ok(SignInStatus::SignedIn(login)) => json!({ "state": "signed-in", "login": login }),
-        Err(e) => json!({ "state": "error", "error": e }),
+        Err(e) => json!({ "state": "error", "error": message(&e) }),
     };
     Some(v.to_string())
 }

@@ -15,10 +15,10 @@
   "onCreateCommand": "cargo fetch --locked || true",
   "postCreateCommand": "mkdir -p .tools && ln -sf /opt/workshop-tools/* .tools/ && make tools && make doctor",
   "forwardPorts": [
-    18180
+    28180
   ],
   "portsAttributes": {
-    "18180": {
+    "28180": {
       "label": "workshop ingress (agents and mock sites; use curl with a Host header)",
       "onAutoForward": "silent"
     },

@@ -74,10 +74,10 @@ runtime:
         - name: private-data
           mountPath: /workshop/private-data
           readOnly: true
-      # Step 4's github-api host component plugin: GitHub reads for the gh
-      # tool (github-api) and GitHub sign-in for the agent harness
-      # (github-auth). The platform installs it on the host group; a workload
-      # uses it only by declaring both under hostInterfaces. It builds every
+      # The github-api host component plugin: GitHub sign-in for the agent
+      # harness (github-auth, declared in every step) and GitHub reads for
+      # step 4's gh tool (github-api). The platform installs it on the host
+      # group; a workload uses each only by declaring it under hostInterfaces. It builds every
       # URL itself, sends only GET, only to api.github.com and only for the
       # read paths the gh tool needs, and refuses everything else. Sign-in has
       # no scopes and two flows, both run by the plugin from start to finish:
@@ -87,12 +87,12 @@ runtime:
       # (the host's wasmcloud:host/identity), and is gone when the host
       # restarts.
       #
-      # client-id and client-secret name the GitHub OAuth app sign-in uses.
-      # Its callback URL must be exactly
-      # http://agent.localhost:18180/github/callback, and Enable Device Flow
-      # must be ticked for the code flow. Until both are set, sign-in reports
-      # that it isn't set up and everything else works signed out. Change
-      # them, then `make up` (or helm upgrade) to apply.
+      # client-id and client-secret name the GitHub OAuth app sign-in uses,
+      # and redirect-uri is where GitHub sends the browser back: it must be
+      # the app's callback URL, and Enable Device Flow must be ticked for
+      # the code flow. Until all three are set, sign-in reports that it isn't
+      # set up and everything else works signed out. Change them, then
+      # `make up` (or helm upgrade) to apply.
       #
       # The client secret is in the repo on purpose. GitHub's own CLI does the
       # same: cli/cli commits its OAuth app's secret in
@@ -112,7 +112,7 @@ runtime:
       plugins:
         - id: github-api
           image: workshop-toolbox-registry:5000/workshop/github-api:0.4.0
-          digest: sha256:862bbe462731b44ae23695ec7488b49c6bdd527f33a55998e6653b9edd67f3f0
+          digest: sha256:03de68c5a7d06b877fa106d7af1b2a0c1f62a56f15c68ae2de2bafbe64530871
           pullPolicy: ifNotPresent
           allowedHosts:
             - github.com
@@ -120,6 +120,7 @@ runtime:
           config:
             client-id: Ov23liN4pgXbvHJYd83G
             client-secret: 9728ab4cc69121ce7e38da40d446e402e94d83ce
+            redirect-uri: http://agent.localhost:28180/github/callback
         # The toolbox plugin: serves the agent SDK's tools interface
         # (cosmonic:agent/tools) to a workload by listing and calling the
         # tool components in that same workload, so each tool keeps its own

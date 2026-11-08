@@ -10,7 +10,7 @@ fail
 in with your own account)
 
 On your own machine, after `make up`, you can read these steps in your browser at
-http://guide.localhost:18180, with a Copy button on every command. 
+http://guide.localhost:28180, with a Copy button on every command. 
 
 In Codespaces, follow the raw README files in each `/steps/` directory.
 
@@ -89,12 +89,12 @@ step with its one `kubectl apply`.
 ## Chat in the browser, or use curl
 
 On your own machine or in a local dev container, open
-**http://agent.localhost:18180** in Chrome or Firefox to chat with the agent.
+**http://agent.localhost:28180** in Chrome or Firefox to chat with the agent.
 Browsers send `*.localhost` to your own machine, and the dev container
-forwards port 18180, so it works in both.
+forwards port 28180, so it works in both.
 
 In Codespaces, use the curl command each step gives. Every request goes to
-`127.0.0.1:18180` with a `Host` header naming the agent.
+`127.0.0.1:28180` with a `Host` header naming the agent.
 
 ## GitHub Codespaces
 
@@ -110,18 +110,18 @@ host name, not `agent.localhost`.
 | --- | --- |
 | `make doctor`: Docker is not running, or has under 4 GB | Start Docker, or raise its memory limit (Docker Desktop: Settings > Resources) |
 | `make doctor`: Rust is not on your PATH | Only needed to build; run the `fix:` line it prints |
-| `curl: (7) Failed to connect to 127.0.0.1 port 18180` | The cluster is not up: `make up` |
+| `curl: (7) Failed to connect to 127.0.0.1 port 28180` | The cluster is not up: `make up` |
 | `kubectl` talks to another cluster | `kubectl config use-context kind-workshop-toolbox` |
 | `kubectl wait` times out | The host is still pulling: `kubectl get workloads -A`, then try again |
-| Port 18180 is taken | `make clean`, then `HOST_HTTP=127.0.0.1:18190 make up` (the port is fixed when the cluster is created) |
+| Port 28180 is taken | `make clean`, then `HOST_HTTP=127.0.0.1:28190 make up` (the port is fixed when the cluster is created) |
 
 `make down` changes nothing. `make clean` deletes the cluster and its
-registry.
+registry, and switches kubectl back to the context you had before `make up`.
 
 ## How it fits together
 
 ```
-  curl or browser ──▶ 127.0.0.1:18180 ──▶ ingress (picks a Service by Host)
+  curl or browser ──▶ 127.0.0.1:28180 ──▶ ingress (picks a Service by Host)
                                              │
             ┌────────────────────────────────┴───────────────┐
             ▼                                                ▼
@@ -166,10 +166,10 @@ thing that stopped the leak.
   replaced workload's token stays in the plugin's memory, unused, until the
   host restarts. A real platform would keep tokens in a secrets store and
   drop them when the workload is deleted.
-* GitHub sign-in's browser flow comes back to a fixed address,
-  `http://agent.localhost:18180/github/callback`. A cluster made on another
-  port (`HOST_HTTP`) sends that port's address instead, which an OAuth app
-  set up for 18180 refuses; use `make github-sign-in` there. The
+* GitHub sign-in's browser flow comes back to a fixed address, the
+  plugin's `redirect-uri` in `k8s/values.yaml`:
+  `http://agent.localhost:28180/github/callback`. A cluster made on another
+  port (`HOST_HTTP`) can't receive it; use `make github-sign-in` there. The
   authorization code passes through the agent harness on its way to the
   plugin: it works once and only with the plugin's PKCE verifier and client
   secret, and the harness never sees a token. 
