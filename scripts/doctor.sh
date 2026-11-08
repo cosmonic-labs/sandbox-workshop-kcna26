@@ -151,7 +151,7 @@ if [ -f "$ROOT/artifacts/guide.wasm" ]; then
     ok "the guide in artifacts/guide.wasm matches the READMEs"
   else
     opt "the guide in artifacts/guide.wasm is older than: $stale" \
-      "fix: make guide && make up    (maintainers; needs Rust)"
+      "fix: make guide && make up    (maintainers; needs Docker)"
   fi
 fi
 
