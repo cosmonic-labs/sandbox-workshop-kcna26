@@ -188,3 +188,10 @@ thing that stopped the leak.
   `ghcr.io/cosmonic-labs/sandbox-workshop-kcna26/<name>`, with the same
   digests `k8s/values.yaml` pins. After changing a component, run
   `make artifacts` (needs Docker) and commit the result.
+* CI (`.github/workflows/ci.yml`) also runs the components' unit tests and
+  clippy, and runs the workshop itself on every push and pull request:
+  `make up` on a fresh kind cluster, then `make verify`.
+
+## License
+
+Apache-2.0. See [LICENSE](LICENSE).

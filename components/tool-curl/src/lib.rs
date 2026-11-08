@@ -125,8 +125,8 @@ async fn run(o: cli::Opts) -> Result<String, Error> {
             .iter()
             .find(|(k, _)| k.eq_ignore_ascii_case("location"))
             .map(|(_, v)| String::from_utf8_lossy(v).into_owned());
-        if o.location && (300..400).contains(&status) {
-            if let Some(loc) = location {
+        if o.location && (300..400).contains(&status)
+            && let Some(loc) = location {
                 hops += 1;
                 if hops > o.max_redirs {
                     return Err(Error::Other(Some(format!(
@@ -141,13 +141,12 @@ async fn run(o: cli::Opts) -> Result<String, Error> {
                     cli::Target::Http(url) => url,
                     cli::Target::File(_) => unreachable!("redirects never yield file targets"),
                 };
-                if matches!(status, 301 | 302 | 303) && method == "POST" {
+                if matches!(status, 301..=303) && method == "POST" {
                     method = "GET".into();
                     body = None;
                 }
                 continue;
             }
-        }
         if o.fail && status >= 400 {
             return Err(Error::Other(Some(format!("The requested URL returned error: {status}"))));
         }
