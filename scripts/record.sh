@@ -15,7 +15,7 @@ command -v asciinema >/dev/null || { echo "record.sh needs asciinema (https://as
 DIR=$(mktemp -d /tmp/workshop.XXXXXX)
 # A plain environment, as a participant's new terminal would have.
 env -i HOME="$HOME" PATH="$PATH" TERM=xterm-256color KUBECONFIG="${KUBECONFIG:-}" \
-  asciinema rec --overwrite --quiet --cols 110 --rows 32 --idle-time-limit 2 \
+  asciinema rec --overwrite --quiet --cols 110 --rows 32 --idle-time-limit 10 \
   --title "Sandboxing on Kubernetes with WebAssembly: the workshop, from the README" \
   --command "$ROOT/scripts/walkthrough.sh $DIR" docs/walkthrough.cast
 (cd "$DIR/sandbox-workshop-kcna26" && ./scripts/down.sh --all >/dev/null) || true
