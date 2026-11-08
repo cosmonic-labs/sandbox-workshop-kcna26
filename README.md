@@ -18,7 +18,8 @@ In Codespaces, follow the raw README files in each `/steps/` directory.
 
 [`docs/walkthrough.cast`](docs/walkthrough.cast) is a recording of the whole
 workshop, run from a fresh clone with exactly the commands in these READMEs
-(about 8 minutes, step 4 signed out). Play it in a terminal:
+and narrated in their words (about 18 minutes, step 4 signed out). Play it in
+a terminal (space pauses):
 
 ```
 asciinema play docs/walkthrough.cast
