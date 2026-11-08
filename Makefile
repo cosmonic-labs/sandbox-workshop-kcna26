@@ -7,7 +7,9 @@
 #   make push-build  push your curl build to the cluster's registry as tool-curl:mine (step 2)
 #   make build       build the curl tool (needs Rust 1.98.1 + wasm32-wasip2)
 #   make build-all   build every component, including sqlite (needs wasi-sdk)
-#   make guide       rebuild artifacts/guide.wasm from the READMEs (after editing one)
+#   make artifacts   rebuild artifacts/ from source in the build image (maintainers; needs Docker)
+#   make check-artifacts  artifacts/ matches a build of this source (CI runs this)
+#   make guide       rebuild artifacts/ (guide.wasm included) after editing a README; needs Docker
 #   make databases rebuild databases/*.db from their .sql (maintainers; needs sqlite3)
 #   make check-databases  the committed .db files match their checksums and sources
 #   make prove       replay steps 1 to 4 on the cluster, rewrite their expected-output.txt
@@ -21,7 +23,7 @@
 SHELL := /bin/bash
 .DEFAULT_GOAL := help
 
-.PHONY: help tools doctor up push-build build build-all guide databases check-databases prove verify github-sign-in github-sign-out down clean
+.PHONY: help tools doctor up push-build build build-all artifacts check-artifacts guide databases check-databases prove verify github-sign-in github-sign-out down clean
 
 help:
 	@sed -n 's/^#   //p' $(firstword $(MAKEFILE_LIST))
@@ -42,23 +44,27 @@ push-build:
 # needs no C toolchain. sqlite ships prebuilt in artifacts/ because
 # rebuilding it needs wasi-sdk; use build-all for that.
 build:
-	CARGO_BUILD_JOBS=$${CARGO_BUILD_JOBS:-4} cargo build --release --target wasm32-wasip2 -p tool-curl
+	@./scripts/build.sh -p tool-curl
 
-# Every component, for maintainers who regenerate artifacts/. sqlite's bundled
-# SQLite is C, so this needs wasi-sdk: set WASI_SDK_PATH and CC_wasm32_wasip2.
+# Every component. sqlite's bundled SQLite is C, so this needs wasi-sdk: set
+# WASI_SDK_PATH (scripts/build.sh).
 build-all:
-	CARGO_BUILD_JOBS=$${CARGO_BUILD_JOBS:-4} cargo build --release --target wasm32-wasip2
+	@./scripts/build.sh
+
+# artifacts/ is built from this source in the pinned build image
+# (build.Dockerfile). CI rebuilds it on every push and pull request, fails
+# when it differs, and publishes its build to the repo's packages from main.
+artifacts:
+	@./scripts/artifacts.sh update
+
+check-artifacts:
+	@./scripts/artifacts.sh check
 
 # The guide (http://guide.localhost:28180) is the READMEs rendered at build
 # time, so it is rebuilt whenever one changes; make verify says when it is
-# stale. Pure Rust, like curl. make up deploys the new build.
-guide:
-	CARGO_BUILD_JOBS=$${CARGO_BUILD_JOBS:-4} cargo build --release --target wasm32-wasip2 -p guide
-	cp target/wasm32-wasip2/release/guide.wasm artifacts/guide.wasm
-	@if command -v sha256sum >/dev/null 2>&1; then sum=sha256sum; else sum="shasum -a 256"; fi; \
-	  { grep -v ' artifacts/guide.wasm$$' artifacts/SHA256SUMS; $$sum artifacts/guide.wasm; } \
-	  | sort -k2 >artifacts/SHA256SUMS.new && mv artifacts/SHA256SUMS.new artifacts/SHA256SUMS
-	@echo "artifacts/guide.wasm and artifacts/SHA256SUMS updated; make up deploys it"
+# stale. Built like the rest of artifacts/, in the build image, so CI's check
+# agrees. make up deploys the new build.
+guide: artifacts
 
 databases:
 	@./scripts/databases.sh build

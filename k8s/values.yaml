@@ -107,12 +107,13 @@ runtime:
       #
       # Pinned by digest: the host refuses a plugin whose image digest
       # differs. scripts/push.sh gives each prebuilt .wasm a reproducible
-      # image digest and prints it; after rebuilding artifacts/github_api.wasm,
-      # copy the new digest here.
+      # image digest, the same in any registry, so these are also the digests
+      # of the images CI publishes to the repo's packages. After make
+      # artifacts, make check-artifacts prints any pin that is stale.
       plugins:
         - id: github-api
           image: workshop-toolbox-registry:5000/workshop/github-api:0.4.0
-          digest: sha256:03de68c5a7d06b877fa106d7af1b2a0c1f62a56f15c68ae2de2bafbe64530871
+          digest: sha256:257cd644c6eddb5818d63e15f1fd2897c6ccae8a6ee0680b9128c6b7778b1de1
           pullPolicy: ifNotPresent
           allowedHosts:
             - github.com
@@ -128,7 +129,7 @@ runtime:
         # its own. Pinned by digest, like github-api above.
         - id: toolbox
           image: workshop-toolbox-registry:5000/workshop/toolbox-plugin:0.4.0
-          digest: sha256:f786084bd622d079953779c48fe43d5963a89edbb46fb1fce8b746cbf036f2c4
+          digest: sha256:d3b6fb1fd7b4554364f195dd0a0e416192d90dfc78294ce9a60e404f5d169387
           pullPolicy: ifNotPresent
     # The mock sites (mock-sites) get a host group of their own, in
     # their own namespace, so the Services in k8s/sites.yaml can select its

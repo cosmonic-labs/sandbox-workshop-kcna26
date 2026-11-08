@@ -179,3 +179,12 @@ thing that stopped the leak.
   plugin that asked for it. 
 * The chart's NetworkPolicies are off in `k8s/values.yaml` because kindnet on
   kind v0.33.0 dropped their DNS replies. Keep them on in a real cluster.
+* `artifacts/` holds the prebuilt components `make up` pushes, so the
+  workshop needs no Rust. They are built from this source in a pinned
+  linux/arm64 build image (`build.Dockerfile`), which makes them
+  reproducible: `make check-artifacts` rebuilds them and fails if a file, or
+  a plugin digest pinned in `k8s/values.yaml`, differs. CI runs it on every
+  push and pull request, and publishes each build from `main` to
+  `ghcr.io/cosmonic-labs/sandbox-workshop-kcna26/<name>`, with the same
+  digests `k8s/values.yaml` pins. After changing a component, run
+  `make artifacts` (needs Docker) and commit the result.
