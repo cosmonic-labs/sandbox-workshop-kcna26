@@ -1,0 +1,8 @@
+{
+  "name": "sandbox-workshop-kcna26",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "scripts": { "test:desktop": "node --test scripts/desktop.test.mjs" },
+  "dependencies": { "yaml": "2.9.1" }
+}

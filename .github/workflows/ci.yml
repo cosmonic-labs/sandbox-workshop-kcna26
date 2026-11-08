@@ -33,6 +33,9 @@ jobs:
       - name: Toolchain
         run: rustup component add clippy
 
+      - name: Desktop helper tests
+        run: npm ci --ignore-scripts && npm run test:desktop
+
       - name: Unit tests
         run: cargo test --locked --workspace
 

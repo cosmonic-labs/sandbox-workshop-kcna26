@@ -16,6 +16,7 @@ wit_bindgen::generate!({
 #[path = "../../common/http_client.rs"]
 mod http_client;
 mod cli;
+mod mock;
 
 use exports::workshop::toolbox::curl::{Error, Guest, RunArgs};
 use http_client::SendError;
@@ -109,8 +110,11 @@ async fn run(o: cli::Opts) -> Result<String, Error> {
                 out.push_str(&format!("> {k}: {v}\n"));
             }
         }
+        let api = std::env::var("WORKSHOP_MOCK_API").ok();
+        let attacker = std::env::var("WORKSHOP_MOCK_ATTACKER").ok();
+        let target = mock::target(&url, api.as_deref(), attacker.as_deref());
         let (status, resp_headers, bytes) =
-            http_client::send_full(&method, &url, &headers, body.clone().unwrap_or_default())
+            http_client::send_full(&method, &target, &headers, body.clone().unwrap_or_default())
                 .await
                 .map_err(|e| send_error(&url, e))?;
         if o.include || o.verbose {
