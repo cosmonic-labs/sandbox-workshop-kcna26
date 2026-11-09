@@ -181,9 +181,12 @@ else
 fi
 
 # Rust, only to build the components yourself. RUSTUP_AUTO_INSTALL=0 stops
-# rustup from installing the pinned toolchain just because we asked.
+# rustup from installing the pinned toolchain just because we asked: run in
+# this repo (rust-toolchain.toml pins it), even `rustup toolchain list`
+# resolves the active toolchain and downloads it (rustup 1.29), and its list
+# is printed before the download, so the check also said it was missing.
 if command -v rustup >/dev/null 2>&1; then
-  if rustup toolchain list 2>/dev/null | grep -q "^$RUST_VERSION"; then
+  if RUSTUP_AUTO_INSTALL=0 rustup toolchain list 2>/dev/null | grep -q "^$RUST_VERSION"; then
     if RUSTUP_AUTO_INSTALL=0 rustup target list --installed --toolchain "$RUST_VERSION" 2>/dev/null \
          | grep -qx wasm32-wasip2; then
       ok "Rust $RUST_VERSION with wasm32-wasip2 (build the tools yourself)"
