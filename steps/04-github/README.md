@@ -57,9 +57,15 @@ This step needs the internet: the answers come live from GitHub, so yours
 will differ from the samples here. Type each prompt into the chat at
 http://agent.localhost:28180, or run the curl command under it.
 
-**1. Sign in (optional):** click **Sign in with GitHub** at the top of the
-chat page. The button is there in every step, but each step's manifest makes
-a new workload, which starts signed out, so sign in here.
+**1. Sign in (recommended, and in a room, needed):** click **Sign in with
+GitHub** at the top of the chat page, after this step's `kubectl apply`. The
+button is there in every step, but each step's manifest makes a new workload,
+which starts signed out, so sign in here.
+
+Why: without a token, GitHub allows 60 requests an hour, shared by everyone
+behind the same IP address, which in a conference room is everyone on the
+Wi-Fi. Each prompt below costs 1 to 3 requests, so a room uses that up in
+minutes. Signed in, you get your own 5,000.
 
 Your browser goes to github.com, which asks you to approve the "KubeCon
 sandbox workshop" app (sign in to GitHub first if you aren't). Approve, and
@@ -67,12 +73,10 @@ GitHub sends you back to the chat page, which now says
 `Signed in to GitHub as <you>`. The app asks for no scopes, so the token can
 read only what anyone can read.
 
-Why sign in at all: without a token, GitHub allows 60 requests an hour,
-shared by everyone behind the same IP address, which in a conference room is
-everyone on the Wi-Fi. Signed in, you get your own 5,000. Each prompt below
-costs 1 to 3 requests, and every `gh` answer ends with how many are left. If
-you'd rather not sign in, or the limit runs out, follow along with the
-samples here; the refusals in prompts 6 to 8 send nothing to GitHub.
+Every `gh` answer ends with how many requests are left. If you'd rather not
+sign in, or the limit runs out (`GitHub's rate limit for unauthenticated core
+requests is used up`), follow along with the samples here; the refusals in
+prompts 6 to 8 send nothing to GitHub.
 
 How it works. This is GitHub's OAuth web application flow, with PKCE. The
 plugin makes a random `state` and a secret verifier, and sends your browser
