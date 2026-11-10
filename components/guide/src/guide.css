@@ -111,8 +111,12 @@
   .copy:hover { background: var(--hover); }
   .copy.done { background: var(--pill-bg); border-color: var(--pill-line); color: var(--pill-ink); }
   .code pre { margin: 0; padding: 0.75rem 0.95rem; overflow-x: auto; font-size: 0.8rem; line-height: 1.6; color: var(--strong); }
-  /* Output lines wrap: they are read, not pasted. Commands and diagrams don't. */
-  .code.out pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+  .code-bar:has(> .code-label:only-child) { padding-right: 0.85rem; min-height: 2.05rem; }
+  /* Output is read, not run: no Copy, no fill, a dashed edge, and its lines
+     wrap. Commands and diagrams don't wrap. */
+  .code.out { background: transparent; border-style: dashed; }
+  .code.out .code-bar { background: transparent; border-bottom-style: dashed; }
+  .code.out pre { white-space: pre-wrap; overflow-wrap: anywhere; color: var(--ink); }
   .code pre a { color: inherit; text-decoration: underline dotted var(--brand-ink); text-underline-offset: 0.2em; }
   .code pre a:hover { color: var(--brand-ink); text-decoration-style: solid; }
 
