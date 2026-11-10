@@ -1,5 +1,5 @@
-# Step 3: give the agent sqlite. The same agent as step 2, with the real
-# sqlite tool in its slot. The sqlite folder holds two databases, main.db
+# Step 3: give the agent sqlite, and an MCP client. The same agent as step
+# 2, with the real sqlite tool in its slot. The sqlite folder holds two databases, main.db
 # (the talks) and rooms.db.
 #
 # The agent harness (the component that runs the loop: ask the model, call a
@@ -14,6 +14,7 @@
 #   curl    the hosts in its allowedHosts (api.mock-sites.svc), and the
 #           folder mounted at /data for -o
 #   sqlite  the databases (talks, rooms) mounted read only at /data
+#   mcp     the talks MCP server (mcp.mock-sites.svc), and nothing else
 #   gh      not in this workload yet
 # The harness and the model get nothing: no allowedHosts, no volumes.
 
@@ -49,7 +50,7 @@ spec:
         - namespace: workshop
           package: toolbox
           name: tools
-          interfaces: [curl, sqlite]
+          interfaces: [curl, sqlite, mcp]
         # GitHub sign-in, which the harness imports, linked to the github-api
         # plugin the platform installed (k8s/values.yaml). Step 4 adds
         # github-api itself, for the gh tool.
@@ -78,6 +79,13 @@ spec:
               - name: sqlite-data
                 mountPath: /data
                 readOnly: true
+        # mcp is an MCP client: it may reach only the talks MCP server, which
+        # has its own grant (mock-sites/talks-mcp.yaml). No folders.
+        - name: mcp
+          image: workshop-toolbox-registry:5000/workshop/tool-mcp:0.4.0
+          localResources:
+            allowedHosts:
+              - mcp.mock-sites.svc
       volumes:
         - name: curl-data
           hostPath:

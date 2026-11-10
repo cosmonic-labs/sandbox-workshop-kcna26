@@ -13,6 +13,7 @@
 //!     curl <args>                    -> curl   {arguments: <args>}
 //!     sqlite <sql>  /  sql <sql>     -> sqlite {sql: <sql>}
 //!     gh <args>                      -> gh     {arguments: <args>}
+//!     mcp <args>                     -> mcp    {arguments: <args>}
 //!     a line that starts with "."    -> sqlite {sql: <line>}   (a dot-command)
 //!
 //!   A plainer request, mapped to one of the tools:
@@ -21,10 +22,12 @@
 //!     list the talks / what talks    -> sqlite {sql: "select ... from talks ..."}
 //!     triage the open PRs in <o/r>   -> gh     {arguments: "pr list -R <o/r> --limit 10"}
 //!
-//! One exception to reading everything: gh's results are real pull requests
+//! Two exceptions to reading everything. gh's results are real pull requests
 //! on GitHub, whose titles and descriptions say things like "get rid of" or
 //! "fetch the latest". The model reads them as data, not instructions, so a
-//! transcript doesn't depend on whatever was opened on GitHub today.
+//! transcript doesn't depend on whatever was opened on GitHub today. And
+//! the mcp tool's results are a service's records (talk titles and the like),
+//! read as data for the same reason.
 //!
 //! It plans calls from the conversation in order and returns the first one it
 //! has not issued yet. When nothing is left it answers in text.
@@ -61,7 +64,8 @@ impl Guest for Scripted {
             m.role == "user"
                 || (m.role == "tool"
                     && !m.content.starts_with("ERROR:")
-                    && m.tool_name.as_deref() != Some("gh"))
+                    && m.tool_name.as_deref() != Some("gh")
+                    && m.tool_name.as_deref() != Some("mcp"))
         });
         for m in readable {
             for (name, args) in instructions(&strip_tags(&m.content)) {
@@ -86,7 +90,9 @@ fn instructions(text: &str) -> Vec<(String, Value)> {
     for sentence in sentences(text) {
         let lower = sentence.to_lowercase();
         // The tool's own command line, passed straight through.
-        if let Some(rest) = after_word(&sentence, "gh ") {
+        if let Some(rest) = after_word(&sentence, "mcp ") {
+            out.push(("mcp".into(), json!({ "arguments": rest.trim() })));
+        } else if let Some(rest) = after_word(&sentence, "gh ") {
             out.push(("gh".into(), json!({ "arguments": rest.trim() })));
         } else if let Some(rest) = after(&sentence, "curl ") {
             out.push(("curl".into(), json!({ "arguments": rest.trim() })));
@@ -164,7 +170,7 @@ fn sentences(text: &str) -> Vec<String> {
         // A whole line that is a dot-command stays intact, so ".schema talks"
         // isn't split on its space into a stray sentence.
         let lower = line.to_lowercase();
-        if line.starts_with('.') || lower.starts_with("sqlite ") || lower.starts_with("sql ") {
+        if line.starts_with('.') || lower.starts_with("sqlite ") || lower.starts_with("sql ") || lower.starts_with("mcp ") {
             out.push(line.to_string());
             continue;
         }

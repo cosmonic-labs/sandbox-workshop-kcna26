@@ -21,7 +21,7 @@
 //! for its arguments, and it answers with a name and a JSON object. The tools
 //! only understand typed functions such as `curl::run(RunArgs { arguments })`.
 //! Cosmonic Desktop and Control translate between the two for any typed tool,
-//! reading the tool's WIT. This plugin knows three tools, so it is written out
+//! reading the tool's WIT. This plugin knows four tools, so it is written out
 //! by hand, one row per function, to match `wit/toolbox.wit`:
 //!
 //! - Each function takes one `<name>-args` record with one field, the tool's
@@ -48,7 +48,7 @@ use bindings::cosmonic::agent::inference_types::{ToolArguments, ToolCall, ToolIn
 use bindings::cosmonic::agent::tool_types::{CallError, DispatchError, ListError, ToolAnnotations, ToolDef, ToolResponse};
 use bindings::exports::cosmonic::agent::tools;
 use bindings::wasmcloud::host::{identity, workload_call};
-use bindings::workshop::toolbox::{curl, gh, sqlite};
+use bindings::workshop::toolbox::{curl, gh, mcp, sqlite};
 use serde_json::{Value, json};
 
 /// One function a model may call.
@@ -93,6 +93,16 @@ const TABLE: &[Row] = &[
                       pr view, pr checks, pr diff, search prs. Only reads.",
         argument: ("arguments", "What you would type after gh, such as pr list -R wasmCloud/wasmCloud."),
         hints: (true, true),
+    },
+    // workshop:toolbox/mcp.run
+    Row {
+        interface: "workshop:toolbox/mcp",
+        name: "mcp",
+        description: "Call the tools of an MCP server with mcp and return what it answers: mcp tools \
+                      lists them, mcp call <tool> <json> calls one. Only the servers this tool is \
+                      granted can be reached.",
+        argument: ("arguments", "What you would type after mcp, such as tools, or call list_talks {\"track\":\"Security\"}."),
+        hints: (false, true),
     },
 ];
 
@@ -169,6 +179,7 @@ impl tools::Guest for Toolbox {
             "curl" => curl::run(curl::RunArgs { arguments: argument }).await.map_err(curl_error),
             "sqlite" => sqlite::query(sqlite::QueryArgs { sql: argument }).await.map_err(sqlite_error),
             "gh" => gh::run(gh::RunArgs { arguments: argument }).await.map_err(gh_error),
+            "mcp" => mcp::run(mcp::RunArgs { arguments: argument }).await.map_err(mcp_error),
             _ => unreachable!("every row has an arm"),
         };
         let (text, is_error) = match result {
@@ -211,6 +222,17 @@ fn gh_error(e: gh::Error) -> String {
     match e {
         InvalidArgument(m) => variant("invalid-argument", Some(m)),
         AccessDenied(m) => variant("access-denied", Some(m)),
+        Network(m) => variant("network", Some(m)),
+        Other(m) => variant("other", m),
+    }
+}
+
+fn mcp_error(e: mcp::Error) -> String {
+    use mcp::Error::*;
+    match e {
+        InvalidArgument(m) => variant("invalid-argument", Some(m)),
+        AccessDenied(m) => variant("access-denied", Some(m)),
+        ToolFailed(m) => variant("tool-failed", Some(m)),
         Network(m) => variant("network", Some(m)),
         Other(m) => variant("other", m),
     }

@@ -60,6 +60,11 @@ Step 1 has no tools. Step 2 adds curl, step 3 adds SQLite, and step 4 adds gh.
 Follow the explanations and prompts in the existing step READMEs, using
 `make desktop-step` to deploy each step.
 
+Step 3's last section, the MCP server in front of the talks service, runs
+only on the Kubernetes path. This helper doesn't start `talks-api` or
+`talks-mcp`, or map their addresses: on Desktop the `mcp` tool is in the
+manifest, but its calls fail. Skip items 7 to 11 there.
+
 The two mock names are Kubernetes Service names. For Desktop, the helper gives
 curl two address mappings in its own environment. Only those exact mock names
 are mapped, before the host checks the destination against `allowedHosts`.

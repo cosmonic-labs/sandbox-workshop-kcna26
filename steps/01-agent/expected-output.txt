@@ -31,6 +31,6 @@ $ wasm-tools component wit artifacts/agent.wasm | grep -e 'import model:' -e 'co
 $ wasm-tools component wit artifacts/agent.wasm | grep -E 'wasi:(http/client|filesystem|sockets)'
 # The tools you'll add are small. Look at the sizes:
 $ ls -l artifacts/tool_curl.wasm artifacts/tool_sqlite.wasm artifacts/tool_gh.wasm
-181780 artifacts/tool_curl.wasm
+183702 artifacts/tool_curl.wasm
 296735 artifacts/tool_gh.wasm
 1178728 artifacts/tool_sqlite.wasm

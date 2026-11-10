@@ -118,6 +118,15 @@ K -n wasmcloud rollout status deploy/workshop-ingress --timeout 3m >/dev/null
 K -n mock-sites delete workloaddeployment mock-sites --ignore-not-found --wait=true >/dev/null
 K apply -f "$ROOT/mock-sites/workloaddeployment.yaml" >/dev/null
 K -n mock-sites wait --for=condition=Ready workloaddeployment/mock-sites --timeout=180s >/dev/null || true
+# The talks service and its MCP server (step 3), on the same host group,
+# recreated for the same reason.
+for w in talks-api talks-mcp; do
+  K -n mock-sites delete workloaddeployment "$w" --ignore-not-found --wait=true >/dev/null
+  K apply -f "$ROOT/mock-sites/$w.yaml" >/dev/null
+done
+for w in talks-api talks-mcp; do
+  K -n mock-sites wait --for=condition=Ready "workloaddeployment/$w" --timeout=180s >/dev/null || true
+done
 # The workshop guide (k8s/guide.yaml), on the same host group, recreated
 # for the same reason.
 K -n mock-sites delete workloaddeployment guide --ignore-not-found --wait=true >/dev/null

@@ -37,15 +37,15 @@ kubectl apply -f steps/04-github/workloaddeployment.yaml \
   workloaddeployment/toolbox-agent
 ```
 
-The same agent as step 3, with gh added to the agent's tools, and
-`github-api` added next to `github-auth` (sign-in, which every step
-declares) under `hostInterfaces`:
+The same agent as step 3, with its `curl`, `sqlite` and `mcp` tools, plus
+gh added to the agent's tools, and `github-api` added next to `github-auth`
+(sign-in, which every step declares) under `hostInterfaces`:
 
 ```yaml
 - namespace: workshop
   package: toolbox
   name: tools
-  interfaces: [curl, sqlite, gh]
+  interfaces: [curl, sqlite, gh, mcp]
 - namespace: workshop
   package: toolbox
   interfaces: [github-api, github-auth]

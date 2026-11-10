@@ -90,9 +90,9 @@ cluster named `workshop-toolbox` and switches your kubectl context to it.
 
 | Step | Folder | What you'll see |
 | --- | --- | --- |
-| 1 | `steps/01-agent` | The agent with no tools: how it and its gullible model work, and that it can use only what its manifest gives it |
+| 1 | `steps/01-agent` | The agent with no tools: how it and its scripted model work, and that it can use only what its manifest gives it |
 | 2 | `steps/02-curl` | `curl` (prebuilt, or build your own) gets one host; its escapes (metadata service, other hosts, redirects, files) are refused |
-| 3 | `steps/03-sqlite` | `sqlite3`'s escapes (`.shell`, `ATTACH`, extensions) go nowhere |
+| 3 | `steps/03-sqlite` | `sqlite3`'s escapes (`.shell`, `ATTACH`, extensions) go nowhere; then the same talks behind a REST service and an MCP server, one grant per hop |
 | 4 | `steps/04-github` | A real job: triage wasmCloud's pull requests with `gh`, signed in or not; the GitHub capability refuses writes, and the token never leaves the platform |
 
 Each step includes the commands and the output to expect
@@ -177,11 +177,14 @@ So, when you run it for a group:
             ▼                                                ▼
   host pod, group "default"                       host pod, group "mock-sites"
     workload toolbox-agent                          mock sites: api, attacker; the guide
+                                                    talks-api (its own folder)
+                                                    talks-mcp ──▶ talks.mock-sites.svc only
       harness ──▶ model
         ├──▶ sign-in  github-api plugin ──▶ github.com (OAuth, no scopes)
         └──▶ tools    toolbox plugin, which calls the tools in this workload:
                ├──▶ curl     allowedHosts only ──▶ api.mock-sites.svc, /data for -o
                ├──▶ sqlite   /data, read only
+               ├──▶ mcp      allowedHosts only ──▶ mcp.mock-sites.svc (the MCP server)
                └──▶ gh       github-api plugin ──▶ api.github.com (GET, allowlisted paths)
 ```
 
@@ -207,7 +210,9 @@ server of someone who has hijacked your agent: the place an instruction
 planted in a web page or a database would tell the agent to send what it can
 read. It is a real server on the cluster network and it answers anything sent
 to it, so when a request to it is refused, the agent's grants are the only
-thing that stopped the leak.
+thing that stopped the leak. Step 3 adds two more on the same host group: a
+REST service over the talks and an MCP server in front of it, each an
+ordinary HTTP component with its own grant.
 
 ## Notes and caveats
 

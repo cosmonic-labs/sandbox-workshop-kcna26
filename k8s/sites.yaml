@@ -39,3 +39,32 @@ spec:
     wasmcloud.com/hostgroup: mock-sites
   ports:
     - { name: http, port: 80, targetPort: 80 }
+---
+# The talks service: an ordinary REST API over the conference talks, standing
+# in for a service a team already runs (mock-sites/talks-api.yaml). Only the
+# talks MCP server is granted it.
+apiVersion: v1
+kind: Service
+metadata:
+  name: talks
+  namespace: mock-sites
+spec:
+  selector:
+    wasmcloud.com/name: hostgroup
+    wasmcloud.com/hostgroup: mock-sites
+  ports:
+    - { name: http, port: 80, targetPort: 80 }
+---
+# The talks MCP server (mock-sites/talks-mcp.yaml), the one host step 3's mcp
+# tool is granted.
+apiVersion: v1
+kind: Service
+metadata:
+  name: mcp
+  namespace: mock-sites
+spec:
+  selector:
+    wasmcloud.com/name: hostgroup
+    wasmcloud.com/hostgroup: mock-sites
+  ports:
+    - { name: http, port: 80, targetPort: 80 }

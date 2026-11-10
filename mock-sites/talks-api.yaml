@@ -1,0 +1,36 @@
+# The talks service: an ordinary REST API over the conference talks
+# (components/talks-api), standing in for a service a team already runs. It
+# knows nothing about agents or MCP.
+#
+# It is the only workload that touches its data: the favorites file in the
+# folder mounted at /data, which no other workload is granted. It serves the
+# name talks.mock-sites.svc (k8s/sites.yaml) and has no allowedHosts, so it
+# calls nothing.
+apiVersion: runtime.wasmcloud.dev/v1alpha1
+kind: WorkloadDeployment
+metadata:
+  name: talks-api
+  namespace: mock-sites
+spec:
+  replicas: 1
+  template:
+    spec:
+      hostSelector:
+        hostgroup: mock-sites
+      hostInterfaces:
+        - namespace: wasi
+          package: http
+          interfaces: [handler]
+          config:
+            host: talks.mock-sites.svc
+      components:
+        - name: talks-api
+          image: workshop-toolbox-registry:5000/workshop/talks-api:0.4.0
+          localResources:
+            volumeMounts:
+              - name: talks-data
+                mountPath: /data
+      volumes:
+        - name: talks-data
+          hostPath:
+            path: /workshop/talks-data

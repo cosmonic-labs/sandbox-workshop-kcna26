@@ -15,6 +15,7 @@
 #           folder mounted at /data for -o
 #   sqlite  the databases (talks, rooms) mounted read only at /data
 #   gh      the github-api capability only
+#   mcp     the talks MCP server (mcp.mock-sites.svc), and nothing else
 # The harness gets github-auth; the model gets nothing.
 
 apiVersion: runtime.wasmcloud.dev/v1alpha1
@@ -51,7 +52,7 @@ spec:
         - namespace: workshop
           package: toolbox
           name: tools
-          interfaces: [curl, sqlite, gh]
+          interfaces: [curl, sqlite, gh, mcp]
         # GitHub, as two capabilities the host links to the github-api plugin:
         # github-api, which the gh tool imports, and github-auth (sign-in),
         # which the harness imports. Both plugins are installed on the default
@@ -85,6 +86,13 @@ spec:
         # github-api capability above.
         - name: gh
           image: workshop-toolbox-registry:5000/workshop/tool-gh:0.4.0
+        # mcp is an MCP client: it may reach only the talks MCP server, which
+        # has its own grant (mock-sites/talks-mcp.yaml). No folders.
+        - name: mcp
+          image: workshop-toolbox-registry:5000/workshop/tool-mcp:0.4.0
+          localResources:
+            allowedHosts:
+              - mcp.mock-sites.svc
       volumes:
         - name: curl-data
           hostPath:

