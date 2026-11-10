@@ -10,7 +10,15 @@
 //! chat page, components/agent/src/transcript.html, so the two pages match.
 //!
 //! What the rendering adds to plain Markdown:
-//!   * every code block gets a label and a Copy button
+//!   * every code block gets a label: Shell (```sh), Chat (```chat, a prompt
+//!     for the chat page), YAML, or Output (```text, or no language right
+//!     after a command). Only Shell and Chat get a Copy button: they are what
+//!     the reader sends. Output is styled quieter, to be read, not run
+//!   * what lies between `<!-- codespaces -->` and `<!-- /codespaces -->` is
+//!     left out: each prompt's `./ask` form and the lines that point to it.
+//!     The guide runs only on the reader's own machine, where the chat page
+//!     works; on GitHub the comments don't show and Codespaces readers keep
+//!     those lines. An unbalanced marker fails the build
 //!   * URLs a browser can open become links (in text and in code), but not
 //!     the ones that only work with a Host header or inside the cluster
 //!   * links between READMEs, and inline code naming a step folder, go to
@@ -33,6 +41,9 @@ const GITHUB_ICON: &str = "<path fill=\"currentColor\" d=\"M8 0C3.58 0 0 3.58 0 
 const CHAT_ICON: &str = "<path fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linejoin=\"round\" d=\"M2.5 3.2h11v7.6H7.2L4.3 13.3v-2.5H2.5z\"/>";
 const WEB_ICON: &str = "<g fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.3\"><circle cx=\"8\" cy=\"8\" r=\"6.3\"/><path d=\"M1.7 8h12.6M8 1.7c-2.2 2.4-2.2 10.2 0 12.6M8 1.7c2.2 2.4 2.2 10.2 0 12.6\"/></g>";
 const CHAT: &str = "http://agent.localhost:28180";
+/// Around what only Codespaces readers need, which the guide leaves out.
+const CODESPACES_OPEN: &str = "<!-- codespaces -->";
+const CODESPACES_CLOSE: &str = "<!-- /codespaces -->";
 /// Folders with a README that the guide serves but that are not steps.
 const NOT_STEPS: [&str; 1] = ["mock-sites"];
 
@@ -287,7 +298,7 @@ fn nav(pages: &[Page], cur: usize) -> String {
         )
     };
     o.push_str("</ol><ul class=\"also\">");
-    o.push_str(&link(CHAT, CHAT_ICON, "Agent chat"));
+    o.push_str(&link(CHAT, CHAT_ICON, "Agent chat (after step 1)"));
     o.push_str(&link(REPO, GITHUB_ICON, "<code>sandbox-workshop-kcna26</code>"));
     o.push_str(&link("https://github.com/wasmCloud/wasmCloud", GITHUB_ICON, "<code>wasmCloud/wasmCloud</code>"));
     o.push_str(&link("https://wasmcloud.com", WEB_ICON, "wasmcloud.com"));
@@ -524,9 +535,10 @@ fn render(root: &Path, pages: &[Page], idx: usize) -> String {
         i += 1;
     }
 
+    let events = without_codespaces(events, cur);
     let mut out: Vec<Event> = Vec::new();
     let mut in_link = 0;
-    let mut code: Option<(String, String)> = None; // (label, text)
+    let mut code: Option<(&str, String)> = None; // (label, text)
     let mut after_shell = false;
     let mut h2s = 0;
     for ev in events {
@@ -535,15 +547,8 @@ fn render(root: &Path, pages: &[Page], idx: usize) -> String {
                 Event::Text(t) => text.push_str(&t),
                 Event::End(TagEnd::CodeBlock) => {
                     let (label, text) = code.take().unwrap();
-                    let mut html = format!(
-                        "<div class=\"code{}\"><div class=\"code-bar\"><span class=\"code-label\">{label}</span>\
-                         <button type=\"button\" class=\"copy\">Copy</button></div><pre><code>",
-                        if label == "Output" { " out" } else { "" },
-                    );
-                    linkify(text.strip_suffix('\n').unwrap_or(&text), false, &mut html);
-                    html.push_str("</code></pre></div>\n");
+                    out.push(Event::Html(code_block(label, &text).into()));
                     after_shell = label == "Shell";
-                    out.push(Event::Html(html.into()));
                 }
                 _ => {}
             }
@@ -557,11 +562,13 @@ fn render(root: &Path, pages: &[Page], idx: usize) -> String {
                 };
                 let label = match lang.as_str() {
                     "sh" | "bash" | "shell" | "console" => "Shell",
+                    "chat" => "Chat",
                     "yaml" | "yml" => "YAML",
+                    "text" | "txt" | "output" => "Output",
                     _ if after_shell => "Output",
                     _ => "Text",
                 };
-                code = Some((label.to_string(), String::new()));
+                code = Some((label, String::new()));
             }
             Event::Start(Tag::Heading { level: HeadingLevel::H2, .. }) if page.route == "/" => {
                 h2s += 1;
@@ -629,6 +636,66 @@ fn render(root: &Path, pages: &[Page], idx: usize) -> String {
     }
     let mut html = String::new();
     pulldown_cmark::html::push_html(&mut html, out.into_iter());
+    html
+}
+
+/// The events with each `<!-- codespaces -->` ... `<!-- /codespaces -->`
+/// span removed, markers included. Panics (failing the build) on a marker
+/// that is nested, unopened or unclosed, so no Codespaces line leaks into the
+/// guide and no page text silently disappears.
+fn without_codespaces<'a>(events: Vec<Event<'a>>, cur: &str) -> Vec<Event<'a>> {
+    let readme = if cur.is_empty() { "README.md".to_string() } else { format!("{cur}/README.md") };
+    let mut out = Vec::with_capacity(events.len());
+    let mut skipping = false;
+    for ev in events {
+        let marker = match &ev {
+            Event::Html(h) | Event::InlineHtml(h) => match h.trim() {
+                CODESPACES_OPEN => Some(true),
+                CODESPACES_CLOSE => Some(false),
+                t if t.contains("codespaces -->") => panic!("{readme}: a codespaces marker must be alone on its line: {t:?}"),
+                _ => None,
+            },
+            _ => None,
+        };
+        match marker {
+            Some(true) if skipping => panic!("{readme}: {CODESPACES_OPEN} inside another"),
+            Some(false) if !skipping => panic!("{readme}: {CODESPACES_CLOSE} with no {CODESPACES_OPEN}"),
+            Some(open) => skipping = open,
+            None if skipping => {}
+            None => out.push(ev),
+        }
+    }
+    assert!(!skipping, "{readme}: {CODESPACES_OPEN} is never closed");
+    // A marker is an HTML block of its own: drop the empty blocks left behind.
+    let mut kept: Vec<Event<'a>> = Vec::with_capacity(out.len());
+    for ev in out {
+        if matches!(ev, Event::End(TagEnd::HtmlBlock)) && matches!(kept.last(), Some(Event::Start(Tag::HtmlBlock))) {
+            kept.pop();
+            continue;
+        }
+        kept.push(ev);
+    }
+    kept
+}
+
+/// A code block: its label, a Copy button on what the reader sends (Shell,
+/// Chat), and the text.
+fn code_block(label: &str, text: &str) -> String {
+    let class = match label {
+        "Output" => " out",
+        "Chat" => " chat",
+        _ => "",
+    };
+    let copy = if matches!(label, "Shell" | "Chat") {
+        "<button type=\"button\" class=\"copy\">Copy</button>"
+    } else {
+        ""
+    };
+    let mut html = format!(
+        "<div class=\"code{class}\"><div class=\"code-bar\"><span class=\"code-label\">{label}</span>{copy}</div><pre><code>"
+    );
+    linkify(text.strip_suffix('\n').unwrap_or(text), false, &mut html);
+    html.push_str("</code></pre></div>\n");
     html
 }
 
