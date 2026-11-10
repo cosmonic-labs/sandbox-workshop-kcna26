@@ -189,7 +189,7 @@ So, when you run it for a group:
   the platform's toolbox plugin serves by listing and calling the tool
   components in the agent's own workload.
 
-The mock sites (`mock-sites`) are fake websites inside the
+The mock sites ([guide.localhost:28180/mock-sites](http://guide.localhost:28180/mock-sites/)) are fake websites inside the
 cluster, so steps 1 to 3 need no internet. One is an ordinary API, the host
 `curl` is allowed to reach. The other, `attacker.mock-sites.svc`, plays the
 server of someone who has hijacked your agent: the place an instruction
