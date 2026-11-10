@@ -90,7 +90,7 @@ cluster named `workshop-toolbox` and switches your kubectl context to it.
 
 | Step | Folder | What you'll see |
 | --- | --- | --- |
-| 1 | `steps/01-agent` | The agent with no tools: how it and its gullible model work, and that it can use only what its manifest gives it |
+| 1 | `steps/01-agent` | The agent with no tools: how it and its scripted model work, and that it can use only what its manifest gives it |
 | 2 | `steps/02-curl` | `curl` (prebuilt, or build your own) gets one host; its escapes (metadata service, other hosts, redirects, files) are refused |
 | 3 | `steps/03-sqlite` | `sqlite3`'s escapes (`.shell`, `ATTACH`, extensions) go nowhere; then the same talks behind a REST service and an MCP server, one grant per hop |
 | 4 | `steps/04-github` | A real job: triage wasmCloud's pull requests with `gh`, signed in or not; the GitHub capability refuses writes, and the token never leaves the platform |

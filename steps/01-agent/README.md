@@ -44,8 +44,8 @@ instead.
   workload's manifest gives the agent, and calls the one the model asks for.
   In this step the manifest gives none.
   
-The scripted model is **deliberately gullible**. It reads your prompt and
-every tool result, and it does whatever they say. It knows two kinds of
+The scripted model **does whatever it reads**, on purpose. It follows any
+instruction in your prompt or in a tool result, and it knows two kinds of
 instruction:
 
 * A tool's own command line, passed through as is: `curl -s <url>`,
