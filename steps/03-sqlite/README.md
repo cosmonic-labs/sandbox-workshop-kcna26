@@ -53,6 +53,9 @@ In the chat:
 sqlite select title, speaker from talks where track = 'Security' order by title
 ```
 
+The answer is longer than the chat shows at first. Click the tool's row to
+expand it, then **Show all** to see every line.
+
 In your terminal or Codespaces:
 
 ```sh
