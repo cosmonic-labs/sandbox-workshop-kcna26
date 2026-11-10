@@ -23,7 +23,7 @@ with asciinema, which `make tools` does not install: install it by following
 [asciinema's getting started guide](https://docs.asciinema.org/getting-started/#__tabbed_1_4).
 Then play it in a terminal (space pauses):
 
-```
+```sh
 asciinema play docs/walkthrough.cast
 ```
 
@@ -101,21 +101,27 @@ Each step includes the commands and the output to expect
 **Fell behind?** Every step's manifest is complete, so you can jump to any
 step with its one `kubectl apply`.
 
-## Chat in the browser, or use curl
+## Chat with the agent
 
-On your own machine or in a local dev container, open
-**http://agent.localhost:28180** in Chrome or Firefox to chat with the agent.
-Browsers send `*.localhost` to your own machine, and the dev container
-forwards port 28180, so it works in both.
+Step 1 deploys the agent, and its chat page comes up then: after step 1's
+Deploy command prints `condition met`, open **http://agent.localhost:28180**
+in your browser. Before that, the page doesn't load. On your own machine or
+in a local dev container, browsers send `*.localhost` to your own machine,
+and the dev container forwards port 28180, so it works in both.
 
-In Codespaces, use the curl command each step gives. Every request goes to
-`127.0.0.1:28180` with a `Host` header naming the agent.
+<!-- codespaces -->
+In Codespaces, run the `./ask` command each step gives instead, from the
+`sandbox-workshop-kcna26` folder. `./ask 'hello'` sends the prompt to the
+agent and prints its answer: the same request the chat page sends, to
+`127.0.0.1:28180` with the header `Host: agent.localhost`. If you set
+`HOST_HTTP` for `make up`, `./ask` uses it too.
+<!-- /codespaces -->
 
 ## GitHub Codespaces
 
 No Docker? Open the repo in Codespaces (Code > Codespaces > Create codespace
 on main) on a 4 core machine. Everything is installed, including Docker. Run
-`make up` in its terminal and follow the steps with curl. A browser pointed at
+`make up` in its terminal and follow the steps with `./ask`. A browser pointed at
 the forwarded port shows nothing useful, because it sends the codespace's own
 host name, not `agent.localhost`.
 
@@ -126,6 +132,7 @@ host name, not `agent.localhost`.
 | `make doctor`: Docker is not running, or has under 4 GB | Start Docker, or raise its memory limit (Docker Desktop: Settings > Resources) |
 | `make doctor`: Rust is not on your PATH | Only needed to build; run the `fix:` line it prints |
 | `curl: (7) Failed to connect to 127.0.0.1 port 28180` | The cluster is not up: `make up` |
+| The chat page at http://agent.localhost:28180 doesn't load or says 404, or `./ask` says `HTTP 404` | The agent isn't deployed yet: run step 1's Deploy command and wait for `condition met` |
 | `kubectl` talks to another cluster | `kubectl config use-context kind-workshop-toolbox` |
 | `kubectl wait` times out | The host is still pulling: `kubectl get workloads -A`, then try again |
 | Port 28180 is taken | `make clean`, then `HOST_HTTP=127.0.0.1:28190 make up` (the port is fixed when the cluster is created) |

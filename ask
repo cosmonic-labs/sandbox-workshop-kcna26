@@ -1,0 +1,31 @@
+#!/bin/sh
+# Send one prompt to the workshop agent and print its answer, as the chat
+# page at http://agent.localhost:28180 would. For Codespaces, where that page
+# can't be reached; on your own machine, use the chat.
+#
+#   ./ask 'fetch http://api.mock-sites.svc/data'
+#
+# It is one request: POST the prompt to 127.0.0.1:28180 with the header
+# Host: agent.localhost, which the ingress uses to pick the agent. Set
+# HOST_HTTP as for make up if your cluster uses another port.
+if [ "$#" -eq 0 ]; then
+  echo "usage: ./ask '<prompt>'" >&2
+  exit 2
+fi
+url="http://${HOST_HTTP:-127.0.0.1:28180}/"
+reply=$(curl -sS -m 120 -w '\n%{http_code}' -H 'Host: agent.localhost' --data-raw "$*" "$url") || exit
+nl='
+'
+code=${reply##*"$nl"}
+body=${reply%"$nl"*}
+case "$body" in
+  *"$nl" | "") printf '%s' "$body" ;;
+  *) printf '%s\n' "$body" ;;
+esac
+case "$code" in
+  2??) ;;
+  *)
+    echo "./ask: the agent answered HTTP $code. Is it deployed? Run step 1's Deploy command and wait for 'condition met'." >&2
+    exit 1
+    ;;
+esac

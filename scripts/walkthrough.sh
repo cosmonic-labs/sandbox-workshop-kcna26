@@ -12,9 +12,10 @@
 # Sections with no command, tables, other code blocks and the "In the chat:"
 # lead-ins are left out.
 #
-# It skips only GitHub sign-in (make github-sign-in and its curl calls),
-# which waits for a person to enter a code on github.com; step 4 runs signed
-# out. It needs Docker, Rust 1.98.1 (step 2 builds curl) and sqlite3, and
+# It skips GitHub sign-in (make github-sign-in and its curl calls), which
+# waits for a person to enter a code on github.com, so step 4 runs signed
+# out; and the README's asciinema play, which would play the recording. Each
+# prompt runs as its ./ask command. It needs Docker, Rust 1.98.1 (step 2 builds curl) and sqlite3, and
 # no workshop cluster already running (make clean).
 set -uo pipefail
 SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -30,6 +31,7 @@ for f in "$SRC"/steps/0*/README.md; do FILES+=("$f"); done
 skip() { # command
   case "$1" in
     *"make github-sign-in"* | *"/github/sign-in"* | *"/github/status"* | *"/github/sign-out"*) return 0 ;;
+    *"asciinema play"*) return 0 ;;
   esac
   return 1
 }
@@ -71,7 +73,7 @@ type_out() { # command
 # Lead-ins that say where to type, not what happens.
 lead_in() { # paragraph
   case "$1" in
-    "In the chat:" | "In your terminal or Codespaces:") return 0 ;;
+    "In the chat:" | "In Codespaces:" | "In your terminal or Codespaces:") return 0 ;;
   esac
   return 1
 }
@@ -135,7 +137,7 @@ for f in "${FILES[@]}"; do
     # A paragraph ends at a blank line, a heading, a code block, a table or
     # a new bullet.
     case "$line" in
-      '```'* | '#'* | '**'*'**' | '**'*'** ' | '|'* | '' | '* '* | '- '*) add_para ;;
+      '```'* | '#'* | '**'*'**' | '**'*'** ' | '|'* | '' | '* '* | '- '* | '<!--'*) add_para ;;
     esac
     case "$line" in
       '```'*)
@@ -155,7 +157,8 @@ for f in "${FILES[@]}"; do
         end_section
         titles+=("$line")
         ;;
-      '|'* | '') ;;
+      # Tables, blank lines, and the <!-- codespaces --> markers the guide uses.
+      '|'* | '' | '<!--'*) ;;
       *) para="${para:+$para }$(sed -E 's/^ +//' <<<"$line")" ;;
     esac
   done <"$f"

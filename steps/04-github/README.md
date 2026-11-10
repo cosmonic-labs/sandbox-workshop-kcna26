@@ -55,7 +55,11 @@ declares) under `hostInterfaces`:
 
 This step needs the internet: the answers come live from GitHub, so yours
 will differ from the samples here. Type each prompt into the chat at
-http://agent.localhost:28180, or run the curl command under it.
+http://agent.localhost:28180.
+
+<!-- codespaces -->
+In Codespaces, run the `./ask` command under it instead.
+<!-- /codespaces -->
 
 **1. Sign in (recommended, and in a room, needed):** click **Sign in with
 GitHub** at the top of the chat page, after this step's `kubectl apply`. The
@@ -97,7 +101,7 @@ GitHub's device flow instead:
 make github-sign-in
 ```
 
-```
+```text
 Open https://github.com/login/device and enter WDJB-MJHT
 Waiting for GitHub (Ctrl-C to stop waiting; the code expires in 14 minutes)...
 Signed in to GitHub as <you>
@@ -132,21 +136,21 @@ through that. The browser flow has no such limit.
 
 In the chat:
 
-```
+```chat
 triage the open PRs in wasmCloud/wasmCloud
 ```
 
-In your terminal or Codespaces:
+<!-- codespaces -->
+In Codespaces:
 
 ```sh
-curl -s -H 'Host: agent.localhost' \
-  http://127.0.0.1:28180/ \
-  -d 'triage the open PRs in wasmCloud/wasmCloud'
+./ask 'triage the open PRs in wasmCloud/wasmCloud'
 ```
+<!-- /codespaces -->
 
 The model turns this into `gh pr list -R wasmCloud/wasmCloud --limit 10`:
 
-```
+```text
 [tool gh] ok: 10 open pull requests in wasmCloud/wasmCloud, by updated (desc), page 1: #5886 test(operator): cover workload placement and lifecycle recovery (by ricochet, main <- ...
 ```
 
@@ -155,24 +159,24 @@ update, and labels and requested reviewers when there are any.
 
 **3. One pull request** (allowed) 
 
-In the chat:
-
-```
-gh pr view 5885
-```
-
 Pick any number from your list. The commands here use #5885, which is
 merged, so it reads the same for everyone.
 
-In your terminal or Codespaces:
+In the chat:
+
+```chat
+gh pr view 5885
+```
+
+<!-- codespaces -->
+In Codespaces:
 
 ```sh
-curl -s -H 'Host: agent.localhost' \
-  http://127.0.0.1:28180/ \
-  -d 'gh pr view 5885'
+./ask 'gh pr view 5885'
 ```
+<!-- /codespaces -->
 
-```
+```text
 [tool gh] ok: #5885 feat(wash): allow configuring the host ID https://github.com/wasmCloud/wasmCloud/pull/5885 State: merged Author: ricochet | ...
 ```
 
@@ -184,19 +188,19 @@ asked to review and what each reviewer decided, then the description. Add
 
 In the chat:
 
-```
+```chat
 gh pr checks 5885
 ```
 
-In your terminal or Codespaces:
+<!-- codespaces -->
+In Codespaces:
 
 ```sh
-curl -s -H 'Host: agent.localhost' \
-  http://127.0.0.1:28180/ \
-  -d 'gh pr checks 5885'
+./ask 'gh pr checks 5885'
 ```
+<!-- /codespaces -->
 
-```
+```text
 [tool gh] ok: Checks for #5885 in wasmCloud/wasmCloud at b156b0be: 72 passing, 0 failing, 0 pending ...
 ```
 
@@ -206,24 +210,25 @@ Failures come first, so a red pull request shows why at the top.
 
 In the chat:
 
-```
+```chat
 gh pr diff 5885
 ```
 
-In your terminal or Codespaces:
+<!-- codespaces -->
+In Codespaces:
 
 ```sh
-curl -s -H 'Host: agent.localhost' \
-  http://127.0.0.1:28180/ \
-  -d 'gh pr diff 5885'
+./ask 'gh pr diff 5885'
 ```
+<!-- /codespaces -->
 
-```
+```text
 [tool gh] ok: 2 files changed in wasmCloud/wasmCloud#5885 (page 1): modified crates/wash/src/cli/host.rs (+61 -1) ...
 ```
 
-Each changed file, then each file's patch. curl's transcript cuts each tool
-result to one line of 300 characters; the model reads all of it. The chat
+Each changed file, then each file's patch. The agent's text answer (what
+`./ask` prints) cuts each tool result to one line of 300 characters; the
+model reads all of it. The chat
 page shows the whole result, and draws a diff as one: each file's header,
 added lines in green with their `+`, removed lines in red with their `-`.
 
@@ -231,17 +236,17 @@ added lines in green with their `+`, removed lines in red with their `-`.
 
 In the chat:
 
-```
+```chat
 curl -s https://api.github.com/repos/wasmCloud/wasmCloud/pulls
 ```
 
-In your terminal or Codespaces:
+<!-- codespaces -->
+In Codespaces:
 
 ```sh
-curl -s -H 'Host: agent.localhost' \
-  http://127.0.0.1:28180/ \
-  -d 'curl -s https://api.github.com/repos/wasmCloud/wasmCloud/pulls'
+./ask 'curl -s https://api.github.com/repos/wasmCloud/wasmCloud/pulls'
 ```
+<!-- /codespaces -->
 
 `access-denied: api.github.com: this tool may not reach that host`. Signed
 in or not, curl's `allowedHosts` is the mock API host alone, and curl holds no
@@ -252,17 +257,17 @@ token in its memory and writes it nowhere, and curl's only folder is `/data`.
 
 In the chat:
 
-```
+```chat
 gh api -X POST /repos/wasmCloud/wasmCloud/issues/5885/comments
 ```
 
-In your terminal or Codespaces:
+<!-- codespaces -->
+In Codespaces:
 
 ```sh
-curl -s -H 'Host: agent.localhost' \
-  http://127.0.0.1:28180/ \
-  -d 'gh api -X POST /repos/wasmCloud/wasmCloud/issues/5885/comments'
+./ask 'gh api -X POST /repos/wasmCloud/wasmCloud/issues/5885/comments'
 ```
+<!-- /codespaces -->
 
 `gh api` sends exactly this request through the capability, past the tool's
 own commands (`gh pr merge` and the other writes are refused by the tool's
@@ -280,7 +285,7 @@ wasm-tools component wit artifacts/tool_gh.wasm \
   | grep -E '^  import (workshop|wasi:http|wasi:sockets|wasi:filesystem|wasmcloud)'
 ```
 
-```
+```text
   import workshop:toolbox/github-api@0.4.0;
 ```
 

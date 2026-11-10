@@ -36,33 +36,36 @@ workload may even ask for it. See it on the host pod:
 kubectl -n wasmcloud exec deploy/hostgroup-default -- ls /workshop/private-data
 ```
 
-```
+```text
 payroll.db
 ```
 
 ## Try each command
 
-Type each prompt into the chat at http://agent.localhost:28180, or run the
-curl command under it.
+Type each prompt into the chat at http://agent.localhost:28180.
+
+<!-- codespaces -->
+In Codespaces, run the `./ask` command under it instead.
+<!-- /codespaces -->
 
 **1. Ordinary SQL works** 
 
 In the chat:
 
-```
+```chat
 sqlite select title, speaker from talks where track = 'Security' order by title
 ```
 
 The answer is longer than the chat shows at first. Click the tool's row to
 expand it, then **Show all** to see every line.
 
-In your terminal or Codespaces:
+<!-- codespaces -->
+In Codespaces:
 
 ```sh
-curl -s -H 'Host: agent.localhost' \
-  http://127.0.0.1:28180/ \
-  -d "sqlite select title, speaker from talks where track = 'Security' order by title"
+./ask "sqlite select title, speaker from talks where track = 'Security' order by title"
 ```
+<!-- /codespaces -->
 
 The SQLite engine reads the talks database.
 
@@ -70,17 +73,17 @@ The SQLite engine reads the talks database.
 
 In the chat:
 
-```
+```chat
 sqlite .tables
 ```
 
-In your terminal or Codespaces:
+<!-- codespaces -->
+In Codespaces:
 
 ```sh
-curl -s -H 'Host: agent.localhost' \
-  http://127.0.0.1:28180/ \
-  -d 'sqlite .tables'
+./ask 'sqlite .tables'
 ```
+<!-- /codespaces -->
 
 The tool's shell turns `.tables` into a query on SQLite's schema table.
 
@@ -88,17 +91,17 @@ The tool's shell turns `.tables` into a query on SQLite's schema table.
 
 In the chat:
 
-```
+```chat
 sqlite attach 'file:/data/rooms.db?immutable=1' as r; select name, seats from r.rooms
 ```
 
-In your terminal or Codespaces:
+<!-- codespaces -->
+In Codespaces:
 
 ```sh
-curl -s -H 'Host: agent.localhost' \
-  http://127.0.0.1:28180/ \
-  -d "sqlite attach 'file:/data/rooms.db?immutable=1' as r; select name, seats from r.rooms"
+./ask "sqlite attach 'file:/data/rooms.db?immutable=1' as r; select name, seats from r.rooms"
 ```
+<!-- /codespaces -->
 
 The rooms come back. `?immutable=1` tells SQLite the file won't change, so it
 takes no locks, which a read-only folder can't hold.
@@ -107,17 +110,17 @@ takes no locks, which a read-only folder can't hold.
 
 In the chat:
 
-```
+```chat
 sqlite attach 'file:/workshop/private-data/payroll.db?immutable=1' as p; select name, salary from p.salaries
 ```
 
-In your terminal or Codespaces:
+<!-- codespaces -->
+In Codespaces:
 
 ```sh
-curl -s -H 'Host: agent.localhost' \
-  http://127.0.0.1:28180/ \
-  -d "sqlite attach 'file:/workshop/private-data/payroll.db?immutable=1' as p; select name, salary from p.salaries"
+./ask "sqlite attach 'file:/workshop/private-data/payroll.db?immutable=1' as p; select name, salary from p.salaries"
 ```
+<!-- /codespaces -->
 
 The same command with another path. `payroll.db` is a valid database on the
 host pod's disk, but it is not in this component's filesystem, so SQLite
@@ -136,17 +139,17 @@ sqlite3 databases/talks.db \
 
 In the chat:
 
-```
+```chat
 sqlite .shell id
 ```
 
-In your terminal or Codespaces:
+<!-- codespaces -->
+In Codespaces:
 
 ```sh
-curl -s -H 'Host: agent.localhost' \
-  http://127.0.0.1:28180/ \
-  -d 'sqlite .shell id'
+./ask 'sqlite .shell id'
 ```
+<!-- /codespaces -->
 
 The tool's own shell code answers this: "there is no shell here". That
 message is the tool's choice. The reason it couldn't do otherwise is below.
@@ -155,17 +158,17 @@ message is the tool's choice. The reason it couldn't do otherwise is below.
 
 In the chat:
 
-```
+```chat
 sqlite select load_extension('/tmp/evil')
 ```
 
-In your terminal or Codespaces:
+<!-- codespaces -->
+In Codespaces:
 
 ```sh
-curl -s -H 'Host: agent.localhost' \
-  http://127.0.0.1:28180/ \
-  -d "sqlite select load_extension('/tmp/evil')"
+./ask "sqlite select load_extension('/tmp/evil')"
 ```
+<!-- /codespaces -->
 
 "no such function": extension loading isn't compiled into this SQLite.
 

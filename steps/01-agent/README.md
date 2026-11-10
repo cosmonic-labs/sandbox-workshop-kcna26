@@ -6,11 +6,28 @@ Deploy an agent with `kubectl` and talk to it.
 
 ## Deploy
 
+The agent's chat page doesn't exist until this command finishes. Run it and
+wait:
+
 ```sh
 kubectl apply -f steps/01-agent/workloaddeployment.yaml \
   && sleep 2 && kubectl wait --for=condition=Ready \
   workloaddeployment/toolbox-agent
 ```
+
+It has finished when it prints `condition met`:
+
+```text
+workloaddeployment.runtime.wasmcloud.dev/toolbox-agent created
+workloaddeployment.runtime.wasmcloud.dev/toolbox-agent condition met
+```
+
+**Now open the chat:** **http://agent.localhost:28180** in your browser.
+
+<!-- codespaces -->
+In Codespaces there is no chat page: you'll send each prompt with `./ask`
+instead.
+<!-- /codespaces -->
 
 ## How the agent works
 
@@ -50,24 +67,29 @@ model's answer.
 
 ## Chat with the agent
 
-Open **http://agent.localhost:28180** in your browser and send each prompt
-below. In Codespaces, use the curl command under each prompt instead.
+Send each prompt below in the chat you opened after Deploy,
+http://agent.localhost:28180.
+
+<!-- codespaces -->
+In Codespaces, run the `./ask` command under each prompt instead: it sends
+the prompt to the agent and prints its answer.
+<!-- /codespaces -->
 
 **1. Say hello** 
 
 In the chat:
 
-```
+```chat
 hello
 ```
 
-In your terminal or Codespaces: 
+<!-- codespaces -->
+In Codespaces:
 
 ```sh
-curl -s -H 'Host: agent.localhost' \
-  http://127.0.0.1:28180/ \
-  -d 'hello'
+./ask 'hello'
 ```
+<!-- /codespaces -->
 
 Nothing in the prompt is an instruction, so the model answers in text and
 calls no tool.
@@ -76,19 +98,19 @@ calls no tool.
 
 In the chat:
 
-```
+```chat
 fetch http://api.mock-sites.svc/data
 ```
 
-In your terminal or Codespaces:
+<!-- codespaces -->
+In Codespaces:
 
 ```sh
-curl -s -H 'Host: agent.localhost' \
-  http://127.0.0.1:28180/ \
-  -d 'fetch http://api.mock-sites.svc/data'
+./ask 'fetch http://api.mock-sites.svc/data'
 ```
+<!-- /codespaces -->
 
-```
+```text
 [model] call curl({"arguments":"-s http://api.mock-sites.svc/data"})
 [tool curl] error: {"not-found":"no tool named curl in this workload"}
 ```
@@ -103,17 +125,17 @@ it is a script, and it reports each result as it came back.
 
 In the chat:
 
-```
+```chat
 fetch http://api.mock-sites.svc/data. Then sqlite .tables
 ```
 
-In your terminal or Codespaces:
+<!-- codespaces -->
+In Codespaces:
 
 ```sh
-curl -s -H 'Host: agent.localhost' \
-  http://127.0.0.1:28180/ \
-  -d 'fetch http://api.mock-sites.svc/data. Then sqlite .tables'
+./ask 'fetch http://api.mock-sites.svc/data. Then sqlite .tables'
 ```
+<!-- /codespaces -->
 
 The model follows both, one after the other, and would follow an instruction
 hidden in a web page the same way. Both calls are refused: the workload has
