@@ -2,7 +2,8 @@
 
 **Folder:** `steps/02-curl`
 
-`curl` is a component like any other. Its code decides how it reaches the
+This `curl` is a small stand-in written in Rust, and a
+component like any other. Its code decides how it reaches the
 network: through the host's HTTP client, with no sockets of its own. Which
 hosts it may reach isn't in its code. It is the `allowedHosts` line in the
 manifest, which this step sets to one host.
@@ -23,7 +24,7 @@ grant.
 Skip this section to use the prebuilt curl.
 
 You need Rust 1.98.1 with the `wasm32-wasip2` target (`make doctor` checks).
-`curl` is pure Rust, so no C toolchain is needed.
+The `curl` stand-in is pure Rust, so no C toolchain is needed.
 
 To make it yours, open `components/tool-curl/src/lib.rs` and change the
 message `"saved {} bytes to {path}\n"`, for example to
