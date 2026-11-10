@@ -480,6 +480,14 @@ case "$got" in
   *'[model] Hello! I am the workshop agent'*) ;;
   *) fail ask "./ask hello answers" '[model] Hello! I am the workshop agent ...' "$got" ;;
 esac
+# A prompt with JSON in it, as step 3 gives it, arrives whole: step 4's agent
+# keeps the mcp tool.
+CHECKED=$((CHECKED + 1))
+got=$(./ask 'mcp call list_talks {"track":"Security"}' 2>&1) || true
+case "$got" in
+  *'[tool mcp] ok: '*'Sandboxing Agents and the Code They Write'*) ;;
+  *) fail ask "./ask passes step 3's JSON prompt whole" '[tool mcp] ok: ... Sandboxing Agents ...' "$got" ;;
+esac
 
 # The guide (k8s/guide.yaml), at guide.localhost on the same ingress: the
 # overview lists every step, each step's page answers with a Copy button on
