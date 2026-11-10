@@ -31,6 +31,12 @@ pub fn css_response(css: &str) -> Result<Response, ErrorCode> {
     typed_response(200, "text/css; charset=utf-8", false, css.to_string())
 }
 
+/// An SVG image, for the guide's favicon.
+#[allow(dead_code)]
+pub fn svg_response(svg: &str) -> Result<Response, ErrorCode> {
+    typed_response(200, "image/svg+xml", false, svg.to_string())
+}
+
 /// A response with a JSON body.
 #[allow(dead_code)]
 pub fn json_response(status: u16, json: String) -> Result<Response, ErrorCode> {

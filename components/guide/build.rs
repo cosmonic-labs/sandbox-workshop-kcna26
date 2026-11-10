@@ -94,6 +94,13 @@ fn main() {
     let chat = fs::read_to_string(&chat).unwrap();
     let logo = between(&chat, "<svg class=\"logo\"", "</svg>");
     let logo = format!("<svg class=\"logo\"{logo}</svg>");
+    // The favicon: the logo's hexagon mark alone (its "m" path, in the logo's
+    // mark colour), centred in a square, since the wordmark is unreadable at 16px.
+    let mark = between(&logo, "<path class=\"m\" d=\"", "\"");
+    let favicon = format!(
+        "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"-2.61 0 42.03 42.03\">\
+         <path fill=\"#00bc8e\" d=\"{mark}\"/></svg>\n"
+    );
     // The palette: from the comment that introduces it to the first rule after it.
     let palette = between(&chat, "  /* wasmCloud palette", "  * { box-sizing");
     let palette = format!("  /* wasmCloud palette{palette}");
@@ -139,6 +146,8 @@ fn main() {
     // One stylesheet for every page, so each page doesn't carry its own copy.
     writeln!(out, "pub static CSS: &str = {css:?};").unwrap();
     fs::write(site.join("guide.css"), &css).unwrap();
+    writeln!(out, "pub static FAVICON: &str = {favicon:?};").unwrap();
+    fs::write(site.join("favicon.svg"), &favicon).unwrap();
 
     fs::write(PathBuf::from(env::var("OUT_DIR").unwrap()).join("pages.rs"), out).unwrap();
 }
