@@ -4,6 +4,7 @@
 //!   GET /                  the overview (README.md) and the step list
 //!   GET /steps/<folder>/   that folder's README.md (and /mock-sites/)
 //!   GET /guide.css         the one stylesheet every page uses
+//!   GET /favicon.svg       the tab icon: the wasmCloud logo's hexagon mark
 //!   GET /sources           the cksum of each README the pages were built from,
 //!                          so make verify can tell a stale guide
 //!
@@ -37,6 +38,9 @@ impl Guest for Guide {
         }
         if path == "/guide.css" {
             return http::css_response(CSS);
+        }
+        if path == "/favicon.svg" {
+            return http::svg_response(FAVICON);
         }
         if path == "/sources" {
             return http::text_response(200, SOURCES.to_string());
