@@ -132,7 +132,7 @@ host name, not `agent.localhost`.
 | `make doctor`: Docker is not running, or has under 4 GB | Start Docker, or raise its memory limit (Docker Desktop: Settings > Resources) |
 | `make doctor`: Rust is not on your PATH | Only needed to build; run the `fix:` line it prints |
 | `curl: (7) Failed to connect to 127.0.0.1 port 28180` | The cluster is not up: `make up` |
-| The chat page at http://agent.localhost:28180 doesn't load or says 404, or `./ask` says `HTTP 404` | The agent isn't deployed yet: run step 1's Deploy command and wait for `condition met` |
+| The chat page at http://agent.localhost:28180 doesn't load, or shows 404 or 502 Bad Gateway; or `./ask` says `no answer from the agent` | The agent isn't deployed yet: run step 1's Deploy command and wait for `condition met` |
 | `kubectl` talks to another cluster | `kubectl config use-context kind-workshop-toolbox` |
 | `kubectl wait` times out | The host is still pulling: `kubectl get workloads -A`, then try again |
 | Port 28180 is taken | `make clean`, then `HOST_HTTP=127.0.0.1:28190 make up` (the port is fixed when the cluster is created) |
