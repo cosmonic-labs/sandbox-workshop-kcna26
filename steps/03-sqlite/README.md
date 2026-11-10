@@ -201,8 +201,8 @@ components with grants of their own:
 | `talks-api` ([manifest](../../mock-sites/talks-api.yaml)) | A REST service over the talks, standing in for a service a team already runs. It knows nothing about agents. | Its own folder, for its data. No hosts. |
 | `talks-mcp` ([manifest](../../mock-sites/talks-mcp.yaml)) | An MCP server at `http://mcp.mock-sites.svc/mcp`. Each tool call becomes a request to the talks service. | One host: `talks.mock-sites.svc`. No folders. |
 
-This step's agent has a fourth tool, `mcp`, an MCP client whose grant is one
-host, the MCP server:
+This step's agent has a third tool next to `curl` and `sqlite`: `mcp`, an
+MCP client whose grant is one host, the MCP server:
 
 ```yaml
 - name: mcp
