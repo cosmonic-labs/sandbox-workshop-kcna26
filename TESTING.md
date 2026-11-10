@@ -25,7 +25,7 @@ make doctor
       registry and ingress lines, in about 2 minutes the
       first time.
       `kubectl config current-context` says `kind-workshop-toolbox`.
-- [ ] http://guide.localhost:28180 in Chrome or Firefox: the overview and
+- [ ] http://guide.localhost:28180 in your browser: the overview and
       the four steps, each step marked in the side list, Previous and Next at
       the bottom. A code block's **Copy** button says `Copied`, and what it
       copied pastes into a shell as written.
@@ -46,8 +46,8 @@ make doctor
       grant, the tool's own code, or the github-api plugin), and step 2's
       control reverts. A mismatch prints `FAIL`, what was wanted and what
       came back, and exits nonzero.
-- [ ] Every `$ curl ...` line in `steps/*/expected-output.txt` pastes into a
-      shell and runs as written.
+- [ ] Every `$ ./ask ...` and `$ curl ...` line in
+      `steps/*/expected-output.txt` pastes into a shell and runs as written.
 - [ ] `make clean`: the cluster and the registry container are gone, and
       `kubectl config current-context` is the context you had before
       `make up` (or unset, if you had none).
@@ -58,7 +58,8 @@ make doctor
       `make doctor` on its own; every Required line is green (Docker comes
       from the docker-in-docker feature).
 - [ ] `make up` completes inside the codespace. Note how long it takes.
-- [ ] Steps 1 to 4 run as written from the codespace terminal (step 2 with the prebuilt curl, step 4's
+- [ ] Steps 1 to 4 run as written from the codespace terminal, each prompt
+      with its `./ask` command (step 2 with the prebuilt curl, step 4's
       sign-in with `make github-sign-in`).
 
 ## 3. Build curl yourself

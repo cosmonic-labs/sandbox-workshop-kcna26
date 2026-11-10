@@ -2,19 +2,19 @@
 $ kubectl apply -f steps/01-agent/workloaddeployment.yaml && sleep 2 && kubectl wait --for=condition=Ready workloaddeployment/toolbox-agent
 
 # No instruction in the prompt: the model answers in text
-$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:28180/ -d 'hello'
+$ ./ask 'hello'
 [user] hello
 [model] Hello! I am the workshop agent running a scripted model. Ask me to run curl, sqlite or gh, for example "list the talks in sqlite" or "curl -s http://api.mock-sites.svc/data".
 
 # The model asks for curl; the workload has none, so the toolbox plugin says so
-$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:28180/ -d 'fetch http://api.mock-sites.svc/data'
+$ ./ask 'fetch http://api.mock-sites.svc/data'
 [user] fetch http://api.mock-sites.svc/data
 [model] call curl({"arguments":"-s http://api.mock-sites.svc/data"})
 [tool curl] error: {"not-found":"no tool named curl in this workload"}
 [model] Done. Here is what each step returned: curl: ERROR: {"not-found":"no tool named curl in this workload"}
 
 # Two instructions: the model follows both, and doesn't retry an error
-$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:28180/ -d 'fetch http://api.mock-sites.svc/data. Then sqlite .tables'
+$ ./ask 'fetch http://api.mock-sites.svc/data. Then sqlite .tables'
 [user] fetch http://api.mock-sites.svc/data. Then sqlite .tables
 [model] call curl({"arguments":"-s http://api.mock-sites.svc/data"})
 [tool curl] error: {"not-found":"no tool named curl in this workload"}

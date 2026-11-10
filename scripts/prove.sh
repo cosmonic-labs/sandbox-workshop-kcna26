@@ -11,6 +11,10 @@
 # instead. Everything else is deterministic: a second run on a fresh cluster
 # should leave `git diff steps` empty.
 #
+# A prompt is echoed as the ./ask command the READMEs give for Codespaces;
+# ./ask sends exactly the request made here (POST the prompt, with the
+# header Host: agent.localhost). verify also runs ./ask itself once.
+#
 # Step 4 needs the internet and makes 7 GitHub requests per run. Without a
 # sign-in GitHub allows 60 an hour per IP address; when they run out, verify
 # skips the live checks (SKIP) and still checks every refusal, and prove
@@ -68,7 +72,7 @@ live_mask() {
 }
 ask_live() { # name, prompt
   local reply
-  echo "\$ curl -s -H 'Host: agent.localhost' $URL/ -d $(shell_quote "$2")"
+  echo "\$ ./ask $(shell_quote "$2")"
   for _ in $(seq 1 30); do
     reply=$(curl -s -m 60 -w '\n%{http_code}' -H "Host: agent.localhost" "$URL/" -d "$2")
     case "${reply##*$'\n'}" in 502 | 503 | 504) sleep 1 ;; *) break ;; esac
@@ -84,9 +88,9 @@ ask_live() { # name, prompt
   echo
 }
 
-ask() { # host, prompt
+ask() { # host (agent.localhost, which ./ask names), prompt
   local reply
-  echo "\$ curl -s -H 'Host: $1' $URL/ -d $(shell_quote "$2")"
+  echo "\$ ./ask $(shell_quote "$2")"
   # Right after a workload is recreated, the ingress can answer 502 for a
   # moment while it picks up the new Service. Ask again; nothing reached the
   # agent.
@@ -280,13 +284,12 @@ fail() { # file, what, wanted, got
   echo "  - want: $3"
   echo "  + got:  $4"
 }
-# The reply to one prompt in a transcript: the lines after its "$ curl" line,
+# The reply to one prompt in a transcript: the lines after its "$ ./ask" line,
 # up to the blank line that ends it.
 reply() { # file, prompt
-  local tail
-  tail="-d $(shell_quote "$2")"
-  awk -v t="$tail" 'index($0, "$ curl ") == 1 && substr($0, length($0) - length(t) + 1) == t { on = 1; next }
-    on && $0 == "" { exit } on { print }' "$1"
+  local cmd
+  cmd="\$ ./ask $(shell_quote "$2")"
+  awk -v c="$cmd" '$0 == c { on = 1; next } on && $0 == "" { exit } on { print }' "$1"
 }
 # The first tool line of a reply must be ok, or the named error variant, and
 # contain every text given.
@@ -436,6 +439,15 @@ case "$got" in
   *) fail facts 'a callback with a state this workload never made is refused' '302 .../?github=expired' "$got" ;;
 esac
 
+# ./ask, the command the READMEs give for Codespaces, reaches the agent
+# (step 4's, the last one applied) and prints its answer.
+CHECKED=$((CHECKED + 1))
+got=$(./ask hello 2>&1) || true
+case "$got" in
+  *'[model] Hello! I am the workshop agent'*) ;;
+  *) fail ask "./ask hello answers" '[model] Hello! I am the workshop agent ...' "$got" ;;
+esac
+
 # The guide (k8s/guide.yaml), at guide.localhost on the same ingress: the
 # overview lists every step, each step's page answers with a Copy button on
 # its code, and it was built from the READMEs in this checkout.
@@ -454,6 +466,12 @@ for d in steps/0[1-9]*/; do
   case "${step##*$'\n'}:$step" in
     200:*'<button type="button" class="copy">Copy</button>'*) ;;
     *) fail guide "/$d answers with a Copy button" '200 and a Copy button' "${step##*$'\n'}" ;;
+  esac
+  # The guide runs where the chat page works: it leaves out the ./ask
+  # commands, which the READMEs mark <!-- codespaces --> for Codespaces.
+  CHECKED=$((CHECKED + 1))
+  case "$step" in
+    *'<code>./ask '*) fail guide "/$d leaves out the Codespaces ./ask commands" 'no ./ask block' 'an ./ask block' ;;
   esac
 done
 CHECKED=$((CHECKED + 1))

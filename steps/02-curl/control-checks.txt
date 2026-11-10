@@ -3,7 +3,7 @@
 $ kubectl apply -f steps/02-curl/control-wide-open.yaml && sleep 2 && kubectl wait --for=condition=Ready workloaddeployment/toolbox-agent
 
 # The same fetch that was refused now reaches the other host:
-$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:28180/ -d 'curl -s http://attacker.mock-sites.svc/collect'
+$ ./ask 'curl -s http://attacker.mock-sites.svc/collect'
 [user] curl -s http://attacker.mock-sites.svc/collect
 [model] call curl({"arguments":"-s http://attacker.mock-sites.svc/collect"})
 [tool curl] ok: attacker: got your request
@@ -12,7 +12,7 @@ $ curl -s -H 'Host: agent.localhost' http://127.0.0.1:28180/ -d 'curl -s http://
 $ kubectl apply -f steps/02-curl/workloaddeployment.yaml && sleep 2 && kubectl wait --for=condition=Ready workloaddeployment/toolbox-agent
 
 # Reverted: refused again
-$ curl -s -H 'Host: agent.localhost' http://127.0.0.1:28180/ -d 'curl -s http://attacker.mock-sites.svc/collect'
+$ ./ask 'curl -s http://attacker.mock-sites.svc/collect'
 [user] curl -s http://attacker.mock-sites.svc/collect
 [model] call curl({"arguments":"-s http://attacker.mock-sites.svc/collect"})
 [tool curl] error: {"access-denied":"attacker.mock-sites.svc: this tool may not reach that host (not in its allowedHosts)"}
