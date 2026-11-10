@@ -14,12 +14,14 @@ http://guide.localhost:28180, with a Copy button on every command.
 
 In Codespaces, follow the raw README files in each `/steps/` directory.
 
-## Watch it first
+## Watch it first (optional)
 
 [`docs/walkthrough.cast`](docs/walkthrough.cast) is a recording of the whole
 workshop, run from a fresh clone with exactly the commands in these READMEs
-and narrated in their words (about 18 minutes, step 4 signed out). Play it in
-a terminal (space pauses):
+and narrated in their words (about 18 minutes, step 4 signed out). It plays
+with asciinema, which `make tools` does not install: install it by following
+[asciinema's getting started guide](https://docs.asciinema.org/getting-started/#__tabbed_1_4).
+Then play it in a terminal (space pauses):
 
 ```
 asciinema play docs/walkthrough.cast
