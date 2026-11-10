@@ -21,9 +21,9 @@ body=${reply%"$nl"*}
 case "$code" in
   2??) ;;
   *)
-    # Not the agent: an error page from the ingress, usually because no agent
-    # is deployed yet.
-    echo "./ask: no answer from the agent (HTTP $code). Run step 1's Deploy command and wait for it to print 'condition met'." >&2
+    # Not the agent: an error page from the ingress. Either no agent is
+    # deployed yet, or a step's Deploy is still replacing it.
+    echo "./ask: no answer from the agent (HTTP $code). If you just ran a step's Deploy, wait until it prints 'condition met' and ask again. If you haven't deployed a step yet, run step 1's Deploy first." >&2
     exit 1
     ;;
 esac
