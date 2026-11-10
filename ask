@@ -18,14 +18,16 @@ nl='
 '
 code=${reply##*"$nl"}
 body=${reply%"$nl"*}
-case "$body" in
-  *"$nl" | "") printf '%s' "$body" ;;
-  *) printf '%s\n' "$body" ;;
-esac
 case "$code" in
   2??) ;;
   *)
-    echo "./ask: the agent answered HTTP $code. Is it deployed? Run step 1's Deploy command and wait for 'condition met'." >&2
+    # Not the agent: an error page from the ingress, usually because no agent
+    # is deployed yet.
+    echo "./ask: no answer from the agent (HTTP $code). Run step 1's Deploy command and wait for it to print 'condition met'." >&2
     exit 1
     ;;
+esac
+case "$body" in
+  *"$nl" | "") printf '%s' "$body" ;;
+  *) printf '%s\n' "$body" ;;
 esac
