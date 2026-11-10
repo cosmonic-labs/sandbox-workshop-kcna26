@@ -177,7 +177,7 @@ The tools you'll add are whole programs, and small:
 ls -l artifacts/tool_curl.wasm artifacts/tool_sqlite.wasm artifacts/tool_gh.wasm
 ```
 
-* `curl` is about 180 KB (181,780 bytes) 
+* `curl` is about 180 KB (183,702 bytes) 
 * `sqlite3` is about 1.2 MB (1,178,728)
 * `gh` is about 300 KB (296,735) 
 
