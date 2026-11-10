@@ -176,8 +176,8 @@ wasm-tools component wit artifacts/tool_sqlite.wasm | grep -E '^  import'
 ```
 
 The list (17 lines) is clocks, streams, terminal, environment, exit and
-filesystem. WASI has no interface that starts a process, and there is no HTTP
-client or socket. Even a sqlite3 with a real `.shell` would have nothing to
-start, and the filesystem holds only `/data`.
+filesystem. WASI has no interface that starts a process, and the component
+doesn't import an HTTP client or socket. Even a sqlite3 with a real `.shell`
+would have nothing to start, and the filesystem holds only `/data`.
 
 Full transcript: [`expected-output.txt`](expected-output.txt).
