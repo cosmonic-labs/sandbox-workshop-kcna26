@@ -1,8 +1,8 @@
-# Hands-on test checklist
+# Test checklist
 
-Run these before the workshop, on machines that have never seen this repo.
-Each run should take 15 to 20 minutes. Note anything that is slow, unclear or
-red, with the exact output.
+Use this checklist to try the workshop on a machine that has never seen this
+repo, for example before you run it for a group. Each run takes 15 to 20
+minutes. Note anything that is slow, unclear or red, with the exact output.
 
 ## 1. Fresh clone on macOS or Linux, with Docker
 
@@ -71,14 +71,14 @@ make doctor
       `steps/02-curl/workloaddeployment-mine.yaml`, and confirm the save prompt
       answers with your message.
 
-## 4. In the room
+## 4. On a shared network
 
 - [ ] Conference Wi-Fi: `make up` on a machine that ran `make tools && make
       up` the day before needs no downloads (kind's node image and the chart
       images are cached).
 - [ ] Jumping ahead works: on a fresh `make up`, `kubectl apply -f
       steps/04-github/workloaddeployment.yaml` alone, then step 4's commands.
-- [ ] Conference Wi-Fi and GitHub: everyone in the room shares one IP
+- [ ] Shared Wi-Fi and GitHub: everyone on the network shares one IP
       address, so the unauthenticated limit (60 requests an hour) runs out
       fast. Signed in, each person gets their own 5,000.
 
