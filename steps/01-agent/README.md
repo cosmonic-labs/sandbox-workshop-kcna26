@@ -29,6 +29,8 @@ In Codespaces there is no chat page: you'll send each prompt with `./ask`
 instead.
 <!-- /codespaces -->
 
+<!-- not-in-guide -->
+
 ## How the agent works
 
 * The **agent harness** runs the loop. It sends your prompt to the model, and
@@ -64,6 +66,8 @@ The answer to each prompt is the whole transcript, so you can see every step:
 `[user]` is your prompt, `[model] call ...` is the tool the model asked for,
 `[tool ...]` is what the tool returned, and the last `[model]` line is the
 model's answer.
+
+<!-- /not-in-guide -->
 
 ## Chat with the agent
 
@@ -115,11 +119,9 @@ In Codespaces:
 [tool curl] error: {"not-found":"no tool named curl in this workload"}
 ```
 
-The model asked for curl anyway, and the toolbox plugin refused: this
-workload has no curl. The agent can only use what its manifest gives it: the harness itself imports no HTTP
+The agent can only use what its manifest gives it: the harness itself imports no HTTP
 client, no files and no sockets, so it has no way to fetch the page on its
-own. The model's last line starts with "Done." whatever the tools returned;
-it is a script, and it reports each result as it came back.
+own.
 
 **3. Two instructions in one prompt** 
 
@@ -141,6 +143,8 @@ The model follows both, one after the other, and would follow an instruction
 hidden in a web page the same way. Both calls are refused: the workload has
 neither tool.
 
+<!-- not-in-guide -->
+
 ## What you ran
 
 | Component | Can reach |
@@ -153,6 +157,8 @@ hosts and folders.
 
 In the next steps we'll give the agent some real tools, each with
 their own grants.
+
+<!-- /not-in-guide -->
 
 ## Look inside (optional)
 
