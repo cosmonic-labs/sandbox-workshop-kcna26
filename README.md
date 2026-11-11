@@ -24,8 +24,8 @@ export PATH="$PWD/.tools:$PATH"
 starts the cluster: about 2 minutes the first time. In Codespaces the repo is
 already cloned and open, so run only the last two lines.
 
-**Cloned it before November 10?** Run `git pull && make clean up` in place
-of `make tools doctor up`.
+**Cloned it before November 10?** Run `git pull && make clean up` instead of
+`make tools doctor up`.
 
 Then, on your own machine, follow the steps in your browser at
 http://guide.localhost:28180, with a Copy button on every command. In
