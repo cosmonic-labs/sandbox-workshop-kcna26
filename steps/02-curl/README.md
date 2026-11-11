@@ -143,7 +143,7 @@ In Codespaces, run the `./ask` command under it instead.
 
 **1. Fetch the granted host** 
 
-In the chat:
+In the chat (not Codespaces):
 
 ```chat
 fetch http://api.mock-sites.svc/data
@@ -162,7 +162,7 @@ The prompt that got "no tool named curl" in step 1. The host is in curl's
 
 **2. Save a page into the tool's folder** 
 
-In the chat:
+In the chat (not Codespaces):
 
 ```chat
 save http://api.mock-sites.svc/data to page.html
@@ -185,7 +185,7 @@ so the write succeeds: the folder is the boundary, not a blanket ban.
 
 **3. The metadata service is refused** 
 
-In the chat:
+In the chat (not Codespaces):
 
 ```chat
 curl -s http://169.254.169.254/latest/meta-data/
@@ -203,7 +203,7 @@ On most clouds this address hands out credentials. The host refuses it before an
 
 **4. An attacker's server is refused** 
 
-In the chat:
+In the chat (not Codespaces):
 
 ```chat
 curl -s http://attacker.mock-sites.svc/collect
@@ -224,7 +224,7 @@ refuses the request before it leaves.
 
 **5. A redirect can't sneak past** 
 
-In the chat:
+In the chat (not Codespaces):
 
 ```chat
 curl -sL http://api.mock-sites.svc/redirect
@@ -242,7 +242,7 @@ The granted host redirects to the attacker's server. The host checks every hop, 
 
 **6. Writing outside /data fails** 
 
-In the chat:
+In the chat (not Codespaces):
 
 ```chat
 curl -o /etc/evil -s http://api.mock-sites.svc/data
@@ -261,7 +261,7 @@ says "No such file or directory"; the tool calls that `access-denied`.
 
 **7. Reading a file:// URL outside /data fails** 
 
-In the chat:
+In the chat (not Codespaces):
 
 ```chat
 curl -s file:///etc/passwd
@@ -280,7 +280,7 @@ through the same one folder, so `/etc/passwd` doesn't exist for it.
 
 **8. Reading a file:// URL inside /data works** 
 
-In the chat:
+In the chat (not Codespaces):
 
 ```chat
 curl -s file:///data/page.html

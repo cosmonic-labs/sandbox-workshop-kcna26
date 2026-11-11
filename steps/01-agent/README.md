@@ -77,7 +77,7 @@ the prompt to the agent and prints its answer.
 
 **1. Say hello** 
 
-In the chat:
+In the chat (not Codespaces):
 
 ```chat
 hello
@@ -96,7 +96,7 @@ calls no tool.
 
 **2. Ask for a tool** 
 
-In the chat:
+In the chat (not Codespaces):
 
 ```chat
 fetch http://api.mock-sites.svc/data
@@ -123,7 +123,7 @@ it is a script, and it reports each result as it came back.
 
 **3. Two instructions in one prompt** 
 
-In the chat:
+In the chat (not Codespaces):
 
 ```chat
 fetch http://api.mock-sites.svc/data. Then sqlite .tables
