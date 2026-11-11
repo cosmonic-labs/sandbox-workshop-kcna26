@@ -88,8 +88,8 @@ runtime:
       # restarts.
       #
       # client-id and client-secret name the GitHub OAuth app sign-in uses
-      # (KubeCon sandbox workshop, owned by cosmonic-labs; its tokens expire
-      # after 8 hours),
+      # (KubeCon sandbox workshop, owned by cosmonic-labs; as an OAuth app,
+      # its tokens have no fixed expiry and are revoked after a year unused),
       # and redirect-uri is where GitHub sends the browser back: it must be
       # the app's callback URL, and Enable Device Flow must be ticked for
       # the code flow. Until all three are set, sign-in reports that it isn't
