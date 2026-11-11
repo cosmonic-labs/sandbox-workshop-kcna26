@@ -34,8 +34,9 @@ asciinema play docs/walkthrough.cast
 * Or nothing at all: GitHub Codespaces (see below).
 * About 1 GB for toolchains and dependencies, installed with `make tools && make up`.
 * For step 4, the internet and a GitHub account. Sign in to github.com in
-  your browser before the workshop. Signing the agent in is optional, but in a
-  room it is what keeps step 4 working: see "Running it for a room" below.
+  your browser before you start. Signing the agent in to GitHub is optional,
+  but on a shared network it keeps step 4 working: see "Running the workshop
+  for a group" below.
 * Optional, to build `curl` yourself in step 2: Rust 1.98.1 with the
   `wasm32-wasip2` target, and one `make build` beforehand to fetch the
   crates. Without it, step 2 uses the prebuilt image.
@@ -143,30 +144,28 @@ host name, not `agent.localhost`.
 `make down` changes nothing. `make clean` deletes the cluster and its
 registry, and switches kubectl back to the context you had before `make up`.
 
-## Running it for a room
+## Running the workshop for a group
 
-Signed out, step 4's `gh` prompts share GitHub's unauthenticated limit: 60
-requests an hour for each public IP address, and a room on one Wi-Fi is one
-address. Each prompt costs 1 to 3 requests, about 10 for the whole step, so
-the room's 60 run out after about six people, for up to an hour. Signed in,
-each person gets their own 5,000.
+Step 4 reads live data from GitHub. Signed out, GitHub allows 60 requests an
+hour for each public IP address, and everyone on the same Wi-Fi shares one.
+The step uses about 10 requests per person, so a shared network runs out
+after about six people. Signed in, each person gets their own 5,000 an hour.
 
-So, when you run it for a group:
+If you're teaching this workshop to a group:
 
-* Ask everyone to bring a GitHub account and to be signed in to github.com in
-  their browser before they arrive.
+* Ask everyone to bring a GitHub account.
 * At step 4, after its `kubectl apply`, have everyone click **Sign in with
-  GitHub** on the chat page. Not earlier: each step's manifest makes a new
-  workload, and a new workload starts signed out.
-* Use the browser button, not `make github-sign-in`. GitHub lets one OAuth
-  app start only 50 device flow sign-ins an hour, for everyone. Keep the
-  terminal flow for Codespaces, which reaches GitHub from its own address,
-  not the room's.
-* Say what sign-in grants: no scopes, so the token reads only what anyone can
-  read; it stays in the github-api plugin's memory; it expires after 8 hours;
-  and GitHub > Settings > Applications revokes it.
-* For anyone who would rather not sign in: prompts 6 to 8 (the refusals) send
-  nothing to GitHub, and step 4 shows a sample of every answer.
+  GitHub** on the chat page. Each step deploys a new workload, which starts
+  signed out, so signing in earlier doesn't carry over.
+* In the room, use the browser sign-in. The terminal sign-in
+  (`make github-sign-in`) uses GitHub's device flow, which allows 50 sign-ins
+  an hour for the whole app. Keep it for Codespaces, which reaches GitHub from
+  its own address.
+* Sign-in asks for no scopes, so the token can read only what anyone can
+  read. It stays in the github-api plugin's memory, expires after 8 hours,
+  and can be revoked under GitHub > Settings > Applications.
+* Anyone can follow along without signing in: prompts 6 to 8 send nothing to
+  GitHub, and step 4 shows a sample of every answer.
 
 ## How it fits together
 

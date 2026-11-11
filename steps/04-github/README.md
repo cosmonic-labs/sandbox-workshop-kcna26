@@ -61,7 +61,7 @@ http://agent.localhost:28180.
 In Codespaces, run the `./ask` command under it instead.
 <!-- /codespaces -->
 
-**1. Sign in (recommended, and in a room, needed):** click **Sign in with
+**1. Sign in (recommended, and on shared Wi-Fi, needed):** click **Sign in with
 GitHub** at the top of the chat page, after this step's `kubectl apply`. The
 button is there in every step, but each step's manifest makes a new workload,
 which starts signed out, so sign in here.
