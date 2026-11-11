@@ -134,7 +134,7 @@ through that. The browser flow has no such limit.
 
 **2. The open pull requests** (allowed) 
 
-In the chat:
+In the chat (not Codespaces):
 
 ```chat
 triage the open PRs in wasmCloud/wasmCloud
@@ -162,7 +162,7 @@ update, and labels and requested reviewers when there are any.
 Pick any number from your list. The commands here use #5885, which is
 merged, so it reads the same for everyone.
 
-In the chat:
+In the chat (not Codespaces):
 
 ```chat
 gh pr view 5885
@@ -186,7 +186,7 @@ asked to review and what each reviewer decided, then the description. Add
 
 **4. Its checks** (allowed) 
 
-In the chat:
+In the chat (not Codespaces):
 
 ```chat
 gh pr checks 5885
@@ -208,7 +208,7 @@ Failures come first, so a red pull request shows why at the top.
 
 **5. Its diff** (allowed) 
 
-In the chat:
+In the chat (not Codespaces):
 
 ```chat
 gh pr diff 5885
@@ -234,7 +234,7 @@ added lines in green with their `+`, removed lines in red with their `-`.
 
 **6. curl straight at GitHub** (refused: the grant)
 
-In the chat:
+In the chat (not Codespaces):
 
 ```chat
 curl -s https://api.github.com/repos/wasmCloud/wasmCloud/pulls
@@ -255,7 +255,7 @@ token in its memory and writes it nowhere, and curl's only folder is `/data`.
 
 **7. A write, through the capability** (refused: the plugin)
 
-In the chat:
+In the chat (not Codespaces):
 
 ```chat
 gh api -X POST /repos/wasmCloud/wasmCloud/issues/5885/comments
