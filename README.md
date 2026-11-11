@@ -9,10 +9,27 @@ fail
 * Give your agent a real job, triaging pull requests on GitHub (optionally signed
 in with your own account)
 
-On your own machine, after `make up`, you can read these steps in your browser at
-http://guide.localhost:28180, with a Copy button on every command. 
+## Start here
 
-In Codespaces, follow the raw README files in each `/steps/` directory.
+Run these four commands:
+
+```sh
+git clone https://github.com/cosmonic-labs/sandbox-workshop-kcna26
+cd sandbox-workshop-kcna26
+make tools doctor up
+export PATH="$PWD/.tools:$PATH"
+```
+
+`make tools doctor up` downloads the pinned tools, checks your machine and
+starts the cluster: about 2 minutes the first time. In Codespaces the repo is
+already cloned and open, so run only the last two lines.
+
+**Cloned it before November 10?** Run `git pull && make clean up` in place
+of `make tools doctor up`.
+
+Then, on your own machine, follow the steps in your browser at
+http://guide.localhost:28180, with a Copy button on every command. In
+Codespaces, follow the README files in each `/steps/` directory.
 
 ## Watch it first (optional)
 
@@ -47,45 +64,20 @@ outside the repo and nothing needs sudo.
 
 ## Set up
 
-Clone the repo and go into it:
+The commands in [Start here](#start-here) do this:
 
-```sh
-git clone https://github.com/cosmonic-labs/sandbox-workshop-kcna26
-```
-
-```sh
-cd sandbox-workshop-kcna26
-```
-
-Download the pinned tools into `.tools/`:
-
-```sh
-make tools
-```
-
-Use those tools in this terminal:
-
-```sh
-export PATH="$PWD/.tools:$PATH"
-```
-
-Check this machine (changes nothing):
-
-```sh
-make doctor
-```
-
-Start the kind cluster and the wasmCloud chart (about 2 minutes the first
-time):
-
-```sh
-make up
-```
+* `make tools` downloads the pinned tools into `.tools/`: wash, wasm-tools,
+  kind, kubectl and helm. Nothing is installed system wide.
+* `make doctor` checks this machine and changes nothing. Fix any red line
+  with the `fix:` it prints, then run `make tools doctor up` again.
+* `make up` starts the kind cluster and the wasmCloud chart. It creates a
+  kind cluster named `workshop-toolbox` and switches your kubectl context to
+  it.
+* `export PATH=...` makes this terminal use the pinned `kubectl` and
+  `wasm-tools`.
 
 Every command in the steps runs from the `sandbox-workshop-kcna26` folder. In
-each new terminal, `cd` there and run the `export PATH` line again, so
-`kubectl` and `wasm-tools` are the pinned ones. `make up` creates a kind
-cluster named `workshop-toolbox` and switches your kubectl context to it.
+each new terminal, `cd` there and run the `export PATH` line again.
 
 ## Steps
 
@@ -122,8 +114,10 @@ made with another `HOST_HTTP`, set it for `./ask` too, for example
 ## GitHub Codespaces
 
 No Docker? Open the repo in Codespaces (Code > Codespaces > Create codespace
-on main) on a 4 core machine. Everything is installed, including Docker. Run
-`make up` in its terminal and follow the steps with `./ask`. A browser pointed at
+on main) on a 4 core machine. Everything is installed, including Docker. In
+its terminal, run the last two lines from [Start here](#start-here)
+(`make tools doctor up` and the `export PATH` line), then follow the steps
+with `./ask`. A browser pointed at
 the forwarded port shows nothing useful, because it sends the codespace's own
 host name, not `agent.localhost`.
 

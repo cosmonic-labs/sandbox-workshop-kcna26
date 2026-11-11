@@ -572,8 +572,9 @@ fn render(root: &Path, pages: &[Page], idx: usize) -> String {
             }
             Event::Start(Tag::Heading { level: HeadingLevel::H2, .. }) if page.route == "/" => {
                 h2s += 1;
-                // The step list goes after the introduction, before Requirements.
-                if h2s == 2 {
+                // The step list goes after the introduction and Start here,
+                // before the next section.
+                if h2s == 3 {
                     out.push(Event::Html(step_list(pages).into()));
                 }
                 after_shell = false;
