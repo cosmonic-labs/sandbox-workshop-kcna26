@@ -18,7 +18,10 @@
 //!     left out: each prompt's `./ask` form and the lines that point to it.
 //!     The guide runs only on the reader's own machine, where the chat page
 //!     works; on GitHub the comments don't show and Codespaces readers keep
-//!     those lines. An unbalanced marker fails the build
+//!     those lines. So is what lies between `<!-- not-in-guide -->` and
+//!     `<!-- /not-in-guide -->`: README sections a reader who already has
+//!     the guide open doesn't need (setup, Codespaces, notes for whoever
+//!     runs or maintains the workshop). An unbalanced marker fails the build
 //!   * URLs a browser can open become links (in text and in code), but not
 //!     the ones that only work with a Host header or inside the cluster
 //!   * links between READMEs, and inline code naming a step folder, go to
@@ -44,6 +47,9 @@ const CHAT: &str = "http://agent.localhost:28180";
 /// Around what only Codespaces readers need, which the guide leaves out.
 const CODESPACES_OPEN: &str = "<!-- codespaces -->";
 const CODESPACES_CLOSE: &str = "<!-- /codespaces -->";
+/// Around README sections for readers who don't have the guide open yet.
+const NOT_IN_GUIDE_OPEN: &str = "<!-- not-in-guide -->";
+const NOT_IN_GUIDE_CLOSE: &str = "<!-- /not-in-guide -->";
 /// Folders with a README that the guide serves but that are not steps.
 const NOT_STEPS: [&str; 1] = ["mock-sites"];
 
@@ -572,9 +578,9 @@ fn render(root: &Path, pages: &[Page], idx: usize) -> String {
             }
             Event::Start(Tag::Heading { level: HeadingLevel::H2, .. }) if page.route == "/" => {
                 h2s += 1;
-                // The step list goes after the introduction and Start here,
-                // before the next section.
-                if h2s == 3 {
+                // The step list goes after the introduction, before the first
+                // section the guide keeps.
+                if h2s == 2 {
                     out.push(Event::Html(step_list(pages).into()));
                 }
                 after_shell = false;
@@ -651,22 +657,24 @@ fn without_codespaces<'a>(events: Vec<Event<'a>>, cur: &str) -> Vec<Event<'a>> {
     for ev in events {
         let marker = match &ev {
             Event::Html(h) | Event::InlineHtml(h) => match h.trim() {
-                CODESPACES_OPEN => Some(true),
-                CODESPACES_CLOSE => Some(false),
-                t if t.contains("codespaces -->") => panic!("{readme}: a codespaces marker must be alone on its line: {t:?}"),
+                CODESPACES_OPEN | NOT_IN_GUIDE_OPEN => Some(true),
+                CODESPACES_CLOSE | NOT_IN_GUIDE_CLOSE => Some(false),
+                t if t.contains("codespaces -->") || t.contains("not-in-guide -->") => {
+                    panic!("{readme}: a guide marker must be alone on its line: {t:?}")
+                }
                 _ => None,
             },
             _ => None,
         };
         match marker {
-            Some(true) if skipping => panic!("{readme}: {CODESPACES_OPEN} inside another"),
-            Some(false) if !skipping => panic!("{readme}: {CODESPACES_CLOSE} with no {CODESPACES_OPEN}"),
+            Some(true) if skipping => panic!("{readme}: a guide marker opened inside another"),
+            Some(false) if !skipping => panic!("{readme}: a guide marker closed with none open"),
             Some(open) => skipping = open,
             None if skipping => {}
             None => out.push(ev),
         }
     }
-    assert!(!skipping, "{readme}: {CODESPACES_OPEN} is never closed");
+    assert!(!skipping, "{readme}: a guide marker is never closed");
     // A marker is an HTML block of its own: drop the empty blocks left behind.
     let mut kept: Vec<Event<'a>> = Vec::with_capacity(out.len());
     for ev in out {

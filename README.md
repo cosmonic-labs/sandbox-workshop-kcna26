@@ -9,6 +9,8 @@ fail
 * Give your agent a real job, triaging pull requests on GitHub (optionally signed
 in with your own account)
 
+<!-- not-in-guide -->
+
 ## Start here
 
 Run these four commands:
@@ -94,6 +96,8 @@ Each step includes the commands and the output to expect
 **Fell behind?** Every step's manifest is complete, so you can jump to any
 step with its one `kubectl apply`.
 
+<!-- /not-in-guide -->
+
 ## Chat with the agent
 
 Step 1 deploys the agent, and its chat page comes up then: after step 1's
@@ -111,6 +115,8 @@ made with another `HOST_HTTP`, set it for `./ask` too, for example
 `HOST_HTTP=127.0.0.1:28190 ./ask 'hello'`.
 <!-- /codespaces -->
 
+<!-- not-in-guide -->
+
 ## GitHub Codespaces
 
 No Docker? Open the repo in Codespaces (Code > Codespaces > Create codespace
@@ -121,6 +127,8 @@ with `./ask`. A browser pointed at
 the forwarded port shows nothing useful, because it sends the codespace's own
 host name, not `agent.localhost`.
 
+<!-- /not-in-guide -->
+
 ## Troubleshooting
 
 | You see | Fix |
@@ -130,6 +138,7 @@ host name, not `agent.localhost`.
 | `curl: (7) Failed to connect to 127.0.0.1 port 28180` | The cluster is not up: `make up` |
 | The chat page at http://agent.localhost:28180 doesn't load, or shows 404 or 502 Bad Gateway; or `./ask` says `no answer from the agent` | No agent is deployed yet: run step 1's Deploy command and wait for `condition met`. Right after a later step's Deploy, wait for its `condition met` and try again |
 | Safari can't find `guide.localhost` or `agent.localhost` (older macOS) | Open the same address in Chrome or Firefox, which always send `*.localhost` to your own machine |
+| `kubectl: command not found`, or a different `kubectl` version, in a new terminal | `cd` to the `sandbox-workshop-kcna26` folder and run `export PATH="$PWD/.tools:$PATH"` again |
 | `kubectl` talks to another cluster | `kubectl config use-context kind-workshop-toolbox` |
 | `kubectl wait` times out | The host is still pulling: `kubectl get workloads -A`, then try again |
 | Port 28180 is taken | `make clean`, then `HOST_HTTP=127.0.0.1:28190 make up` (the port is fixed when the cluster is created) |
@@ -137,6 +146,8 @@ host name, not `agent.localhost`.
 
 `make down` changes nothing. `make clean` deletes the cluster and its
 registry, and switches kubectl back to the context you had before `make up`.
+
+<!-- not-in-guide -->
 
 ## Running the workshop for a group
 
@@ -156,10 +167,12 @@ If you're teaching this workshop to a group:
   an hour for the whole app. Keep it for Codespaces, which reaches GitHub from
   its own address.
 * Sign-in asks for no scopes, so the token can read only what anyone can
-  read. It stays in the github-api plugin's memory, expires after 8 hours,
-  and can be revoked under GitHub > Settings > Applications.
+  read. It stays in the github-api plugin's memory until you sign out or the
+  host restarts, and can be revoked under GitHub > Settings > Applications.
 * Anyone can follow along without signing in: prompts 6 to 8 send nothing to
   GitHub, and step 4 shows a sample of every answer.
+
+<!-- /not-in-guide -->
 
 ## How it fits together
 
@@ -207,12 +220,14 @@ thing that stopped the leak. Step 3 adds two more on the same host group: a
 REST service over the talks and an MCP server in front of it, each an
 ordinary HTTP component with its own grant.
 
+<!-- not-in-guide -->
+
 ## Notes and caveats
 
 * The github-api plugin keeps each sign-in in its memory, keyed by the
-  workload's id, and nothing clears the entry when a workload goes away: a
-  replaced workload's token stays in the plugin's memory, unused, until the
-  host restarts. A real platform would keep tokens in a secrets store and
+  workload's id. Signing out clears it, but nothing clears the entry when a
+  workload goes away: a replaced workload's token stays in the plugin's
+  memory, unused, until the host restarts. A real platform would keep tokens in a secrets store and
   drop them when the workload is deleted.
 * GitHub sign-in's browser flow comes back to a fixed address, the
   plugin's `redirect-uri` in `k8s/values.yaml`:
@@ -236,10 +251,12 @@ ordinary HTTP component with its own grant.
   `ghcr.io/cosmonic-labs/sandbox-workshop-kcna26/<name>`, with the same
   digests `k8s/values.yaml` pins. After changing a component, run
   `make artifacts` (needs Docker) and commit the result.
-* CI (`.github/workflows/ci.yml`) also runs the components' unit tests and
-  clippy, and runs the workshop itself on every push and pull request:
+* CI (`.github/workflows/ci.yml`) also runs the components' unit tests,
+  clippy and the Desktop helper's tests, and runs the workshop itself on every push and pull request:
   `make up` on a fresh kind cluster, then `make verify`.
 
 ## License
 
 Apache-2.0. See [LICENSE](LICENSE).
+
+<!-- /not-in-guide -->
