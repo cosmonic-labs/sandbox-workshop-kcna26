@@ -76,7 +76,9 @@ fi
 # with nothing to pull from.
 if ! docker ps --format '{{.Names}}' | grep -qx "$REGISTRY_CONTAINER"; then
   docker rm -f "$REGISTRY_CONTAINER" >/dev/null 2>&1 || true
-  docker run -d --restart unless-stopped --name "$REGISTRY_CONTAINER" -p "127.0.0.1:$KIND_REGISTRY_PORT:5000" "$REGISTRY_IMAGE" >/dev/null
+  # Start it on the kind network: rootless Podman's default (pasta) network
+  # mode cannot be connected to another network afterwards.
+  docker run -d --restart unless-stopped --network kind --name "$REGISTRY_CONTAINER" -p "127.0.0.1:$KIND_REGISTRY_PORT:5000" "$REGISTRY_IMAGE" >/dev/null
   sleep 1
 fi
 docker network connect kind "$REGISTRY_CONTAINER" 2>/dev/null || true

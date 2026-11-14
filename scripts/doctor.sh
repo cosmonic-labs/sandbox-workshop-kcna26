@@ -82,7 +82,10 @@ elif ! docker info >/dev/null 2>&1; then
   fail "Docker is installed but not running" \
     "fix: $(pkg_hint 'open -a Docker' 'sudo systemctl start docker')    (then wait until it says it is running)"
 else
-  mem=$(docker info --format '{{.MemTotal}}' 2>/dev/null || echo 0)
+  # Docker reports .MemTotal; Podman's docker shim reports .Host.MemTotal.
+  mem=$(docker info --format '{{.MemTotal}}' 2>/dev/null \
+    || docker info --format '{{.Host.MemTotal}}' 2>/dev/null \
+    || echo 0)
   if [ "${mem:-0}" -lt 3500000000 ]; then
     fail "Docker has $((mem / 1000000)) MB of memory; the cluster needs about 4 GB" \
       "fix: raise Docker's memory limit to 4 GB or more (Docker Desktop: Settings > Resources)"
