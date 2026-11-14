@@ -17,24 +17,29 @@ metadata:
   name: workshop-ingress
   namespace: wasmcloud
 data:
-  default.conf: |
+  # Read by the nginx image's entrypoint as a template: it fills in
+  # ${NGINX_LOCAL_RESOLVERS} with the DNS server from the pod's own
+  # /etc/resolv.conf (the cluster's kube-dns), and leaves nginx's own
+  # $variables alone. Every upstream is a variable, so nginx looks names up
+  # per request with that server and never at startup: it starts even before
+  # cluster DNS answers, and a name that doesn't resolve is a 502 for that
+  # request (with the reason in the log) instead of a crash loop. Its resolver
+  # also takes names as written, without the pod's DNS search list, which
+  # on WSL2 can carry a Windows domain that Alpine's resolver gives up on.
+  default.conf.template: |
     proxy_http_version 1.1;
     proxy_set_header Host $http_host;
     proxy_buffering off;
     proxy_read_timeout 120s;
-    resolver kube-dns.kube-system.svc.cluster.local valid=10s ipv6=off;
+    resolver ${NGINX_LOCAL_RESOLVERS} valid=10s ipv6=off;
     map $host $backend {
       default            hostgroup-default.wasmcloud.svc.cluster.local;
       agent.localhost    toolbox-agent.default.svc.cluster.local;
+      guide.localhost    hostgroup-mock-sites.mock-sites.svc.cluster.local;
     }
     server {
       listen 80 default_server;
       location / { proxy_pass http://$backend; }
-    }
-    server {
-      listen 80;
-      server_name guide.localhost;
-      location / { proxy_pass http://hostgroup-mock-sites.mock-sites.svc.cluster.local; }
     }
 ---
 apiVersion: apps/v1
@@ -57,10 +62,13 @@ spec:
           # (NODE_IMAGES in scripts/env.sh), so IfNotPresent never pulls it.
           image: docker.io/library/nginx:1.27.5-alpine
           imagePullPolicy: IfNotPresent
+          env:
+            # Fill ${NGINX_LOCAL_RESOLVERS} from /etc/resolv.conf.
+            - { name: NGINX_ENTRYPOINT_LOCAL_RESOLVERS, value: "1" }
           ports:
             - { containerPort: 80, name: http }
           volumeMounts:
-            - { name: conf, mountPath: /etc/nginx/conf.d }
+            - { name: conf, mountPath: /etc/nginx/templates }
       volumes:
         - name: conf
           configMap:
